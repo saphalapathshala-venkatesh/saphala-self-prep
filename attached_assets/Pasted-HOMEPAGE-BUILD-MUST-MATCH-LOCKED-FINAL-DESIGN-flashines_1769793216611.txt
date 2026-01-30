@@ -1,0 +1,57 @@
+HOMEPAGE BUILD — MUST MATCH LOCKED FINAL DESIGN (flashiness ~3.65)
+
+Scope:
+- Work ONLY inside /web
+- Do NOT change tech stack
+- Do NOT introduce any UI libraries (no MUI/Chakra/shadcn/etc.)
+- Use Tailwind + simple components only
+- Do NOT modify locked files unless asked (ui-core/*, styles/tokens.ts, styles/typography.ts)
+
+TASKS:
+1) HEADER (app-wide)
+- Left: Saphala Self Prep logo (use /public logo file placeholder)
+- Nav links: Home, Courses, Products
+- Right: Log In link + Create Account glossy button
+- Headings/text color for titles should be dark purple (not black)
+
+2) HERO SECTION
+- Big headline in dark purple
+- Subtitle (1–2 lines)
+- Two glossy CTA buttons: "Create Free Account" (primary) + "Explore Courses" (secondary)
+- Keep clean and study-friendly
+
+3) BANNER CAROUSEL
+- Max 5 banners
+- Left/right arrows
+- Overlay to keep text readable
+- Use mock data in /web/config/banners.ts
+- Make it responsive
+
+4) TWO FEATURE CARDS (main product cards)
+- Card 1: Self-Prep Module (Material, read-only, PDFs, cheat sheets, topic tests)
+- Card 2: Saphala TestHub Simulator (only tests: topic/subject/grand tests)
+- Buttons glossy CTA
+- Use check bullet points
+
+5) FEATURED COURSES SLIDER (important)
+- Show ONLY 5 course cards visible at a time on desktop
+- Horizontal slider, moves left → right
+- Each course card must have a category badge label (e.g., MATHEMATICS, SCIENCE, HUMANITIES, TECHNOLOGY)
+- Use mock data in /web/config/featuredCourses.ts
+- On mobile: 1–2 visible cards max, swipe/scroll works
+
+6) FOOTER (redesign)
+- Clean, modern, not too dark
+- Columns:
+  - About Us
+  - Contact Us (form link placeholder)
+  - Social links (icons placeholders)
+  - Contact details placeholders
+- Keep consistent with brand colors
+
+DELIVERABLES:
+- Create /web/config/banners.ts, /web/config/featuredCourses.ts, /web/config/footer.ts
+- Create components under /web/ui-core/ for: Header, Footer, BannerCarousel, CourseCarousel, FeatureCards
+- Update /web/app/page.tsx to render the complete homepage
+- Ensure everything works in Preview without errors
+- Do NOT add backend/auth yet (UI only)
