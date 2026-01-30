@@ -15,6 +15,7 @@ export const Header = () => {
           <Link href="/" className="text-gray-600 hover:text-[#2D1B69] font-medium">Home</Link>
           <Link href="/courses" className="text-gray-600 hover:text-[#2D1B69] font-medium">Courses</Link>
           <Link href="/products" className="text-gray-600 hover:text-[#2D1B69] font-medium">Products</Link>
+          <Link href="/about" className="text-gray-600 hover:text-[#2D1B69] font-medium">About</Link>
         </nav>
 
         <div className="flex items-center gap-4">
