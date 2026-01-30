@@ -17,7 +17,7 @@ export const FeatureCards = () => {
               <span className="text-green-500 font-bold">✓</span> Topic-based practice tests
             </li>
           </ul>
-          <button className="btn-glossy-primary mt-auto">Access Modules</button>
+          <button className="btn-glossy-primary mt-auto">Start Self-Prep</button>
         </div>
 
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-purple-100 flex flex-col items-start">
@@ -35,7 +35,7 @@ export const FeatureCards = () => {
               <span className="text-green-500 font-bold">✓</span> Detailed performance analytics
             </li>
           </ul>
-          <button className="btn-glossy-primary mt-auto">Start Simulator</button>
+          <button className="btn-glossy-primary mt-auto">Take a Test</button>
         </div>
       </div>
     </section>
