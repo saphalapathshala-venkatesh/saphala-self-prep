@@ -1,3 +1,66 @@
+Goal: Fix production on Vercel where Create Account (header) and Create Free Account (home hero) don’t navigate to /register.
+Constraint: No design/layout changes, no refactors, no new components. Only make the CTAs navigate correctly.
+
+Do this exactly:
+
+Locate the real CTAs used in production
+
+Open: web/ui-core/Header.tsx
+
+Open: web/app/page.tsx
+
+Fix Header CTA (critical)
+In web/ui-core/Header.tsx, ensure both desktop and mobile “Create Account” CTAs are Next.js Links, not <button>.
+
+✅ Desktop CTA must be exactly:
+
+<Link href="/register" ...>Create Account</Link>
+(or <Link href="/register" className="...">Create Account</Link>)
+
+✅ Mobile overlay CTA must also be a Link to /register.
+
+🚫 If you find <button className="btn-glossy-primary ...">Create Account</button>, replace it with <Link href="/register" className="btn-glossy-primary ...">Create Account</Link> and keep the same classes so visuals don’t change.
+
+Fix Home Hero CTA
+In web/app/page.tsx, ensure:
+
+“Create Free Account” is <Link href="/register" className="btn-glossy-primary">Create Free Account</Link>
+If it’s a <button> or has onClick without router navigation, fix it to Link.
+
+Do NOT use legacyBehavior and do NOT wrap in <a>
+Keep it simple: Next.js App Router supports <Link className="...">.
+
+Keep existing CSS click fixes
+Do not remove your globals.css pointer-events rules. Don’t change button styles.
+
+Verification (must run and paste results)
+Run:
+
+cd ~/workspace/web
+npm run build
+rg -n "Create Account|Create Free Account" ui-core app -S
+
+
+Then verify in browser console (on Vercel deployment) both return anchors:
+
+document.querySelectorAll('a[href="/register"]').length
+document.querySelectorAll('a[href="/register"]').forEach(a => console.log(a.outerHTML))
+
+
+Commit + push
+Only commit the exact files changed:
+
+web/ui-core/Header.tsx
+
+web/app/page.tsx (only if needed)
+
+Commit message:
+fix(cta): ensure register CTAs use Next Link
+
+✅ New web/ui-core/Header.tsx (only necessary modifications)
+
+Paste this file as-is (this guarantees “Create Account” is a real <a> via Next <Link>, not a dead <button>). I kept your structure and styling intact; only ensured navigation CTAs are Links and added type="button" to the hamburger so it never interferes.
+
 'use client';
 
 import Link from 'next/link';
