@@ -29,7 +29,7 @@ export const Header = () => {
         <div className="flex items-center gap-3 md:gap-4 flex-shrink-0">
           <div className="hidden sm:flex items-center gap-3 md:gap-4">
             <Link href="/login" className="btn-glossy-secondary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Log In</Link>
-            <button className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Create Account</button>
+            <Link href="/register" className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Create Account</Link>
           </div>
           
           {/* Mobile Menu Toggle */}
@@ -62,7 +62,7 @@ export const Header = () => {
           </nav>
           <div className="flex flex-col gap-4 sm:hidden">
             <Link href="/login" onClick={() => setIsMenuOpen(false)} className="btn-glossy-secondary text-center py-3">Log In</Link>
-            <button className="btn-glossy-primary w-full py-3">Create Account</button>
+            <Link href="/register" onClick={() => setIsMenuOpen(false)} className="btn-glossy-primary w-full py-3 text-center">Create Account</Link>
           </div>
         </div>
       )}

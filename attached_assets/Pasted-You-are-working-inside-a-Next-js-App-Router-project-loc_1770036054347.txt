@@ -1,0 +1,95 @@
+You are working inside a Next.js App Router project located in /web.
+This project already has Feature 1 authentication implemented and pushed to GitHub/Vercel.
+Your task is NOT to rebuild. Your task is to FIX and HARDEN Feature 1 so it works on Vercel.
+
+========================
+ABSOLUTE NON-NEGOTIABLE RULES
+========================
+1) DO NOT redesign or modify existing UI styles, layout, colors, spacing, typography, or branding.
+2) DO NOT change any locked UI on home page, header, hero section, or any existing pages.
+3) Only make minimal code changes required to fix navigation + auth flow.
+4) Do NOT add a database or external services now. Keep in-memory stores.
+5) Ensure `npm run build` passes inside /web.
+6) Do not remove any existing pages or routes.
+
+========================
+PROBLEM TO FIX (LOCKED EXPECTATION)
+========================
+On Vercel, the "Create Account" button (top-right header) and the "Create Free Account" CTA on home page must work.
+They must navigate to /register reliably.
+
+Additionally, the Register form must submit correctly:
+- It must trigger POST /api/auth/register
+- It must show clear inline error messages on validation failure
+- On success, it must set HTTP-only cookie and redirect to /dashboard
+
+========================
+REQUIRED FIXES (DO EXACTLY THESE)
+========================
+
+A) NAVIGATION FIX (MOST IMPORTANT)
+1) Find the top-right header button labeled "Create Account".
+   - It MUST be a Next.js <Link href="/register">, not a <button> without routing.
+   - Keep existing className exactly to preserve styling.
+2) Find the homepage CTA button labeled "Create Free Account".
+   - It MUST be a Next.js <Link href="/register">, not a <button> without routing.
+   - Keep existing className exactly.
+3) If any CTA uses onClick routing, replace with <Link> for reliability.
+
+B) REGISTER FORM HARDENING
+1) Ensure `web/app/register/RegisterForm.tsx` is a Client Component and begins with:
+   "use client";
+2) Ensure the form uses `onSubmit={handleSubmit}` and prevent default submission.
+3) Ensure it calls:
+   fetch("/api/auth/register", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(...) })
+4) On success (res.ok):
+   - Redirect using next/navigation router.push("/dashboard")
+5) On error:
+   - Read error message from JSON and show an inline message (do not use alert()).
+
+C) VALIDATION RULES (MUST MATCH UI + BACKEND)
+Signup fields (ALL mandatory):
+- Email
+- Mobile number (India only, 10 digits)
+- Password (min 8)
+- Confirm Password (must match)
+
+Mobile field UX:
+- Display Indian flag 🇮🇳 + ISD code +91 (non-editable)
+- User enters ONLY 10 digits
+- Digits only, max=10
+- If <10 digits: inline error, block submit
+- Error text must be EXACT:
+  "Please enter a valid 10-digit Indian mobile number."
+
+Backend must revalidate (never trust UI):
+- Normalize email lowercase
+- Normalize mobile digits only and check length===10
+- Reject invalid payloads with:
+  { ok:false, message:"..." }
+
+D) LOGIN FLOW (DO NOT BREAK EXISTING UI)
+- Login identifier field accepts Email or Mobile
+- If identifier contains '@' -> email else -> mobile
+- On success -> redirect /dashboard
+- Keep styling unchanged
+
+E) ROUTE PROTECTION
+- Keep existing route protection implementation.
+- Do NOT redesign it.
+- Ensure unauthenticated access to /dashboard redirects to /login.
+
+========================
+OUTPUT REQUIREMENTS
+========================
+After changes:
+1) List all files modified (only those needed).
+2) Confirm that both CTAs now navigate to /register on Vercel.
+3) Confirm that register form triggers POST /api/auth/register.
+4) Run and confirm `npm run build` succeeds in /web.
+
+========================
+SCOPE LIMIT
+========================
+Do not implement any new features (no XP, no dashboard redesign, no course system).
+Only fix navigation + auth flow reliability.

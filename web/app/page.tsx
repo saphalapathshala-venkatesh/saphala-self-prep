@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Header } from '@/ui-core/Header';
 import { Footer } from '@/ui-core/Footer';
 import { BannerCarousel } from '@/ui-core/BannerCarousel';
@@ -20,8 +21,8 @@ export default function Home() {
             Access premium modules and state-of-the-art simulators today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="btn-glossy-primary">Create Free Account</button>
-            <button className="btn-glossy-secondary">Explore Courses</button>
+            <Link href="/register" className="btn-glossy-primary">Create Free Account</Link>
+            <Link href="/courses" className="btn-glossy-secondary">Explore Courses</Link>
           </div>
         </div>
       </section>
