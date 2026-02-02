@@ -35,8 +35,8 @@ export const Header = () => {
         {/* Right: Buttons + Hamburger */}
         <div className="flex items-center gap-3 md:gap-4 flex-shrink-0 relative z-10">
           <div className="hidden sm:flex items-center gap-3 md:gap-4">
-            <Link href="/login" className="btn-glossy-secondary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Log In</Link>
-            <Link href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Create Account</Link>
+            <Link href="/login" className="btn-glossy-secondary text-sm px-4 lg:px-6 py-2 whitespace-nowrap relative z-20 pointer-events-auto">Log In</Link>
+            <Link href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap relative z-20 pointer-events-auto">Create Account</Link>
           </div>
           
           {/* Mobile Menu Toggle */}
@@ -68,8 +68,8 @@ export const Header = () => {
             <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="text-gray-600 font-medium py-2">Contact</Link>
           </nav>
           <div className="flex flex-col gap-4 sm:hidden">
-            <Link href="/login" onClick={() => setIsMenuOpen(false)} className="btn-glossy-secondary text-center py-3">Log In</Link>
-            <Link href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary w-full py-3 text-center">Create Account</Link>
+            <Link href="/login" onClick={() => setIsMenuOpen(false)} className="btn-glossy-secondary text-center py-3 relative z-20 pointer-events-auto">Log In</Link>
+            <Link href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary w-full py-3 text-center relative z-20 pointer-events-auto">Create Account</Link>
           </div>
         </div>
       )}
