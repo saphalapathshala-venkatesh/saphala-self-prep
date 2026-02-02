@@ -5,18 +5,13 @@ import { useState } from 'react';
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const handleCreateAccountClick = () => {
-    setIsMenuOpen(false);
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[Header] Create Account clicked, navigating to /register');
-    }
-  };
+  const closeMenu = () => setIsMenuOpen(false);
 
   return (
-    <header className="bg-white shadow-sm sticky top-0 z-50">
+    <header className="bg-white shadow-sm sticky top-0 z-[100]">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4 relative">
         {/* Left: Logo */}
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 relative z-10">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-10 h-10 bg-purple-700 rounded-lg flex items-center justify-center text-white font-bold">S</div>
             <span className="text-xl font-bold text-[#2D1B69] hidden sm:inline">Saphala Self Prep</span>
@@ -33,10 +28,10 @@ export const Header = () => {
         </nav>
 
         {/* Right: Buttons + Hamburger */}
-        <div className="flex items-center gap-3 md:gap-4 flex-shrink-0 relative z-50 pointer-events-auto">
-          <div className="hidden sm:flex items-center gap-3 md:gap-4 pointer-events-auto">
-            <a href="/login" className="btn-glossy-secondary text-sm px-4 lg:px-6 py-2 whitespace-nowrap relative z-[100] pointer-events-auto">Log In</a>
-            <a href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap relative z-[100] pointer-events-auto">Create Account</a>
+        <div className="flex items-center gap-3 md:gap-4 flex-shrink-0 relative z-10">
+          <div className="hidden sm:flex items-center gap-3 md:gap-4">
+            <Link href="/login" className="btn-glossy-secondary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Log In</Link>
+            <Link href="/register" className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Create Account</Link>
           </div>
           
           {/* Mobile Menu Toggle */}
@@ -57,19 +52,19 @@ export const Header = () => {
         </div>
       </div>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Menu Overlay - ONLY rendered when menu is open */}
       {isMenuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 py-6 px-4 absolute w-full shadow-lg z-40">
+        <div className="md:hidden bg-white border-t border-gray-100 py-6 px-4 absolute w-full shadow-lg z-[90]">
           <nav className="flex flex-col gap-4 mb-8">
-            <Link href="/" onClick={() => setIsMenuOpen(false)} className="text-gray-600 font-medium py-2">Home</Link>
-            <Link href="/courses" onClick={() => setIsMenuOpen(false)} className="text-gray-600 font-medium py-2">Courses</Link>
-            <Link href="/products" onClick={() => setIsMenuOpen(false)} className="text-gray-600 font-medium py-2">Products</Link>
-            <Link href="/about" onClick={() => setIsMenuOpen(false)} className="text-gray-600 font-medium py-2">About</Link>
-            <Link href="/contact" onClick={() => setIsMenuOpen(false)} className="text-gray-600 font-medium py-2">Contact</Link>
+            <Link href="/" onClick={closeMenu} className="text-gray-600 font-medium py-2">Home</Link>
+            <Link href="/courses" onClick={closeMenu} className="text-gray-600 font-medium py-2">Courses</Link>
+            <Link href="/products" onClick={closeMenu} className="text-gray-600 font-medium py-2">Products</Link>
+            <Link href="/about" onClick={closeMenu} className="text-gray-600 font-medium py-2">About</Link>
+            <Link href="/contact" onClick={closeMenu} className="text-gray-600 font-medium py-2">Contact</Link>
           </nav>
           <div className="flex flex-col gap-4 sm:hidden">
-            <a href="/login" onClick={() => setIsMenuOpen(false)} className="btn-glossy-secondary text-center py-3 relative z-20 pointer-events-auto">Log In</a>
-            <a href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary w-full py-3 text-center relative z-20 pointer-events-auto">Create Account</a>
+            <Link href="/login" onClick={closeMenu} className="btn-glossy-secondary text-center py-3">Log In</Link>
+            <Link href="/register" onClick={closeMenu} className="btn-glossy-primary w-full py-3 text-center">Create Account</Link>
           </div>
         </div>
       )}
