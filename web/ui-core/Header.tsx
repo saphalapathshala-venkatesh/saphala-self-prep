@@ -74,12 +74,13 @@ export const Header = () => {
             >
               Log In
             </Link>
-            <Link
-              href="/register"
-              onClick={handleCreateAccountClick}
-              className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap cursor-pointer"
-            >
-              Create Account
+            <Link href="/register" legacyBehavior>
+              <a
+                onClick={handleCreateAccountClick}
+                className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap cursor-pointer"
+              >
+                Create Account
+              </a>
             </Link>
           </div>
 
@@ -154,15 +155,16 @@ export const Header = () => {
             >
               Log In
             </Link>
-            <Link
-              href="/register"
-              onClick={() => {
-                closeMenu();
-                handleCreateAccountClick();
-              }}
-              className="btn-glossy-primary w-full py-3 text-center cursor-pointer"
-            >
-              Create Account
+            <Link href="/register" legacyBehavior>
+              <a
+                onClick={() => {
+                  closeMenu();
+                  handleCreateAccountClick();
+                }}
+                className="btn-glossy-primary w-full py-3 text-center cursor-pointer"
+              >
+                Create Account
+              </a>
             </Link>
           </div>
         </div>
