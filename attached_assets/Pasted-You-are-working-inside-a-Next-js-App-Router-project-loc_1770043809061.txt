@@ -1,0 +1,38 @@
+You are working inside a Next.js App Router project located in /web.
+
+Goal: Fix the issue where clicking the Header "Create Account" CTA sometimes does NOT navigate to /register on Vercel, even though /register works when opened directly.
+
+ABSOLUTE RULES
+1) DO NOT change the visual design (colors, spacing, typography, sizes, shadows). Keep all existing className strings exactly.
+2) Only fix click/navigation reliability for the Header CTAs.
+3) Must remain Next.js best practice (use <Link> not window.location).
+4) Ensure npm run build passes in /web.
+
+CONTEXT
+The header CTA exists in:
+- web/ui-core/Header.tsx (two Create Account links: desktop + mobile)
+
+TASKS
+A) In web/ui-core/Header.tsx:
+   1) Confirm BOTH desktop and mobile "Create Account" CTAs are rendered using:
+      <Link href="/register" ...>Create Account</Link>
+      Do not use <button> for navigation.
+   2) Ensure BOTH of these links close the mobile menu when clicked.
+      - If the desktop CTA doesn't currently call setIsMenuOpen(false), add an onClick handler to do so.
+      - For desktop, it's safe to call setIsMenuOpen(false) even if menu is closed.
+      - Keep className identical.
+   3) Fix potential overlay click-blocking:
+      - Ensure the header wrapper has a stable z-index higher than any hero/background overlays.
+      - Add a minimal z-index class to the header container (e.g., z-50) ONLY if it is missing.
+      - If there is any absolute/overlay element inside header or near the CTA with pointer-events enabled, set pointer-events-none on the overlay and pointer-events-auto on the CTA container.
+      - Do NOT modify the look; only adjust clickability using z-index / pointer-events.
+
+B) Add a tiny diagnostic safeguard (no UI change):
+   - In development only (process.env.NODE_ENV !== "production"), log to console when the Create Account link is clicked.
+   - Do NOT log in production.
+
+C) Verification:
+   1) Run npm run build inside /web and confirm it passes.
+   2) Provide a short list of files modified.
+
+IMPORTANT: Do not touch pages, auth logic, forms, dashboard, XP, or styles. Only Header click reliability.
