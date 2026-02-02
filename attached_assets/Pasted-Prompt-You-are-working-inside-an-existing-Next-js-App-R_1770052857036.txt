@@ -1,0 +1,105 @@
+Prompt:
+
+You are working inside an existing Next.js App Router project. DO NOT redesign anything. DO NOT change layout, spacing, colors, text, or add new features.
+
+Problem:
+On Vercel (production), the “Create Account” header button and the “Create Free Account” hero button do not click. Other links work. This indicates the glossy button CSS overlay is intercepting pointer events in production.
+
+Goal:
+Fix clickability for any element using these classes:
+
+.btn-glossy-primary
+
+.btn-glossy-secondary
+
+(and any shared glossy button base class if present)
+
+Rules:
+
+Make ONLY minimal code/CSS changes required to restore click navigation.
+
+Keep visuals exactly the same.
+
+Do not modify unrelated files.
+
+Tasks:
+
+Locate where these classes are defined (likely in web/app/globals.css or web/styles/globals.css).
+Use ripgrep:
+rg -n "btn-glossy-primary|btn-glossy-secondary" web -S
+
+In that CSS file, apply these minimal click-safety rules:
+
+A) Ensure the actual clickable element is above overlays:
+.btn-glossy-primary,
+.btn-glossy-secondary {
+position: relative;
+cursor: pointer;
+pointer-events: auto;
+}
+
+B) If the button uses ::before / ::after overlays, they MUST NOT intercept clicks:
+.btn-glossy-primary::before,
+.btn-glossy-primary::after,
+.btn-glossy-secondary::before,
+.btn-glossy-secondary::after {
+pointer-events: none !important;
+}
+
+C) If the button style uses an inner overlay element (common patterns: “.shine”, “.glow”, “.overlay”, “.btn-bg” etc),
+ensure any child overlay layers do not intercept clicks:
+.btn-glossy-primary * ,
+.btn-glossy-secondary * {
+pointer-events: none;
+}
+BUT keep the anchor/button itself clickable, so immediately override:
+.btn-glossy-primary,
+.btn-glossy-secondary {
+pointer-events: auto;
+}
+
+D) If the text inside is wrapped in span, ensure it is above overlays:
+.btn-glossy-primary > span,
+.btn-glossy-secondary > span {
+position: relative;
+z-index: 1;
+}
+
+IMPORTANT:
+Do not change shadows/gradients. Do not remove overlays. Only adjust pointer-events/z-index/position.
+
+Verify locally (Replit preview):
+
+Clicking header “Create Account” navigates to /register
+
+Clicking hero “Create Free Account” navigates to /register
+
+Cursor shows pointer over those buttons
+
+Verify by console test in browser:
+
+Run:
+document.querySelectorAll('a[href="/register"]').length
+and click should work.
+
+Also run:
+document.elementFromPoint(window.innerWidth - 100, 40)
+should return the anchor/button for Create Account, not an overlay div/pseudo layer.
+
+Run:
+cd ~/workspace/web
+npm run build
+It must pass.
+
+Commit ONLY the minimal CSS file(s) you changed, with message:
+fix(css): prevent glossy button overlays from blocking clicks
+
+Push to origin main.
+
+Output:
+
+Tell me exactly which CSS file was modified.
+
+Show the exact diff snippet (only the new CSS rules).
+
+Confirm build passed.

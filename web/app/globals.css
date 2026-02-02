@@ -1,11 +1,25 @@
 @import "tailwindcss";
 
 @layer components {
+  .btn-glossy-primary,
+  .btn-glossy-secondary {
+    position: relative;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
   .btn-glossy-primary {
     @apply bg-purple-700 text-white font-semibold py-3 px-8 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 hover:bg-purple-800 relative overflow-hidden;
     background: linear-gradient(135deg, #6D28D9 0%, #4C1D95 100%);
   }
   
+  .btn-glossy-primary::before,
+  .btn-glossy-primary::after,
+  .btn-glossy-secondary::before,
+  .btn-glossy-secondary::after {
+    pointer-events: none !important;
+  }
+
   .btn-glossy-primary::after {
     @apply content-[''] absolute top-0 left-0 w-full h-1/2 bg-white opacity-20 transform -skew-x-12 -translate-x-1/2;
     transition: all 0.5s;
@@ -17,6 +31,12 @@
 
   .btn-glossy-secondary {
     @apply bg-white text-purple-700 font-semibold py-3 px-8 rounded-full border border-purple-200 shadow-md transition-all duration-300 transform hover:scale-105 hover:bg-purple-50;
+  }
+
+  .btn-glossy-primary > span,
+  .btn-glossy-secondary > span {
+    position: relative;
+    z-index: 1;
   }
 }
 
