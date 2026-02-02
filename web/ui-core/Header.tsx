@@ -25,7 +25,7 @@ export const Header = () => {
         </div>
         
         {/* Center: Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6 lg:gap-10 absolute left-1/2 -translate-x-1/2 pointer-events-none">
+        <nav className="hidden md:flex items-center gap-6 lg:gap-10 absolute left-1/2 -translate-x-1/2 z-0 pointer-events-none">
           <Link href="/" className="text-gray-600 hover:text-[#2D1B69] font-medium transition-colors pointer-events-auto">Home</Link>
           <Link href="/courses" className="text-gray-600 hover:text-[#2D1B69] font-medium transition-colors pointer-events-auto">Courses</Link>
           <Link href="/products" className="text-gray-600 hover:text-[#2D1B69] font-medium transition-colors pointer-events-auto">Products</Link>
@@ -34,10 +34,10 @@ export const Header = () => {
         </nav>
 
         {/* Right: Buttons + Hamburger */}
-        <div className="flex items-center gap-3 md:gap-4 flex-shrink-0 relative z-10">
+        <div className="flex items-center gap-3 md:gap-4 flex-shrink-0 relative z-20 pointer-events-auto">
           <div className="hidden sm:flex items-center gap-3 md:gap-4">
             <Link href="/login" className="btn-glossy-secondary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Log In</Link>
-            <Link href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Create Account</Link>
+            <Link href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap cursor-pointer">Create Account</Link>
           </div>
           
           {/* Mobile Menu Toggle */}
