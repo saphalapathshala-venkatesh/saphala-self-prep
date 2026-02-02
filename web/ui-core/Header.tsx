@@ -5,9 +5,16 @@ import { useState } from 'react';
 export const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+  const handleCreateAccountClick = () => {
+    setIsMenuOpen(false);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[Header] Create Account clicked, navigating to /register');
+    }
+  };
+
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4">
+      <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4 relative">
         {/* Left: Logo */}
         <div className="flex-shrink-0">
           <Link href="/" className="flex items-center gap-2">
@@ -17,19 +24,19 @@ export const Header = () => {
         </div>
         
         {/* Center: Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6 lg:gap-10 absolute left-1/2 -translate-x-1/2">
-          <Link href="/" className="text-gray-600 hover:text-[#2D1B69] font-medium transition-colors">Home</Link>
-          <Link href="/courses" className="text-gray-600 hover:text-[#2D1B69] font-medium transition-colors">Courses</Link>
-          <Link href="/products" className="text-gray-600 hover:text-[#2D1B69] font-medium transition-colors">Products</Link>
-          <Link href="/about" className="hidden lg:inline text-gray-600 hover:text-[#2D1B69] font-medium transition-colors">About</Link>
-          <Link href="/contact" className="hidden xl:inline text-gray-600 hover:text-[#2D1B69] font-medium transition-colors">Contact</Link>
+        <nav className="hidden md:flex items-center gap-6 lg:gap-10 absolute left-1/2 -translate-x-1/2 pointer-events-none">
+          <Link href="/" className="text-gray-600 hover:text-[#2D1B69] font-medium transition-colors pointer-events-auto">Home</Link>
+          <Link href="/courses" className="text-gray-600 hover:text-[#2D1B69] font-medium transition-colors pointer-events-auto">Courses</Link>
+          <Link href="/products" className="text-gray-600 hover:text-[#2D1B69] font-medium transition-colors pointer-events-auto">Products</Link>
+          <Link href="/about" className="hidden lg:inline text-gray-600 hover:text-[#2D1B69] font-medium transition-colors pointer-events-auto">About</Link>
+          <Link href="/contact" className="hidden xl:inline text-gray-600 hover:text-[#2D1B69] font-medium transition-colors pointer-events-auto">Contact</Link>
         </nav>
 
         {/* Right: Buttons + Hamburger */}
-        <div className="flex items-center gap-3 md:gap-4 flex-shrink-0">
+        <div className="flex items-center gap-3 md:gap-4 flex-shrink-0 relative z-10">
           <div className="hidden sm:flex items-center gap-3 md:gap-4">
             <Link href="/login" className="btn-glossy-secondary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Log In</Link>
-            <Link href="/register" className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Create Account</Link>
+            <Link href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary text-sm px-4 lg:px-6 py-2 whitespace-nowrap">Create Account</Link>
           </div>
           
           {/* Mobile Menu Toggle */}
@@ -62,7 +69,7 @@ export const Header = () => {
           </nav>
           <div className="flex flex-col gap-4 sm:hidden">
             <Link href="/login" onClick={() => setIsMenuOpen(false)} className="btn-glossy-secondary text-center py-3">Log In</Link>
-            <Link href="/register" onClick={() => setIsMenuOpen(false)} className="btn-glossy-primary w-full py-3 text-center">Create Account</Link>
+            <Link href="/register" onClick={handleCreateAccountClick} className="btn-glossy-primary w-full py-3 text-center">Create Account</Link>
           </div>
         </div>
       )}
