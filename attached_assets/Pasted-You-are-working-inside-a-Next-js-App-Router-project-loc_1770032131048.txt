@@ -1,0 +1,123 @@
+You are working inside a Next.js App Router project located in /web.
+Your task is to implement FEATURE 1: Authentication (Signup, Login, Logout, Sessions),
+while DEFERRING permanent data storage.
+
+========================
+ABSOLUTE NON-NEGOTIABLE RULES
+========================
+1. DO NOT redesign or modify existing UI styles, layout, colors, spacing, typography, or branding.
+2. DO NOT touch Home page, XP logic, XP UI, dashboard gamification visuals, or any locked features.
+3. Implement authentication UX and flow ONLY.
+4. Data persistence must be abstracted and temporary (in-memory).
+5. Code must be production-grade, modular, readable, and typed.
+6. Ensure `npm run build` passes inside /web.
+
+========================
+FEATURE SCOPE (LOCKED)
+========================
+
+A) SIGNUP
+- Page: /app/register/page.tsx
+- Fields (ALL mandatory):
+  - Email
+  - Mobile number (India only)
+  - Password
+  - Confirm Password
+
+Mobile field UX:
+- Show Indian flag 🇮🇳
+- Show ISD code +91 (non-editable)
+- User enters ONLY 10-digit mobile number
+- Digits only, min=10, max=10
+- If <10 digits → inline error, block submit
+- Error text (exact):
+  "Please enter a valid 10-digit Indian mobile number."
+
+Validation:
+- Email format
+- Mobile length exactly 10
+- Password min 8 chars
+- Confirm password match
+- Email and mobile must be unique (within in-memory store)
+
+On success:
+- Create user (in-memory)
+- Create session
+- Set HTTP-only cookie
+- Redirect to /dashboard
+
+B) LOGIN
+- Page: /app/login/page.tsx (reuse existing UI)
+- Fields:
+  - Identifier (Email or Mobile)
+  - Password
+
+Logic:
+- If identifier contains '@' → email
+- Else → mobile
+- Normalize input before lookup
+
+On success:
+- Create session
+- Set cookie
+- Redirect to /dashboard
+
+C) LOGOUT
+- Clears session cookie
+- Redirect to /
+
+D) SESSION MANAGEMENT
+- Cookie-based sessions (HTTP-only)
+- Session TTL = 7 days
+- Session data stored in-memory
+
+E) ROUTE PROTECTION
+- Use middleware.ts
+- Protect:
+  - /dashboard
+  - /course/*
+  - /test/*
+- If not authenticated → redirect to /login
+
+========================
+STORAGE STRATEGY (IMPORTANT)
+========================
+- DO NOT use a real database.
+- Implement in-memory stores using Maps or objects.
+- Abstract storage behind:
+  - lib/userStore.ts
+  - lib/sessionStore.ts
+- These must expose clean functions so DB can be added later without changing auth logic.
+
+========================
+API ROUTES
+========================
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/logout
+
+Backend must revalidate all inputs.
+
+========================
+EXPECTED FILES
+========================
+/app/register/page.tsx
+/app/login/page.tsx
+/app/dashboard/page.tsx
+/app/api/auth/register/route.ts
+/app/api/auth/login/route.ts
+/app/api/auth/logout/route.ts
+/lib/userStore.ts
+/lib/sessionStore.ts
+/lib/auth.ts
+/lib/validation.ts
+/lib/constants.ts
+/middleware.ts
+
+========================
+DELIVERABLE
+========================
+After implementation:
+1. List files created/modified
+2. Confirm temporary in-memory storage used
+3. Confirm npm run build passes
