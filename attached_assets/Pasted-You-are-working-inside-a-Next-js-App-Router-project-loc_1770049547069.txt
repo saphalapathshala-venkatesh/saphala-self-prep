@@ -1,0 +1,70 @@
+You are working inside a Next.js App Router project located in /web.
+
+TASK: Fix ONLY the broken navigation for Create Account (header CTA) on Vercel.
+DO NOT redesign anything. DO NOT change colors, spacing, typography, layout, or any other pages/features.
+Make the Create Account button in the header actually navigate to /register in production (Vercel), just like it works when directly visiting /register.
+
+STRICT RULES:
+
+Change ONLY what is required to make the header "Create Account" CTA navigate to /register.
+
+Do NOT modify any styles/branding/classes except where absolutely required to restore navigation.
+
+Do NOT add new features. Do NOT touch authentication logic.
+
+Ensure npm run build passes inside /web.
+
+DIAGNOSIS TO CONFIRM:
+On Vercel production, document.querySelectorAll('a[href="/register"]').length currently returns 0 on the homepage, meaning the header CTA is NOT rendered as an anchor link.
+
+REQUIRED FIX:
+
+In web/ui-core/Header.tsx, ensure the header "Create Account" CTA is rendered as a real Next.js <Link href="/register">...</Link> that results in a DOM <a href="/register">.
+
+Do NOT wrap it in a <button> or a <div>.
+
+Do NOT rely on router.push() for this CTA.
+
+If there is any overlay element (mobile menu backdrop) it must only exist in the DOM when the menu is open; when closed it must not intercept clicks. Use conditional render only ({isMenuOpen && ...}) and ensure it is not covering the header CTA when closed.
+
+Keep all existing className strings unchanged for the CTA and header layout; only change the element type to Link if needed.
+
+IMPLEMENTATION STEPS:
+
+Open web/ui-core/Header.tsx.
+
+Find BOTH occurrences of "Create Account" (desktop and mobile nav).
+
+Make both occurrences be <Link href="/register" ...>Create Account</Link> and preserve the current className exactly.
+
+Ensure there is no invisible overlay/backdrop rendered when isMenuOpen === false.
+
+Run:
+
+cd ~/workspace/web && npm run build
+
+Add a small, dev-only verification snippet (NO behavior change) by logging only in non-production:
+
+When clicking the Create Account link, optionally log "[Header] Create Account clicked" ONLY if process.env.NODE_ENV !== 'production'.
+
+Do not add any other console logs.
+
+Provide a short report:
+
+Files modified
+
+Why this fixes Vercel specifically
+
+Exact console verification commands to run in browser:
+document.querySelectorAll('a[href="/register"]').length
+
+EXPECTED RESULT:
+After deployment, on Vercel production homepage:
+
+document.querySelectorAll('a[href="/register"]').length returns 1 or more
+
+Clicking header Create Account navigates to /register
+
+No UI changes except the link works
+
+npm run build passes
