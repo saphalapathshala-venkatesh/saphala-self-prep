@@ -1,0 +1,114 @@
+Goal: Connect existing Next.js app to the already-created Neon Postgres DB using Prisma, fix schema, run migration, and confirm tables appear in Neon. Do NOT change UI, CSS, or page layouts.
+
+Prompt to paste:
+
+You are working inside a Next.js App Router project located at /home/runner/workspace/web.
+We already connected a Neon database in Vercel and I have the Neon connection string available as DATABASE_URL (and optional DATABASE_URL_UNPOOLED).
+Prisma was initialized, but prisma/schema.prisma currently has only generator/datasource skeleton and no models, so migrations do nothing.
+
+Requirements (must follow)
+
+DO NOT modify any UI pages, components, CSS, or layouts (app/*, ui-core/*, styles/*) unless absolutely required for Prisma to run.
+
+Only touch backend/prisma related files: prisma/schema.prisma, .env (if needed), prisma migration folder, and any minimal config needed for Prisma client generation.
+
+Ensure secrets are NOT committed. .env must remain gitignored.
+
+Use Prisma with Postgres (Neon).
+
+Tasks
+
+A) Verify current state
+
+pwd and confirm you are in /home/runner/workspace/web
+
+Show ls -la and ls prisma
+
+Show first 80 lines of prisma/schema.prisma
+
+Check whether .env exists in /home/runner/workspace/web and show only the variable names (mask values).
+
+B) Fix Prisma schema
+Replace entire prisma/schema.prisma with this exact schema:
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  FACULTY
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+
+  enrollments Enrollment[]
+}
+
+model Course {
+  id        String   @id @default(uuid())
+  title     String
+  category  String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  enrollments Enrollment[]
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  userId    String
+  courseId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  course Course @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+}
+
+
+C) Ensure environment variables
+
+In /home/runner/workspace/web/.env, ensure DATABASE_URL= is set to my Neon pooled connection string.
+
+Optionally include DATABASE_URL_UNPOOLED= too if available.
+
+Do NOT print full connection strings in logs; mask secrets.
+
+D) Run Prisma commands
+Run these in order and paste outputs:
+
+npx prisma validate
+
+npx prisma migrate dev --name init_core_schema
+
+npx prisma generate
+
+E) Confirm success
+
+Run ls prisma/migrations and confirm a new migration exists
+
+Run a quick node -e script to instantiate PrismaClient and await prisma.user.count() (should return 0, not error).
+
+If any command fails due to Nix “multiple versions” prompts or missing editor, fix it by using non-interactive methods and continue.
+
+F) Final
+
+Provide a short summary: what files changed and what commands succeeded.
+
+Do NOT commit anything automatically.
+
+Remind me to add the same env vars in Vercel Project Settings → Environment Variables (Production + Preview) if needed.
