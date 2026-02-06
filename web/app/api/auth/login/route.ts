@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserByEmail, findUserByMobile, verifyPassword } from "@/lib/userStore";
+import { prisma } from "@/lib/db";
 import { setSessionCookie } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 import { normalizeIdentifier } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
@@ -18,8 +19,8 @@ export async function POST(request: NextRequest) {
     const normalized = normalizeIdentifier(identifier);
     const user =
       normalized.type === "email"
-        ? findUserByEmail(normalized.value)
-        : findUserByMobile(normalized.value);
+        ? await prisma.user.findUnique({ where: { email: normalized.value } })
+        : await prisma.user.findUnique({ where: { mobile: normalized.value } });
 
     if (!user) {
       return NextResponse.json(
@@ -28,17 +29,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!verifyPassword(user, password)) {
-      return NextResponse.json(
-        { error: "Invalid credentials. Please check your email/mobile and password." },
-        { status: 401 }
-      );
+    const isBcryptHash = user.password.startsWith("$2");
+
+    if (isBcryptHash) {
+      const match = await bcrypt.compare(password, user.password);
+      if (!match) {
+        return NextResponse.json(
+          { error: "Invalid credentials. Please check your email/mobile and password." },
+          { status: 401 }
+        );
+      }
+    } else {
+      if (user.password !== password) {
+        return NextResponse.json(
+          { error: "Invalid credentials. Please check your email/mobile and password." },
+          { status: 401 }
+        );
+      }
+      const newHash = await bcrypt.hash(password, 10);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: newHash },
+      });
     }
 
     await setSessionCookie(user.id);
 
     return NextResponse.json({ success: true, redirectTo: "/dashboard" });
-  } catch {
+  } catch (e) {
+    console.error("Login error:", e);
     return NextResponse.json(
       { error: "An unexpected error occurred." },
       { status: 500 }
