@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createUser, isEmailTaken, isMobileTaken } from "@/lib/userStore";
+import { prisma } from "@/lib/db";
 import { setSessionCookie } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 import {
   validateEmail,
   validateMobile,
@@ -14,54 +15,42 @@ export async function POST(request: NextRequest) {
     const { email, mobile, password, confirmPassword } = body;
 
     const emailResult = validateEmail(email);
-    if (!emailResult.valid) {
-      return NextResponse.json({ error: emailResult.error }, { status: 400 });
-    }
+    if (!emailResult.valid) return NextResponse.json({ error: emailResult.error }, { status: 400 });
 
     const mobileResult = validateMobile(mobile);
-    if (!mobileResult.valid) {
-      return NextResponse.json({ error: mobileResult.error }, { status: 400 });
-    }
+    if (!mobileResult.valid) return NextResponse.json({ error: mobileResult.error }, { status: 400 });
 
     const passwordResult = validatePassword(password);
-    if (!passwordResult.valid) {
-      return NextResponse.json({ error: passwordResult.error }, { status: 400 });
-    }
+    if (!passwordResult.valid) return NextResponse.json({ error: passwordResult.error }, { status: 400 });
 
     const confirmResult = validateConfirmPassword(password, confirmPassword);
-    if (!confirmResult.valid) {
-      return NextResponse.json({ error: confirmResult.error }, { status: 400 });
+    if (!confirmResult.valid) return NextResponse.json({ error: confirmResult.error }, { status: 400 });
+
+    // Check duplicates in DB
+    const existing = await prisma.user.findFirst({
+      where: { OR: [{ email }, { mobile }] },
+      select: { email: true, mobile: true },
+    });
+
+    if (existing?.email === email) {
+      return NextResponse.json({ error: "This email is already registered." }, { status: 409 });
+    }
+    if (existing?.mobile === mobile) {
+      return NextResponse.json({ error: "This mobile number is already registered." }, { status: 409 });
     }
 
-    if (isEmailTaken(email)) {
-      return NextResponse.json(
-        { error: "This email is already registered." },
-        { status: 409 }
-      );
-    }
+    const hashed = await bcrypt.hash(password, 10);
 
-    if (isMobileTaken(mobile)) {
-      return NextResponse.json(
-        { error: "This mobile number is already registered." },
-        { status: 409 }
-      );
-    }
-
-    const user = createUser(email, mobile, password);
-    if (!user) {
-      return NextResponse.json(
-        { error: "Failed to create account. Please try again." },
-        { status: 500 }
-      );
-    }
+    const user = await prisma.user.create({
+      data: { email, mobile, password: hashed },
+      select: { id: true },
+    });
 
     await setSessionCookie(user.id);
 
     return NextResponse.json({ success: true, redirectTo: "/dashboard" });
-  } catch {
-    return NextResponse.json(
-      { error: "An unexpected error occurred." },
-      { status: 500 }
-    );
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
   }
 }

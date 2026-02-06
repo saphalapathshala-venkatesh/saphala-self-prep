@@ -1,0 +1,73 @@
+You are working inside a Next.js App Router project at /home/runner/workspace/web (Replit).
+Goal: Fix auth so Register + Login use Neon PostgreSQL via Prisma v7 adapter, NOT any in-memory userStore.
+
+CURRENT STATE / CONSTRAINTS:
+- Prisma schema is at web/prisma/schema.prisma and must NOT include datasource.url (Prisma v7 client config handles URL via prisma.config.ts + adapter).
+- Prisma Client output is ../lib/generated/prisma
+- DB client file exists or should exist at web/lib/db.ts using PrismaPg + pg Pool.
+- Replit Secrets contain DATABASE_URL and DATABASE_URL_UNPOOLED.
+- Register API route currently uses "@/lib/userStore" which is WRONG. Must replace with Prisma.
+
+TASKS (do in order, minimal changes, keep existing UI):
+1) Confirm Prisma DB client:
+   - Ensure web/lib/db.ts exports `prisma` (singleton) using:
+     - import { PrismaClient } from "./generated/prisma"
+     - import { PrismaPg } from "@prisma/adapter-pg"
+     - import { Pool } from "pg"
+     - create Pool({ connectionString: process.env.DATABASE_URL })
+     - export const prisma = ...
+   - Do NOT put connection string in schema.prisma.
+
+2) Replace in-memory userStore usage:
+   - Update web/app/api/auth/register/route.ts:
+     - Remove createUser/isEmailTaken/isMobileTaken imports.
+     - Use `import { prisma } from "@/lib/db";`
+     - Validate email/mobile/password/confirmPassword using existing validators.
+     - Check existence via Prisma:
+       - const existingEmail = await prisma.user.findUnique({ where: { email } })
+       - const existingMobile = await prisma.user.findUnique({ where: { mobile } })
+       - Return 409 with same messages if taken.
+     - Hash password using bcryptjs:
+       - const passwordHash = await bcrypt.hash(password, 10)
+     - Create user:
+       - await prisma.user.create({ data: { email, mobile, password: passwordHash } })
+     - Handle unique constraint errors (Prisma code P2002) and return 409 with friendly message.
+     - After create, call setSessionCookie(user.id) and return {success:true, redirectTo:"/dashboard"}.
+
+3) Fix Login API route similarly (create if missing):
+   - web/app/api/auth/login/route.ts should:
+     - Accept { identifier, password } where identifier can be email OR mobile.
+     - Find user:
+       - if identifier includes "@" => where: { email: identifier } else where: { mobile: identifier }
+     - If not found => 401 Invalid credentials
+     - Compare password using bcrypt.compare(password, user.password)
+     - If match, setSessionCookie(user.id) and return success + redirect.
+     - If mismatch, 401.
+
+4) Optional compatibility:
+   - If some existing users have plaintext passwords (not bcrypt), allow one-time upgrade:
+     - if user.password does not start with "$2" then treat as plaintext match; if matched, re-hash and update user.password.
+
+5) Ensure frontend forms call the correct endpoints:
+   - Register form should POST to /api/auth/register and then redirect to /dashboard on success.
+   - Login form should POST to /api/auth/login and then redirect to /dashboard on success.
+   - Do not change styling/classes.
+
+6) Diagnostics:
+   - Add temporary console.error in API catch blocks to log actual errors (do not log secrets).
+   - Provide a short checklist to test with curl and in browser.
+
+COMMANDS TO RUN:
+- cd ~/workspace/web
+- npx prisma validate
+- npx prisma generate
+- npm run dev
+- Test endpoints with curl (show examples).
+
+DELIVERABLE:
+- Only modify/add the necessary files:
+  - web/lib/db.ts
+  - web/app/api/auth/register/route.ts
+  - web/app/api/auth/login/route.ts (if needed)
+  - any small frontend fetch fixes if currently pointing elsewhere
+Return the final diff-style summary and exact curl commands for testing.
