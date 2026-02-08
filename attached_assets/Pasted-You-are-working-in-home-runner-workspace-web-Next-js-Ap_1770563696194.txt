@@ -1,0 +1,72 @@
+You are working in /home/runner/workspace/web (Next.js App Router + Prisma).
+
+GOAL:
+Implement a minimal Admin Panel for managing user roles:
+- default role is STUDENT on registration (keep existing behavior)
+- /admin/users page lists users and lets ADMIN change roles
+- Only ADMIN can access /admin/* and the admin API routes
+- Make the smallest possible change-set (no unrelated refactors).
+
+RULES (very strict):
+- Do NOT change any existing UI pages, styles, navbar, layout, or auth flows except what is required for /admin protection and role management.
+- Do NOT rename folders or restructure the project.
+- Only create/modify files needed for admin panel & role update.
+- If web/lib/apiAuth.ts already exists, reuse it. If not, create it.
+- Do not introduce new dependencies.
+
+STEPS:
+
+1) Verify current state:
+   - Check if web/middleware.ts exists and already protects /dashboard,/course,/test.
+   - Update it to also protect /admin routes (redirect to /login if cookie missing).
+   - Keep existing protections intact.
+
+2) Auth guard for API:
+   - Ensure file exists: web/lib/apiAuth.ts
+   - It must expose:
+     - requireAuth(request): returns { user: { id, role } } or returns NextResponse 401
+     - requireRole(request, allowedRoles): returns { user } or returns NextResponse 403
+   - It must validate session using existing session cookie logic in your repo.
+   - It must read cookie "saphala_session".
+
+3) Create Admin API routes (ADMIN only):
+   A) web/app/api/admin/users/route.ts
+      - GET: return list of users: id,email,mobile,role,createdAt
+      - Must use requireRole(request, ["ADMIN"])
+   B) web/app/api/admin/users/[id]/role/route.ts
+      - PATCH: body { role: "STUDENT"|"FACULTY"|"ADMIN" }
+      - Must use requireRole(request, ["ADMIN"])
+      - Validate role against enum
+      - Update prisma.user.update({ where: { id }, data: { role } })
+
+4) Create Admin pages:
+   A) web/app/admin/page.tsx
+      - redirect to /admin/users (server-side)
+   B) web/app/admin/users/page.tsx
+      - Minimal UI (no new design system):
+        - title "Admin — Users"
+        - table list
+        - per-user role dropdown + Save button
+      - Use client-side fetch to call:
+        - GET /api/admin/users
+        - PATCH /api/admin/users/{id}/role
+      - Show inline success/error message per action
+      - No styling overhaul: use existing global classes if any; otherwise simple Tailwind-free basic HTML.
+
+5) Add a one-time script to promote the first admin (safe):
+   - Create: web/scripts/promoteAdmin.mjs
+   - It should accept an email as input via env or argv:
+     - node scripts/promoteAdmin.mjs test1@saphala.com
+   - It should set that user’s role to ADMIN.
+   - Print confirmation.
+
+OUTPUT REQUIREMENTS:
+- At the end, print:
+  1) Exact list of files changed/created
+  2) Full contents of ONLY the new/modified files (no other text)
+  3) 5 exact curl test commands:
+     - without cookie => /api/admin/users returns 401 or 403
+     - student cookie => returns 403
+     - admin cookie => GET users returns 200
+     - admin cookie => PATCH role returns 200
+     - open /admin/users without cookie => redirects to /login

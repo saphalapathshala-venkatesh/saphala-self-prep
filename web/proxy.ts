@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 const SESSION_COOKIE_NAME = "saphala_session";
 
 // Add both /course and /courses (safe), because your UI uses "Courses"
-const protectedPaths = ["/dashboard", "/course", "/courses", "/test"];
+const protectedPaths = ["/dashboard", "/course", "/courses", "/test", "/admin"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -32,5 +32,6 @@ export const config = {
     "/course/:path*",
     "/courses/:path*",
     "/test/:path*",
+    "/admin/:path*",
   ],
 };
