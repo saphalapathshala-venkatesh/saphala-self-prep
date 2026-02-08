@@ -24,19 +24,26 @@ export async function getCurrentUser() {
   return user;
 }
 
-export async function setSessionCookie(userId: string): Promise<string> {
+export function createSessionCookie(userId: string) {
   const session = createSession(userId);
+  return {
+    name: SESSION_COOKIE_NAME,
+    value: session.id,
+    options: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax" as const,
+      maxAge: SESSION_TTL_MS / 1000,
+      path: "/",
+    },
+  };
+}
+
+export async function setSessionCookie(userId: string): Promise<string> {
+  const cookie = createSessionCookie(userId);
   const cookieStore = await cookies();
-
-  cookieStore.set(SESSION_COOKIE_NAME, session.id, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: SESSION_TTL_MS / 1000,
-    path: "/",
-  });
-
-  return session.id;
+  cookieStore.set(cookie.name, cookie.value, cookie.options);
+  return cookie.value;
 }
 
 export async function clearSessionCookie(): Promise<void> {

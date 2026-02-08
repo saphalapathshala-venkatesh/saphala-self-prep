@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { setSessionCookie } from "@/lib/auth";
+import { createSessionCookie } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import {
   validateEmail,
@@ -46,9 +46,10 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    await setSessionCookie(user.id);
-
-    return NextResponse.json({ success: true, redirectTo: "/dashboard" });
+    const cookie = createSessionCookie(user.id);
+    const res = NextResponse.json({ success: true, redirectTo: "/dashboard" });
+    res.cookies.set(cookie.name, cookie.value, cookie.options);
+    return res;
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
