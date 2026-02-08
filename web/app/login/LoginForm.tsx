@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type FormEvent, type ChangeEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 interface FormErrors {
@@ -12,6 +12,8 @@ interface FormErrors {
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const from = searchParams.get("from") || "/dashboard";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     identifier: "",
@@ -46,7 +48,7 @@ export default function LoginForm() {
         return;
       }
 
-      router.push(data.redirectTo || "/dashboard");
+      router.push(from);
       router.refresh();
     } catch {
       setErrors({ general: "An unexpected error occurred. Please try again." });
