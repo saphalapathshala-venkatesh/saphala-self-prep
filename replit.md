@@ -52,7 +52,31 @@ Preferred communication style: Simple, everyday language.
 - Unsplash images for banners and course thumbnails (referenced via URLs)
 - Geist font family loaded via `next/font/google`
 
-### No Backend/Database Currently
-- All data is mock/static in config files
-- No authentication system implemented yet
-- No API routes defined
+### Backend & Database
+- **Prisma 7** ORM with Neon PostgreSQL (datasource URL in `prisma.config.ts`)
+- Prisma Client generated to `lib/generated/prisma/`
+- Models: User, Course, Enrollment
+- Role enum: STUDENT (default), FACULTY, ADMIN
+
+### Authentication
+- Cookie-based sessions using `saphala_session` cookie
+- In-memory session store (`lib/sessionStore.ts`)
+- Server-side auth helpers: `lib/serverAuth.ts`, `lib/requireRole.ts`
+- API auth helpers: `lib/apiAuth.ts` (requireAuth, requireRole)
+- Registration validates +91 Indian mobile format (10 digits)
+- bcrypt password hashing
+
+### Admin Panel
+- `/admin` redirects to `/admin/users`
+- `/admin/users` — lists users with role dropdown, ADMIN-only (server-side role guard via layout.tsx)
+- API: `GET /api/admin/users`, `PATCH /api/admin/users/[id]/role`
+- Promote script: `node scripts/promoteAdmin.mjs <email>`
+
+### Route Protection
+- `proxy.ts` protects: /dashboard, /course, /courses, /test, /admin (redirects unauthenticated to /login)
+- `/admin/*` additionally enforced server-side via `app/admin/layout.tsx` requiring ADMIN role
+
+### Utility Scripts
+- `scripts/promoteAdmin.mjs` — promote user to ADMIN by email
+- `scripts/makeAdmin.mjs` — alternative admin promotion script
+- `scripts/deleteTestUser.mjs` — delete test users
