@@ -1,0 +1,41 @@
+You are working inside this Next.js App Router project in /web.
+
+GOAL (Task 2): Add role-based access control + an admin panel to manage user roles, with minimal changes.
+DO NOT refactor unrelated code. DO NOT change UI styles except where new admin pages are added. Do not touch existing navbar/homepages unless strictly required.
+
+REQUIREMENTS
+1) Roles:
+   - Add Role enum: STUDENT, FACULTY, ADMIN (Prisma)
+   - User.role defaults to STUDENT on registration
+2) Auth guard helpers:
+   - Create a helper for API routes: requireAuth(request) and requireRole(request, allowedRoles)
+   - These must validate cookie session and load user (id, role) from DB.
+3) Admin-only API:
+   - GET /api/admin/users -> list users (id, email, mobile, role, createdAt)
+   - PATCH /api/admin/users/[id]/role -> update role, allowed roles only
+   - Both routes must requireRole(request, ["ADMIN"])
+4) Admin UI:
+   - Create /admin/users page that is server-protected to ADMIN (redirect non-admin away)
+   - Page shows a clean table of users and a dropdown to change role with a Save button.
+   - Use existing design tokens/typography; keep it simple.
+5) First admin bootstrap:
+   - Create script: web/scripts/promoteAdmin.mjs
+   - Usage: node scripts/promoteAdmin.mjs someone@email.com
+   - It updates that user's role to ADMIN.
+6) Do not break login/register/dashboard.
+7) After changes, provide exact files created/modified with short reason.
+8) Provide verification commands using curl.
+
+IMPLEMENTATION DETAILS
+- If Prisma schema already has role, reuse it; otherwise add it.
+- Run prisma migrate + generate if needed.
+- For admin UI guard: if you already have a server helper like requireRole() for server components, reuse it; else create a minimal one.
+- For API guards: do NOT use redirect(); return JSON NextResponse with correct status codes.
+- Keep cookie name: saphala_session.
+
+OUTPUT
+- List: files changed/created
+- Commands:
+  - promote admin
+  - curl admin ping/users as admin vs student
+- Ensure everything compiles.
