@@ -39,6 +39,7 @@ export default function LoginForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
+        credentials: "include",
       });
 
       const data = await response.json();
@@ -48,8 +49,7 @@ export default function LoginForm() {
         return;
       }
 
-      router.push(from);
-      router.refresh();
+      router.replace(from);
     } catch {
       setErrors({ general: "An unexpected error occurred. Please try again." });
     } finally {
