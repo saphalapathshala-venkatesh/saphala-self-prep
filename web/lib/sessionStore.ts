@@ -1,5 +1,4 @@
 import { prisma } from "./db";
-import { SESSION_TTL_MS } from "./constants";
 
 export interface Session {
   id: string;
@@ -8,32 +7,28 @@ export interface Session {
   expiresAt: Date;
 }
 
-export async function createSession(userId: string): Promise<Session> {
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
-
+export async function createSession(token: string, userId: string, expiresAt: Date): Promise<Session> {
   const session = await prisma.session.create({
-    data: { userId, expiresAt },
+    data: { id: token, userId, expiresAt },
   });
-
   return session;
 }
 
-export async function getSession(sessionId: string): Promise<Session | null> {
+export async function getSession(token: string): Promise<Session | null> {
   const session = await prisma.session.findUnique({
-    where: { id: sessionId },
+    where: { id: token },
   });
 
   if (!session) return null;
 
   if (new Date() > session.expiresAt) {
-    await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
+    await prisma.session.delete({ where: { id: token } }).catch(() => {});
     return null;
   }
 
   return session;
 }
 
-export async function deleteSession(sessionId: string): Promise<void> {
-  await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
+export async function deleteSession(token: string): Promise<void> {
+  await prisma.session.delete({ where: { id: token } }).catch(() => {});
 }

@@ -2,6 +2,11 @@ import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME, SESSION_TTL_MS } from "./constants";
 import { getSession, createSession, deleteSession } from "./sessionStore";
 import { prisma } from "./db";
+import { randomBytes } from "crypto";
+
+function generateToken(): string {
+  return randomBytes(32).toString("hex");
+}
 
 export async function getCurrentUser() {
   const cookieStore = await cookies();
@@ -25,10 +30,13 @@ export async function getCurrentUser() {
 }
 
 export async function createSessionCookie(userId: string) {
-  const session = await createSession(userId);
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  await createSession(token, userId, expiresAt);
+
   return {
     name: SESSION_COOKIE_NAME,
-    value: session.id,
+    value: token,
     options: {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

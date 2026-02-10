@@ -1,0 +1,96 @@
+You are working inside this repository: Saphala Self Prep (Next.js App Router + Prisma + Neon/Vercel).
+
+GOAL (ONLY THIS):
+Fix the production login loop where cookie `saphala_session` exists but user keeps getting redirected back to /login when visiting /dashboard.
+
+STRICT RULES:
+- Do NOT change any UI/layout/hero/banner/design components.
+- Do NOT change navigation/header/home page.
+- Do NOT refactor unrelated modules.
+- Only modify auth/session related files listed below and add one debug endpoint.
+- Keep cookie name exactly: "saphala_session".
+- Keep cookie settings secure in production (httpOnly, secure, sameSite=lax, path=/).
+
+CURRENT SYMPTOMS:
+- After register/login, the browser shows `saphala_session` cookie.
+- Visiting `/dashboard` redirects back to `/login`.
+- Sometimes the same email/mobile can re-register later (likely session not persisting/validated).
+
+IMPLEMENTATION PLAN (DO IN THIS ORDER):
+
+(1) ADD A DEBUG ENDPOINT (NEW FILE ONLY):
+Create: web/app/api/debug/session/route.ts
+It should:
+- Read cookie "saphala_session"
+- Return JSON with { token, sessionFound: boolean, sessionRow: {id,userId,expiresAt}? }
+- It must query Prisma Session table by the cookie token in the correct column (id or token depending on schema)
+- If Session model doesn't exist yet, return JSON { token, sessionFound:false, reason:"Session model missing" }.
+
+(2) ENSURE DATABASE-BACKED SESSION MODEL EXISTS AND MATCHES COOKIE TOKEN:
+In prisma/schema.prisma:
+- Ensure there is a Session model linked to User with cascade delete.
+- IMPORTANT: the session primary key MUST match the cookie value.
+Use this model shape:
+
+model Session {
+  id        String   @id
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+Do NOT use a uuid default that would diverge from cookie token.
+If a Session model already exists but uses uuid id, modify it to the above so cookie token == Session.id.
+
+Run prisma migrate or db push as appropriate for this repo.
+
+(3) MAKE sessionStore DB-BASED AND CONSISTENT:
+Modify: web/lib/sessionStore.ts
+- Remove any in-memory Map based storage.
+- Export async functions:
+  - createSession(token: string, userId: string, expiresAt: Date)
+  - getSession(token: string)
+  - deleteSession(token: string)
+- createSession must insert Session row with id=token.
+- getSession must findUnique where { id: token }, and return null if missing or expired.
+- deleteSession removes by id.
+
+(4) MAKE COOKIE SET + DB WRITE AT LOGIN/REGISTER ALWAYS CONSISTENT:
+Modify: web/lib/auth.ts
+- Ensure setSessionCookie(userId) (or createSessionCookie) generates ONE token string and:
+  a) writes DB session row using createSession(token, userId, expiresAt)
+  b) sets cookie "saphala_session" to EXACTLY the same token
+- Keep 7-day expiry
+- Keep secure cookie flags in production
+
+(5) UPDATE API ROUTES TO AWAIT SESSION CREATION:
+Modify ONLY these if needed:
+- web/app/api/auth/login/route.ts
+- web/app/api/auth/register/route.ts
+Ensure they await the session creation helper before returning NextResponse.
+
+(6) ENSURE serverAuth/apiAuth USE DB sessionStore:
+Modify ONLY if needed:
+- web/lib/serverAuth.ts (or requireRole.ts used by /dashboard)
+- web/lib/apiAuth.ts
+They must call await getSession(tokenFromCookie) and validate expiry.
+
+(7) VERIFY (MUST DO THESE TESTS AND REPORT RESULTS IN YOUR FINAL MESSAGE):
+A. On dev: register -> response sets cookie -> open /api/debug/session -> sessionFound true
+B. On dev: open /dashboard -> should load (no redirect to /login)
+C. Logout (if exists) should delete session row + cookie, then /dashboard redirects to /login
+D. Wrong password returns 401/400 without redirect loops
+E. After server restart, existing cookie still validates (session persists in DB)
+
+OUTPUT REQUIREMENTS:
+- List every file changed/created.
+- Show the exact curl commands to verify:
+  - login sets cookie
+  - debug endpoint returns sessionFound true
+  - dashboard access works
+- Do NOT mention anything unrelated (no UI suggestions).
