@@ -15,7 +15,7 @@ export async function requireAuth() {
     redirect(`/login?from=${encodeURIComponent(pathname)}`);
   }
 
-  const session = getSession(sessionCookie.value);
+  const session = await getSession(sessionCookie.value);
   if (!session) {
     redirect(`/login?from=${encodeURIComponent(pathname)}`);
   }

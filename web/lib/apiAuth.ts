@@ -16,7 +16,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
     return { error: NextResponse.json({ error: "Authentication required." }, { status: 401 }) };
   }
 
-  const session = getSession(sessionCookie.value);
+  const session = await getSession(sessionCookie.value);
   if (!session) {
     return { error: NextResponse.json({ error: "Session expired." }, { status: 401 }) };
   }

@@ -1,3 +1,4 @@
+import { prisma } from "./db";
 import { SESSION_TTL_MS } from "./constants";
 
 export interface Session {
@@ -7,37 +8,32 @@ export interface Session {
   expiresAt: Date;
 }
 
-const sessions = new Map<string, Session>();
-
-function generateSessionId(): string {
-  return `sess_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-}
-
-export function createSession(userId: string): Session {
-  const id = generateSessionId();
+export async function createSession(userId: string): Promise<Session> {
   const now = new Date();
-  const session: Session = {
-    id,
-    userId,
-    createdAt: now,
-    expiresAt: new Date(now.getTime() + SESSION_TTL_MS),
-  };
-  sessions.set(id, session);
+  const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
+
+  const session = await prisma.session.create({
+    data: { userId, expiresAt },
+  });
+
   return session;
 }
 
-export function getSession(sessionId: string): Session | null {
-  const session = sessions.get(sessionId);
-  if (!session) {
-    return null;
-  }
+export async function getSession(sessionId: string): Promise<Session | null> {
+  const session = await prisma.session.findUnique({
+    where: { id: sessionId },
+  });
+
+  if (!session) return null;
+
   if (new Date() > session.expiresAt) {
-    sessions.delete(sessionId);
+    await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
     return null;
   }
+
   return session;
 }
 
-export function deleteSession(sessionId: string): void {
-  sessions.delete(sessionId);
+export async function deleteSession(sessionId: string): Promise<void> {
+  await prisma.session.delete({ where: { id: sessionId } }).catch(() => {});
 }

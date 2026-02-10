@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    const cookie = createSessionCookie(user.id);
+    const cookie = await createSessionCookie(user.id);
     const res = NextResponse.json({ success: true, redirectTo: "/dashboard" });
     res.cookies.set(cookie.name, cookie.value, cookie.options);
     return res;

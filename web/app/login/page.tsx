@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
 import LoginForm from "./LoginForm";
@@ -12,7 +13,9 @@ export default function LoginPage() {
             <h1 className="text-3xl font-bold text-[#2D1B69] mb-2">Welcome Back</h1>
             <p className="text-gray-500">Log in to your Saphala account</p>
           </div>
-          <LoginForm />
+          <Suspense>
+            <LoginForm />
+          </Suspense>
         </div>
       </div>
       <Footer />

@@ -11,7 +11,7 @@ export async function getCurrentUser() {
     return null;
   }
 
-  const session = getSession(sessionCookie.value);
+  const session = await getSession(sessionCookie.value);
   if (!session) {
     return null;
   }
@@ -24,8 +24,8 @@ export async function getCurrentUser() {
   return user;
 }
 
-export function createSessionCookie(userId: string) {
-  const session = createSession(userId);
+export async function createSessionCookie(userId: string) {
+  const session = await createSession(userId);
   return {
     name: SESSION_COOKIE_NAME,
     value: session.id,
@@ -40,7 +40,7 @@ export function createSessionCookie(userId: string) {
 }
 
 export async function setSessionCookie(userId: string): Promise<string> {
-  const cookie = createSessionCookie(userId);
+  const cookie = await createSessionCookie(userId);
   const cookieStore = await cookies();
   cookieStore.set(cookie.name, cookie.value, cookie.options);
   return cookie.value;
@@ -51,7 +51,7 @@ export async function clearSessionCookie(): Promise<void> {
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
 
   if (sessionCookie?.value) {
-    deleteSession(sessionCookie.value);
+    await deleteSession(sessionCookie.value);
   }
 
   cookieStore.delete(SESSION_COOKIE_NAME);

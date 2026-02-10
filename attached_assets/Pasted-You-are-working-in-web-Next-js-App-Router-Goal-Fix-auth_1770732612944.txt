@@ -1,0 +1,37 @@
+You are working in /web (Next.js App Router). Goal: Fix auth to work reliably on Vercel by removing ALL in-memory session/user dependence.
+
+NON-NEGOTIABLE:
+- Do NOT change UI, styling, layout, header, hero, banners, or any components unrelated to auth.
+- Keep middleware as cookie-presence check only (do NOT add Prisma calls in middleware).
+- Make auth production-grade and stable on Vercel.
+
+PROBLEM:
+Current auth uses in-memory Maps (userStore/sessionStore) which resets on serverless, causing:
+- users appear "forgotten"
+- sessions disappear, login loops back to /login
+- duplicate registrations become possible
+
+TASKS:
+1) Prisma schema:
+   - Ensure User has email UNIQUE and mobile UNIQUE
+   - Add model Session { id, userId, expiresAt, createdAt } with relation to User and indexes.
+2) Migrate + generate Prisma client.
+3) Implement DB session store:
+   - Create new file: lib/sessionStoreDb.ts (or replace existing sessionStore.ts) with:
+     createSession(userId): creates Session row with expiresAt = now + 7 days; returns sessionId
+     getSession(sessionId): returns { userId } if exists and not expired; else null
+     deleteSession(sessionId): deletes session row
+4) Update lib/auth.ts:
+   - setSessionCookie(userId) should create DB session and set HTTP-only cookie with sessionId
+   - clearSessionCookie should delete DB session (if cookie present) and clear cookie
+5) Update API routes:
+   - /app/api/auth/register/route.ts: validate inputs, check duplicates using Prisma, hash password, create user, create session, set cookie, return JSON { success:true, redirectTo:"/dashboard" }
+   - /app/api/auth/login/route.ts: normalize identifier, lookup by email or mobile using Prisma, bcrypt.compare, create session, set cookie
+   - /app/api/auth/logout/route.ts: delete session + clear cookie
+6) Update requireAuth/requireRole helpers to validate session using Prisma Session table, NOT memory.
+7) Confirm npm run build passes.
+
+DELIVERABLE:
+- List files modified/created
+- Confirm in-memory Maps are no longer used for users/sessions
+- Provide a quick manual test checklist for Vercel + Replit.
