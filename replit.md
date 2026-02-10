@@ -55,12 +55,13 @@ Preferred communication style: Simple, everyday language.
 ### Backend & Database
 - **Prisma 7** ORM with Neon PostgreSQL (datasource URL in `prisma.config.ts`)
 - Prisma Client generated to `lib/generated/prisma/`
-- Models: User, Course, Enrollment
+- Models: User, Course, Enrollment, Session
 - Role enum: STUDENT (default), FACULTY, ADMIN
 
 ### Authentication
 - Cookie-based sessions using `saphala_session` cookie
-- In-memory session store (`lib/sessionStore.ts`)
+- Database-backed session store (`lib/sessionStore.ts`) — sessions persist in PostgreSQL Session table
+- Sessions expire after 7 days; expired sessions are cleaned up on access
 - Server-side auth helpers: `lib/serverAuth.ts`, `lib/requireRole.ts`
 - API auth helpers: `lib/apiAuth.ts` (requireAuth, requireRole)
 - Registration validates +91 Indian mobile format (10 digits)
