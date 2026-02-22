@@ -29,6 +29,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!user.passwordHash) {
+      console.error(`User ${user.id} has no password hash set`);
+      return NextResponse.json(
+        { error: "Account error. Please contact support." },
+        { status: 500 }
+      );
+    }
+
     const isBcryptHash = user.passwordHash.startsWith("$2");
 
     if (isBcryptHash) {
