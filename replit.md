@@ -54,9 +54,10 @@ Preferred communication style: Simple, everyday language.
 
 ### Backend & Database
 - **Prisma 7** ORM with Neon PostgreSQL (datasource URL in `prisma.config.ts`)
-- Prisma Client generated to `lib/generated/prisma/`
-- Models: User, Course, Enrollment, Session
-- Role enum: STUDENT (default), FACULTY, ADMIN
+- Prisma Client generated to standard `node_modules/@prisma/client` (all imports use `@prisma/client`)
+- Build script runs `prisma generate` before `next build`; `postinstall` also runs `prisma generate`
+- UserRole enum: STUDENT (default), ADMIN, SUPER_ADMIN
+- User model uses `passwordHash` field (not `password`)
 
 ### Authentication
 - Cookie-based sessions using `saphala_session` cookie
