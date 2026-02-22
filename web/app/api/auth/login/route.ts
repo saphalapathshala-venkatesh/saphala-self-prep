@@ -29,10 +29,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isBcryptHash = user.password.startsWith("$2");
+    const isBcryptHash = user.passwordHash.startsWith("$2");
 
     if (isBcryptHash) {
-      const match = await bcrypt.compare(password, user.password);
+      const match = await bcrypt.compare(password, user.passwordHash);
       if (!match) {
         return NextResponse.json(
           { error: "Invalid credentials. Please check your email/mobile and password." },
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
         );
       }
     } else {
-      if (user.password !== password) {
+      if (user.passwordHash !== password) {
         return NextResponse.json(
           { error: "Invalid credentials. Please check your email/mobile and password." },
           { status: 401 }
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       const newHash = await bcrypt.hash(password, 10);
       await prisma.user.update({
         where: { id: user.id },
-        data: { password: newHash },
+        data: { passwordHash: newHash },
       });
     }
 

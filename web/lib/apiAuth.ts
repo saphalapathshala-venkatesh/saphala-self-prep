@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME } from "./constants";
 import { getSession } from "./sessionStore";
 import { prisma } from "./db";
-import type { Role } from "./generated/prisma";
+import type { UserRole } from "@prisma/client";
 
-type AuthUser = { id: string; role: Role };
+type AuthUser = { id: string; role: UserRole };
 type AuthSuccess = { user: AuthUser; error?: undefined };
 type AuthError = { error: NextResponse; user?: undefined };
 type AuthResult = AuthSuccess | AuthError;
@@ -33,7 +33,7 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
   return { user };
 }
 
-export async function requireRole(request: NextRequest, allowedRoles: Role[]): Promise<AuthResult> {
+export async function requireRole(request: NextRequest, allowedRoles: UserRole[]): Promise<AuthResult> {
   const result = await requireAuth(request);
   if (result.error) return result;
 

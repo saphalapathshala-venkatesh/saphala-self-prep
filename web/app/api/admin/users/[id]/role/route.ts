@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireRole } from "@/lib/apiAuth";
 import { prisma } from "@/lib/db";
 
-const VALID_ROLES = ["STUDENT", "FACULTY", "ADMIN"] as const;
+const VALID_ROLES = ["STUDENT", "ADMIN", "SUPER_ADMIN"] as const;
 
 export async function PATCH(
   request: NextRequest,

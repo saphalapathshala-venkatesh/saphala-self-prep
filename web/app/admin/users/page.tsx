@@ -103,8 +103,8 @@ export default function AdminUsersPage() {
                     style={{ padding: "4px 8px" }}
                   >
                     <option value="STUDENT">STUDENT</option>
-                    <option value="FACULTY">FACULTY</option>
                     <option value="ADMIN">ADMIN</option>
+                    <option value="SUPER_ADMIN">SUPER_ADMIN</option>
                   </select>
                 </td>
                 <td style={{ padding: "8px 4px" }}>

@@ -9,7 +9,7 @@ export interface Session {
 
 export async function createSession(token: string, userId: string, expiresAt: Date): Promise<Session> {
   const session = await prisma.session.create({
-    data: { id: token, userId, expiresAt },
+    data: { id: token, token, userId, expiresAt },
   });
   return session;
 }

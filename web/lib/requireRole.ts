@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "./serverAuth";
-import type { Role } from "./generated/prisma";
+import type { UserRole } from "@prisma/client";
 
-export async function requireRole(roles: Role[]) {
+export async function requireRole(roles: UserRole[]) {
   const user = await requireAuth();
 
   if (!roles.includes(user.role)) {
