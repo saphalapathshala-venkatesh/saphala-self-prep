@@ -13,7 +13,7 @@ interface FormErrors {
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const from = searchParams.get("from") || "/dashboard";
+  const from = searchParams?.get("from") || "/dashboard";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     identifier: "",
