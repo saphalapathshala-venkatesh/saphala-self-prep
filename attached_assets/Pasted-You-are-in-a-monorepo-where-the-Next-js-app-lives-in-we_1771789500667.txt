@@ -1,0 +1,56 @@
+You are in a monorepo where the Next.js app lives in /web, but Vercel is sometimes building the repo root (it sees a root package.json) and/or deploying an older commit. Fix this permanently without changing business logic.
+
+GOALS
+1) Force Vercel to ALWAYS install/build from /web (monorepo-safe).
+2) Ensure /api/health is served on production at /api/health (no 404).
+3) Provide shell commands to confirm the deployed commit matches Git HEAD.
+4) Trigger a new deployment reliably (no caching / no “old commit”).
+
+DO THIS:
+
+A) Add a repo-root vercel.json to force Vercel commands to run inside /web
+Create file: /vercel.json with EXACT content:
+{
+  "version": 2,
+  "framework": "nextjs",
+  "installCommand": "cd web && npm install",
+  "buildCommand": "cd web && npm run build",
+  "devCommand": "cd web && npm run dev"
+}
+
+B) Add a tiny “commit marker” endpoint so we can verify which commit is live (NO business logic changes)
+Create file: web/app/api/version/route.ts
+- Must return JSON { ok: true, sha: process.env.VERCEL_GIT_COMMIT_SHA ?? null, env: process.env.NODE_ENV ?? null }
+- Use NextResponse from "next/server"
+(Do NOT touch any auth/db code.)
+
+C) Confirm health route exists exactly at:
+web/app/api/health/route.ts
+Do NOT move it. Do NOT create a pages/api duplicate.
+
+D) Verify locally in Replit shell:
+1) cd web && npm run build
+2) Confirm build output lists:
+   Route (app) includes “/api/health” AND “/api/version”
+If build shows “Route (pages) /api/health”, search for any pages/api/health.* and remove that duplicate (only the duplicate; keep app router version).
+
+E) Git + push:
+Run these commands:
+git status
+git add vercel.json web/app/api/version/route.ts
+git commit -m "chore: force Vercel build from web + add version endpoint"
+git push origin main
+
+F) Provide a checklist for Vercel UI (no guessing):
+- Project Settings → Git → Production Branch = main
+- Project Settings → Build & Deployment → Root Directory should be EMPTY (because vercel.json already cd’s into web)
+- Redeploy latest production deployment with “Clear cache / do not use build cache” enabled
+
+G) Final verification steps to run in browser:
+1) https://<prod-domain>/api/version should return sha (or null) and env=production
+2) https://<prod-domain>/api/health should return ok:true (or ok:false with db:error, but NOT 404)
+
+OUTPUT REQUIRED:
+- Show the exact files created/changed.
+- Show the exact commands executed.
+- Show the exact expected responses from /api/version and /api/health.
