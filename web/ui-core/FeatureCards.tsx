@@ -42,8 +42,8 @@ export const FeatureCards = () => {
     <section className="py-20 bg-gray-50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#2D1B69] mb-3">Saphala Self Prep</h2>
-          <p className="text-gray-500 text-base">Choose your learning mode — learn, practice, and improve.</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-[#2D1B69] mb-3">Saphala Pathshala</h2>
+          <p className="text-gray-500 text-base">Your Success is Our Focus</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
