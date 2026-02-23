@@ -1,0 +1,108 @@
+We are updating ONLY the navbar brand area (top-left header) to integrate the official Saphala logo and improve branding hierarchy.
+
+IMPORTANT:
+- Modify ONLY the brand/logo/title area in the navbar.
+- Do NOT change navbar layout, menu items, spacing of other elements, buttons, or any page sections.
+- This is a visual branding refinement only.
+
+============================================================
+1) ADD LOGO LEFT OF TITLE
+============================================================
+
+I am attaching the official Saphala logo asset.
+
+Tasks:
+- Place the logo to the LEFT of the title text "Saphala Pathshala".
+- Logo and title must be vertically centered.
+
+Logo styling:
+- Height: 44px–48px (slightly larger than current icon)
+- Maintain aspect ratio (no stretching)
+- Use object-contain
+- Ensure logo looks crisp on light background
+- Add small spacing between logo and title (gap-3 or gap-4)
+
+Remove the existing placeholder “S” square icon.
+
+============================================================
+2) ADJUST TITLE POSITION
+============================================================
+
+- Move the title slightly right to visually balance the larger logo.
+- Keep alignment clean and professional.
+- Use flex layout:
+
+flex items-center gap-4
+
+============================================================
+3) ADD TAGLINE BELOW TITLE
+============================================================
+
+Below "Saphala Pathshala", add a second line:
+
+"Your Success is Our Focus"
+
+Structure:
+
+[ LOGO ]  Saphala Pathshala
+          Your Success is Our Focus
+
+Implementation:
+- Stack title + tagline vertically using flex-col.
+- Keep logo aligned with the full text block vertically centered.
+
+============================================================
+4) TYPOGRAPHY STYLING
+============================================================
+
+TITLE:
+- Text: "Saphala Pathshala"
+- Color: SAME as primary button color (brand purple currently used)
+- Font weight: font-semibold or font-bold
+- Slight letter spacing allowed (tracking-tight)
+
+TAGLINE:
+- Text: "Your Success is Our Focus"
+- Color: Deep Blue (use existing deep blue brand tone if defined,
+  otherwise use text-blue-900 or #1040A0 equivalent)
+- Font size smaller than title (text-sm)
+- Font weight: medium
+- Slight opacity softness allowed (opacity-90)
+
+============================================================
+5) SPACING & VISUAL BALANCE
+============================================================
+
+- Add small vertical spacing between title and tagline (gap-0.5 or gap-1).
+- Navbar height should NOT increase noticeably.
+- Ensure alignment remains clean on desktop and mobile.
+
+============================================================
+6) RESPONSIVENESS
+============================================================
+
+Mobile:
+- Logo scales slightly smaller (h-9 or h-10)
+- Text wraps cleanly if needed.
+- Maintain alignment with hamburger/menu.
+
+============================================================
+DO NOT CHANGE
+============================================================
+
+- Navbar buttons
+- Menu links
+- Header height drastically
+- Colors outside title/tagline
+- Any homepage or card sections
+
+============================================================
+DELIVERABLE
+============================================================
+
+Navbar brand area should show:
+
+[LOGO]  Saphala Pathshala
+        Your Success is Our Focus
+
+Clean, balanced, premium alignment with brand purple title and deep blue tagline.

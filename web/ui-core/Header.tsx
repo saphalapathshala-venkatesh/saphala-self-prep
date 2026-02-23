@@ -19,13 +19,20 @@ export const Header = () => {
       <div className="container mx-auto px-4 py-4 flex items-center justify-between gap-4 relative">
         {/* Left: Logo */}
         <div className="flex-shrink-0 relative z-10">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-purple-700 rounded-lg flex items-center justify-center text-white font-bold">
-              S
+          <Link href="/" className="flex items-center gap-3">
+            <img
+              src="/images/saphala-logo.png"
+              alt="Saphala Logo"
+              className="h-11 md:h-12 w-auto object-contain"
+            />
+            <div className="hidden sm:flex flex-col gap-0.5">
+              <span className="text-xl font-bold text-[var(--brand-primary)] tracking-tight leading-tight">
+                Saphala Pathshala
+              </span>
+              <span className="text-sm font-medium text-blue-900 opacity-90 leading-tight">
+                Your Success is Our Focus
+              </span>
             </div>
-            <span className="text-xl font-bold text-[#2D1B69] hidden sm:inline">
-              Saphala Pathshala
-            </span>
           </Link>
         </div>
 
