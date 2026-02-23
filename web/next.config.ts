@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
-  // Replit preview runs from a different origin, so allow it during dev.
   allowedDevOrigins: ["*.replit.dev", "*.repl.co"],
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
 };
 
 export default nextConfig;

@@ -1,41 +1,110 @@
+'use client';
+
+import { BookOpen, ClipboardCheck, PlayCircle, Library, type LucideIcon } from 'lucide-react';
+
+interface FeatureCardProps {
+  title: string;
+  icon: LucideIcon;
+  description: string;
+  bullets: string[];
+  ctaText: string;
+}
+
+const FeatureCard = ({ title, icon: Icon, description, bullets, ctaText }: FeatureCardProps) => {
+  return (
+    <div className="rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="bg-white px-6 py-4 flex justify-between items-center">
+        <h4 className="text-lg font-bold text-[#2D1B69]">{title}</h4>
+        <Icon className="w-6 h-6 text-purple-500 flex-shrink-0" />
+      </div>
+      <div className="bg-[#F6F2FF] px-6 py-5">
+        <p className="text-gray-600 text-sm leading-relaxed mb-4">{description}</p>
+        <ul className="space-y-2 mb-6">
+          {bullets.map((bullet, i) => (
+            <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
+              <span className="text-purple-500 font-bold mt-0.5">✓</span>
+              <span>{bullet}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-6">
+          <button className="bg-purple-500 hover:bg-purple-600 text-white rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200">
+            {ctaText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const FeatureCards = () => {
   return (
     <section className="py-20 bg-gray-50">
       <div className="container mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-purple-100 flex flex-col items-start">
-          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 mb-6">📚</div>
-          <h3 className="text-2xl font-bold text-[#2D1B69] mb-4">Self-Prep Module</h3>
-          <p className="text-gray-600 mb-6">Comprehensive study material including PDFs, cheat sheets, and topic-specific tests designed for self-paced learning.</p>
-          <ul className="space-y-3 mb-8 w-full">
-            <li className="flex items-center gap-2 text-gray-700">
-              <span className="text-green-500 font-bold">✓</span> Read-only access to premium material
-            </li>
-            <li className="flex items-center gap-2 text-gray-700">
-              <span className="text-green-500 font-bold">✓</span> Downloadable PDF resources
-            </li>
-            <li className="flex items-center gap-2 text-gray-700">
-              <span className="text-green-500 font-bold">✓</span> Topic-based practice tests
-            </li>
-          </ul>
-          <button className="btn-glossy-primary mt-auto">Start Self-Prep</button>
+        <div>
+          <h3 className="text-2xl font-bold text-[#2D1B69] mb-2">Self Prep</h3>
+          <p className="text-gray-500 text-sm mb-6">Daily learning + testing designed for exam success.</p>
+          <div className="flex flex-col gap-6">
+            <FeatureCard
+              title="Smart Learning"
+              icon={BookOpen}
+              description="Guided concept learning with interactive lessons and smart flashcards. Learn first, then strengthen memory through smart reinforcement."
+              bullets={[
+                "Step-by-step concept lessons (easy to follow)",
+                "Flashcards for active recall and quick revision",
+                "Smart reinforcement after each concept (quick drills)",
+                "Topic-wise learning tracks (syllabus aligned)",
+                "Progress tracking per topic (completed / pending)",
+              ]}
+              ctaText="Start Learning"
+            />
+            <FeatureCard
+              title="TestHub"
+              icon={ClipboardCheck}
+              description="Simulated tests that feel like the real exam—timed, structured, and syllabus-based. Build speed, accuracy, and confidence with every attempt."
+              bullets={[
+                "Topic tests, subject tests, and grand tests",
+                "Timed exam-mode experience (real pressure practice)",
+                "Instant score + accuracy + time analysis",
+                "Weak-topic insights to improve faster",
+                "Detailed attempt history and improvement tracking",
+              ]}
+              ctaText="Take a Test"
+            />
+          </div>
         </div>
 
-        <div className="bg-white p-8 rounded-2xl shadow-sm border border-purple-100 flex flex-col items-start">
-          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600 mb-6">🎯</div>
-          <h3 className="text-2xl font-bold text-[#2D1B69] mb-4">Saphala TestHub Simulator</h3>
-          <p className="text-gray-600 mb-6">Real-world exam simulator with topic, subject, and grand tests to build your confidence and speed.</p>
-          <ul className="space-y-3 mb-8 w-full">
-            <li className="flex items-center gap-2 text-gray-700">
-              <span className="text-green-500 font-bold">✓</span> Realistic exam environment
-            </li>
-            <li className="flex items-center gap-2 text-gray-700">
-              <span className="text-green-500 font-bold">✓</span> Comprehensive grand tests
-            </li>
-            <li className="flex items-center gap-2 text-gray-700">
-              <span className="text-green-500 font-bold">✓</span> Detailed performance analytics
-            </li>
-          </ul>
-          <button className="btn-glossy-primary mt-auto">Take a Test</button>
+        <div>
+          <h3 className="text-2xl font-bold text-[#2D1B69] mb-2">Saphala Learn</h3>
+          <p className="text-gray-500 text-sm mb-6">Premium learning through videos and curated resources.</p>
+          <div className="flex flex-col gap-6">
+            <FeatureCard
+              title="Pathshala"
+              icon={PlayCircle}
+              description="Premium video learning with structured lessons and clear explanations. Watch recorded classes and attend LIVE classes when available."
+              bullets={[
+                "Premium recorded video lessons (topic-wise)",
+                "LIVE classes + schedule visibility (when enabled)",
+                "Exam-focused explanations (fast clarity)",
+                "Lesson-linked notes/resources (where available)",
+                "Continue learning from where you stopped",
+              ]}
+              ctaText="Watch Premium Videos"
+            />
+            <FeatureCard
+              title="Prep Library"
+              icon={Library}
+              description="Your organized collection of premium study resources in one place. Access PDFs, notes, model papers, and downloadable materials."
+              bullets={[
+                "Premium PDFs and exam-oriented notes",
+                "Model papers & practice material packs",
+                "Read-only + downloadable access (as per plan)",
+                "Course-wise and topic-wise organization",
+                "Quick search to find materials fast",
+              ]}
+              ctaText="Open Library"
+            />
+          </div>
         </div>
       </div>
     </section>

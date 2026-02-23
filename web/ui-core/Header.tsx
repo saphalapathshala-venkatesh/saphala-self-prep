@@ -24,7 +24,7 @@ export const Header = () => {
               S
             </div>
             <span className="text-xl font-bold text-[#2D1B69] hidden sm:inline">
-              Saphala Self Prep
+              Saphala Pathshala
             </span>
           </Link>
         </div>

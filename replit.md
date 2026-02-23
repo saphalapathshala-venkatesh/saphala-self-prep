@@ -1,8 +1,8 @@
-# Saphala Self Prep
+# Saphala Pathshala
 
 ## Overview
 
-Saphala Self Prep is an educational platform designed to help students prepare for exams through self-paced learning modules and test simulations. The platform offers two core products: a Self-Prep Module (study materials, PDFs, cheat sheets) and a TestHub Simulator (topic/subject/grand tests). The frontend is built with Next.js and Tailwind CSS, following a clean, study-friendly design with a purple brand color scheme.
+Saphala Pathshala is an educational platform designed to help students prepare for exams through self-paced learning modules and test simulations. The platform offers four core products: Smart Learning (concept lessons + flashcards), TestHub (exam simulation), Pathshala (premium video lessons), and Prep Library (PDFs + study materials). The frontend is built with Next.js and Tailwind CSS, following a clean, study-friendly design with a purple brand color scheme.
 
 ## User Preferences
 
@@ -19,7 +19,8 @@ Preferred communication style: Simple, everyday language.
 - **Tailwind CSS 4** for utility-first styling
 - Custom CSS components defined in `globals.css` (glossy buttons)
 - Design tokens stored in `styles/tokens.ts` and `styles/typography.ts`
-- No external UI component libraries - only Tailwind + custom components
+- **lucide-react** for icons (BookOpen, ClipboardCheck, PlayCircle, Library)
+- No other external UI component libraries - only Tailwind + custom components + lucide icons
 
 ### Component Structure
 - UI components live in `/web/ui-core/` directory
