@@ -1,0 +1,87 @@
+You are a senior Next.js + Vercel deployment engineer. I want a clean deployment for this repo where the Next.js app lives inside the web/ folder. Vercel is currently failing with:
+
+sh: line 1: cd: web: No such file or directory
+Error: Command "cd web && npm install" exited with 1
+
+and Vercel UI is not allowing me to edit the Build/Install commands.
+
+Your job:
+
+Goal
+
+Make the repo deployable on Vercel without needing to edit commands in Vercel UI, and ensure Vercel correctly detects Next.js under web/.
+
+Hard rules
+
+Do NOT modify business logic files (auth, db, session logic, routes logic) unless absolutely required for deployment detection.
+
+Only modify deployment/config files (vercel.json, package.json scripts if needed, docs).
+
+Keep changes minimal and fully reversible.
+
+Steps you must do
+
+Inspect repo structure
+
+Confirm web/package.json exists and contains next dependency and build scripts.
+
+Confirm web/app/ exists (App Router).
+
+Fix the root cause
+
+Open and inspect the root vercel.json (repo root).
+
+If it contains cd web && ... in installCommand / buildCommand, remove the cd web && parts and replace with commands that assume the working directory is already web.
+
+installCommand should become: npm install
+
+buildCommand should become: npm run build
+
+If vercel.json sets rootDirectory, keep it consistent with web OR remove rootDirectory and rely on Vercel project Root Directory (prefer whichever is simplest and reliable).
+
+Ensure there are no other scripts/configs forcing cd web (search entire repo for "cd web" and remove/adjust those occurrences in deployment config only).
+
+Guarantee Next.js detection
+
+Ensure Vercel can detect Next.js by making sure the active project directory contains a package.json with next dependency.
+
+If needed, add a minimal root package.json ONLY if Vercel absolutely requires it (avoid if not needed). Prefer fixing vercel.json instead.
+
+Add a deployment verification endpoint
+
+Ensure /api/health exists and works in production from the deployed app (in the correct router).
+
+If there is a router conflict (pages vs app), do NOT create duplicates.
+
+Keep only ONE canonical health endpoint.
+
+Provide a final checklist
+Output:
+
+Exact files changed and why
+
+The exact Vercel settings I should use:
+
+Root Directory value
+
+Framework preset
+
+No custom install/build commands needed
+
+Exact env vars to add:
+
+DATABASE_URL
+
+DIRECT_URL
+
+SESSION_SECRET (tell me how to generate it using openssl)
+
+How to confirm deployment is the latest commit using /api/version (if exists) or alternative.
+
+Deliverables
+
+Commit the changes with message: fix: vercel deploy from web root (remove cd web)
+
+After commit, print the git commit hash and confirm npm run build works locally from web/.
+
+Proceed now.
