@@ -1,0 +1,153 @@
+We are updating the homepage UI of the Saphala student app (Next.js + Tailwind + lucide-react).
+
+IMPORTANT:
+- Only update the header title and the homepage cards section.
+- Do NOT modify hero/banner, carousel, featured courses, footer, spacing outside the cards section, routing logic, or backend.
+- Keep the section in the same position as it is now.
+- Do not change global theme colors.
+
+============================================================
+A) HEADER UPDATE
+============================================================
+
+Replace any existing brand text like “Saphala Self Prep” with:
+
+"Saphala Pathshala"
+
+Do not change layout or navbar structure. Only change the displayed title text.
+
+============================================================
+B) HOMEPAGE CARDS SECTION REDESIGN
+============================================================
+
+Replace the current 2 cards section with:
+
+2 MAIN CARDS (side-by-side desktop, stacked mobile):
+1) Self Prep
+2) Saphala Learn
+
+Each MAIN CARD contains 2 INNER CARDS.
+
+------------------------------------------------------------
+MAIN CARD 1: Self Prep
+------------------------------------------------------------
+
+Optional short subtitle:
+"Daily learning + testing designed for exam success."
+
+INNER CARD 1A:
+Title: Smart Learning
+Icon (RIGHT of title): BookOpen (from lucide-react)
+Description:
+"Guided concept learning with interactive lessons and smart flashcards. Learn first, then strengthen memory through smart reinforcement."
+Bullets:
+- Step-by-step concept lessons (easy to follow)
+- Flashcards for active recall and quick revision
+- Smart reinforcement after each concept (quick drills)
+- Topic-wise learning tracks (syllabus aligned)
+- Progress tracking per topic (completed / pending)
+CTA: Start Learning
+
+INNER CARD 1B:
+Title: TestHub
+Icon (RIGHT of title): ClipboardCheck (from lucide-react)
+Description:
+"Simulated tests that feel like the real exam—timed, structured, and syllabus-based. Build speed, accuracy, and confidence with every attempt."
+Bullets:
+- Topic tests, subject tests, and grand tests
+- Timed exam-mode experience (real pressure practice)
+- Instant score + accuracy + time analysis
+- Weak-topic insights to improve faster
+- Detailed attempt history and improvement tracking
+CTA: Take a Test
+
+------------------------------------------------------------
+MAIN CARD 2: Saphala Learn
+------------------------------------------------------------
+
+Optional short subtitle:
+"Premium learning through videos and curated resources."
+
+INNER CARD 2A:
+Title: Pathshala
+Icon (RIGHT of title): PlayCircle (from lucide-react)
+Description:
+"Premium video learning with structured lessons and clear explanations. Watch recorded classes and attend LIVE classes when available."
+Bullets:
+- Premium recorded video lessons (topic-wise)
+- LIVE classes + schedule visibility (when enabled)
+- Exam-focused explanations (fast clarity)
+- Lesson-linked notes/resources (where available)
+- Continue learning from where you stopped
+CTA: Watch Premium Videos
+
+INNER CARD 2B:
+Title: Prep Library
+Icon (RIGHT of title): Library (from lucide-react)
+Description:
+"Your organized collection of premium study resources in one place. Access PDFs, notes, model papers, and downloadable materials."
+Bullets:
+- Premium PDFs and exam-oriented notes
+- Model papers & practice material packs
+- Read-only + downloadable access (as per plan)
+- Course-wise and topic-wise organization
+- Quick search to find materials fast
+CTA: Open Library
+
+============================================================
+C) DESIGN REQUIREMENTS
+============================================================
+
+1) Each INNER CARD must have:
+   - Top Title Row:
+        - Background: pure white
+        - Layout: flex justify-between items-center
+        - Title on left
+        - Icon on right
+   - Body Section:
+        - Background: very light Saphala lavender (e.g. bg-[#F6F2FF])
+        - Contains description, bullet list, CTA
+   - Border: subtle border (border-gray-200 or equivalent)
+   - Shadow: soft shadow (shadow-sm or equivalent)
+
+2) CTA BUTTON STYLE (IMPORTANT – tone down intensity):
+   - Do NOT use very dark purple.
+   - Use softer purple background like:
+        bg-purple-600 → replace with bg-purple-500
+   - Hover: bg-purple-600
+   - Text: text-white
+   - Rounded full (rounded-full)
+   - Padding: px-5 py-2.5
+   - Transition: transition-all duration-200
+
+   This should look premium but not aggressive.
+
+3) Spacing:
+   - Inner cards spacing: gap-6
+   - Bullet spacing: space-y-2
+   - CTA margin-top: mt-6
+
+4) Responsiveness:
+   - Desktop: 2 main cards grid (grid-cols-2 gap-8)
+   - Mobile: stacked
+   - Inner cards stacked vertically inside each main card
+
+5) Reusability:
+   - If possible, create reusable component:
+        <FeatureCard />
+   - Props: title, icon, description, bullets[], ctaText
+
+6) DO NOT:
+   - Change routes
+   - Change other sections
+   - Change footer
+   - Change global theme
+   - Move section location
+
+============================================================
+Deliverable:
+- Header title updated
+- Homepage cards section redesigned exactly as specified
+- Icons implemented via lucide-react
+- CTA buttons toned down in color intensity
+- No other UI changed
