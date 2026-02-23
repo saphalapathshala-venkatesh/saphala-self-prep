@@ -28,7 +28,7 @@ const FeatureCard = ({ title, icon: Icon, description, bullets, ctaText }: Featu
           ))}
         </ul>
         <div className="mt-6">
-          <button className="bg-purple-500 hover:bg-purple-600 text-white rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-200">
+          <button className="btn-glossy-primary text-sm">
             {ctaText}
           </button>
         </div>

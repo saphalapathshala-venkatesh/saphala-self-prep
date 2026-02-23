@@ -1,0 +1,136 @@
+We are standardizing ALL primary buttons across the Saphala Pathshala web app to use ONE consistent brand color and style.
+
+IMPORTANT:
+- This is a visual styling update only.
+- Do NOT change layout, routing, spacing, typography, or component structure.
+- Only update button styles.
+- Apply globally wherever primary CTA buttons exist.
+
+============================================================
+GOAL
+============================================================
+
+All primary action buttons across the app must share ONE unified style.
+
+This includes:
+
+1) Homepage cards CTA buttons:
+   - Start Learning
+   - Take a Test
+   - Watch Premium Videos
+   - Open Library
+
+2) Header buttons:
+   - Log In
+   - Create Account
+
+3) Hero/Banner buttons:
+   - Create Free Account
+   - Explore Courses
+   - Start Learning
+   (or any similar hero CTAs)
+
+4) Any other prominent CTA buttons using purple styling.
+
+============================================================
+NEW GLOBAL PRIMARY BUTTON STYLE
+============================================================
+
+Use a slightly stronger purple than the recently toned-down version,
+but NOT as dark as the original old buttons.
+
+Use Tailwind classes:
+
+Background:
+    bg-purple-600
+
+Hover:
+    hover:bg-purple-700
+
+Text:
+    text-white
+
+Shape:
+    rounded-full
+
+Padding:
+    px-5 py-2.5
+
+Shadow:
+    shadow-sm
+
+Transition:
+    transition-all duration-200 ease-in-out
+
+Focus:
+    focus:outline-none focus:ring-2 focus:ring-purple-300
+
+NO gradients.
+Flat premium purple only.
+
+============================================================
+IMPLEMENTATION (IMPORTANT)
+============================================================
+
+1) Create a reusable global button style.
+
+Option A (preferred):
+Create reusable component:
+
+components/ui/PrimaryButton.tsx
+
+Example usage:
+<PrimaryButton>Start Learning</PrimaryButton>
+
+OR
+
+Option B:
+Create reusable Tailwind class:
+
+.cta-primary
+
+and apply everywhere.
+
+2) Replace existing purple button classes across:
+   - header/navbar
+   - hero section
+   - homepage cards
+   - banners
+
+Remove:
+   - gradients
+   - mixed purple shades
+   - inline color overrides
+
+============================================================
+SECONDARY BUTTONS (DO NOT CHANGE)
+============================================================
+
+Buttons that are outlined or secondary (e.g., light border buttons)
+should remain unchanged.
+
+Only update PRIMARY filled buttons.
+
+============================================================
+DO NOT CHANGE
+============================================================
+
+- Layout
+- Icons
+- Typography
+- Card structure
+- Sections positioning
+- Routes or logic
+
+============================================================
+DELIVERABLE
+============================================================
+
+All primary CTAs across the entire app visually identical:
+- Same purple tone
+- Same hover behavior
+- Same rounded shape
+- Same padding
+- Same interaction feel
+
+Result should look cohesive and premium across header, hero, and cards.
