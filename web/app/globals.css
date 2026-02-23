@@ -2,7 +2,14 @@
 
 @layer components {
   .btn-glossy-primary {
-    @apply bg-purple-600 text-white font-semibold py-2.5 px-5 rounded-full shadow-sm transition-all duration-200 ease-in-out hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-300 cursor-pointer;
+    background-color: var(--brand-primary);
+    @apply text-white font-semibold py-2.5 px-5 rounded-full shadow-sm transition-all duration-200 ease-in-out focus:outline-none cursor-pointer;
+  }
+  .btn-glossy-primary:hover {
+    background-color: var(--brand-primary-hover);
+  }
+  .btn-glossy-primary:focus {
+    box-shadow: 0 0 0 3px var(--brand-ring);
   }
 
   .btn-glossy-secondary {
@@ -11,6 +18,9 @@
 }
 
 :root {
+  --brand-primary: #6D4BCB;
+  --brand-primary-hover: #5E3FB8;
+  --brand-ring: #C7B8F5;
   --background: #ffffff;
   --foreground: #171717;
 }
