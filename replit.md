@@ -75,9 +75,19 @@ Preferred communication style: Simple, everyday language.
 - API: `GET /api/admin/users`, `PATCH /api/admin/users/[id]/role`
 - Promote script: `node scripts/promoteAdmin.mjs <email>`
 
+### TestHub
+- `/testhub` — browse tests without login (client-side page with category filters)
+- `/testhub/tests/[testId]/brief` — test instructions (server-side auth guard, redirects to login)
+- `/testhub/tests/[testId]/attempt` — test-taking interface (server-side auth guard, redirects to login)
+- `LoginRequiredModal` (`components/testhub/`) — shown when unauthenticated user clicks "Start Test"
+- `useAuthStatus` hook (`lib/auth/useAuthStatus.ts`) — client-side auth check via `/api/auth/status`
+- Mock test data in `config/testhub.ts` (NEET/JEE categories)
+- Login/Register forms both support `?from=` redirect for post-auth navigation
+
 ### Route Protection
 - `proxy.ts` protects: /dashboard, /course, /courses, /test, /admin (redirects unauthenticated to /login)
 - `/admin/*` additionally enforced server-side via `app/admin/layout.tsx` requiring ADMIN role
+- `/testhub/tests/[testId]/brief` and `/attempt` — server-side auth via `getCurrentUser()` + `redirect()`
 
 ### Utility Scripts
 - `scripts/promoteAdmin.mjs` — promote user to ADMIN by email

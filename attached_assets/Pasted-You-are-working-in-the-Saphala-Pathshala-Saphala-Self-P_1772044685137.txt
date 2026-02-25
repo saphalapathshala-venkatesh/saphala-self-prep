@@ -1,0 +1,68 @@
+You are working in the Saphala Pathshala (Saphala Self Prep) Next.js App Router codebase. Implement “Login Required to Attempt Test” for TestHub with BOTH (1) a polite modal UX gate and (2) server-side route guards.
+Scope
+Students can browse Category → Test Series → Test list WITHOUT login.
+If user clicks Start Test / Attempt Test without login, show a professional modal:
+Title: “Login Required”
+Message: “Please log in to attempt this test and track your progress. Your results, insights, and XP rewards are saved in your account.”
+Primary CTA: “Log In to Continue”
+Secondary CTA: “Create Free Account”
+Tertiary: “Continue Browsing” (closes modal)
+After login/register, redirect back to the intended page automatically using ?from=....
+Add server-side guards to prevent direct URL access to:
+/testhub/tests/[testId]/brief
+/testhub/tests/[testId]/attempt
+Constraints
+Do NOT change banners/hero/home layout.
+Reuse existing styling (Saphala purple toned button color) and components; don’t introduce new libraries.
+Keep changes minimal and scoped to TestHub attempt flow.
+1) Create a reusable modal component
+Create: components/testhub/LoginRequiredModal.tsx
+Client component.
+Backdrop click closes.
+Has X close button top-right.
+Uses existing button styles (the same toned-down purple you already use on CTAs).
+Builds links:
+/login?from=<returnTo>
+/register?from=<returnTo> (or your actual register route; if your app uses /signup, use that)
+2) Add an auth status endpoint (only if not already present)
+If the project already has an endpoint that returns current user/session status, reuse it.
+Otherwise create: app/api/auth/status/route.ts
+Response:
+JSON
+Copy code
+{ "isAuthed": true/false }
+Implementation must use the existing session system already in the repo (DB-backed sessions). Use the same helper used by middleware / protected routes (do not invent a new auth method). If there’s an existing helper like getCurrentUser(), getUserFromSession(), auth(), getSessionUser(), etc., use it.
+3) Create a tiny client hook for auth status
+Create: lib/auth/useAuthStatus.ts
+Calls /api/auth/status
+returns { isAuthed: boolean | null }
+4) Integrate the modal into the Test card “Attempt” button
+Find the component where TestHub test cards render their CTA button (Start Test / Attempt Test / Take Test). Update the click handler:
+If isAuthed === false → open modal instead of navigating.
+If isAuthed === true → navigate to /testhub/tests/[testId]/brief
+If isAuthed === null (loading) → still navigate, but server guard will enforce (or optionally disable button until known).
+Modal returnTo should be: /testhub/tests/${testId}/brief
+5) Add server-side guards for /brief and /attempt pages
+Edit:
+app/testhub/tests/[testId]/brief/page.tsx
+app/testhub/tests/[testId]/attempt/page.tsx
+At top of each page:
+Check session using the same server auth helper used elsewhere.
+If no user, redirect to: /login?from=<current_page_path>
+Example:
+brief redirects to /login?from=/testhub/tests/<id>/brief
+attempt redirects to /login?from=/testhub/tests/<id>/brief (safe) or /attempt (your choice, but use brief for consistent flow)
+Use redirect() from next/navigation.
+6) Ensure login/register routes redirect back to from
+In login success logic:
+Read from query param.
+router.replace(from || "/") (or existing default) Do the same for register success.
+If this is already implemented, do not change.
+7) QA checklist
+Logged-out user browsing tests → clicking Attempt shows modal.
+Modal “Log In to Continue” goes to login with proper from.
+After login success, user returns directly to the intended brief page.
+Directly opening /testhub/tests/[id]/brief while logged out redirects to login.
+Directly opening /testhub/tests/[id]/attempt while logged out redirects to login.
+No other pages affected.
+Implement all changes cleanly and commit
