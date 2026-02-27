@@ -125,8 +125,10 @@ Preferred communication style: Simple, everyday language.
 - `lib/testhubDb.ts` — DB adapter layer: `getDbTestById`, `getAllPublishedTests`, `getDbQuestionsForTest`, `resolveOptionIdFromLetter`, `optionIdToLetter`
 - Test difficulty derived from question DifficultyLevel (FOUNDATIONAL→Easy, PROFICIENT→Medium, MASTERY→Hard)
 - Option identifiers: Client uses letters (A/B/C/D), APIs translate to/from DB option UUIDs via `resolveOptionIdFromLetter`/`optionIdToLetter`
-- `/testhub` page fetches from `/api/testhub/tests` dynamically (no config import)
+- `/testhub` page server-fetches via `getPublishedTestsForStudent()` (SSR, no loading state)
+- `TestHubClient` (`components/testhub/`) — client component for test list with category filters, auth gating
 - Brief & attempt pages use `getDbTestById` from `lib/testhubDb.ts` (not config)
+- DB health endpoint: `GET /api/health/db` — checks User, Test, Session table connectivity
 - In-memory result store (`lib/resultStore.ts`) — stores computed results, subject breakdowns, and user XP totals (still in-memory, resets on restart)
 - API: `POST /api/testhub/attempts/start` — creates or resumes attempt, enforces attempt limits
 - API: `GET /api/testhub/attempts/active?testId=` — checks for active attempt + attempts used

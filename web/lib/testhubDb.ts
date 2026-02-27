@@ -168,6 +168,35 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
   });
 }
 
+export interface StudentTestItem {
+  id: string;
+  title: string;
+  code: string | null;
+  category: string | null;
+  series: string | null;
+  durationMinutes: number;
+  totalQuestions: number;
+  difficulty: string;
+  accessType: "FREE" | "LOCKED";
+  languageAvailable: "EN" | "TE" | "BOTH";
+}
+
+export async function getPublishedTestsForStudent(): Promise<StudentTestItem[]> {
+  const all = await getAllPublishedTests();
+  return all.map((t) => ({
+    id: t.id,
+    title: t.title,
+    code: t.code,
+    category: t.category,
+    series: t.series,
+    durationMinutes: t.durationMinutes,
+    totalQuestions: t.totalQuestions,
+    difficulty: t.difficulty,
+    accessType: t.accessType,
+    languageAvailable: t.languageAvailable,
+  }));
+}
+
 export async function getAllPublishedTests(): Promise<DbTest[]> {
   const tests = await prisma.test.findMany({
     where: { isPublished: true },

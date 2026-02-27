@@ -1,0 +1,55 @@
+Update /testhub so it server-fetches the published tests and renders immediately (no “Loading tests…” state unless fetch truly fails).
+Add a server function in lib/testhubDb.ts like getPublishedTestsForStudent() that returns the test list grouped exactly as the UI expects.
+In app/testhub/page.tsx, call it on the server and pass into the client component as initialData.
+In the client component, use initialData first and only re-fetch in the background (optional).
+Keep existing layout and styles unchanged.
+Step 2 — Validate the option mapping fix end-to-end (must)
+You already fixed “letters vs option UUIDs” in:
+save-answer ✅
+submit ✅
+attempt-data ✅
+review ✅ (already good) Now verify with the checklist below.
+Step 3 — Final functional validation checklist (10 minutes)
+A) Data sanity (one-time)
+Run importer again (safe idempotent) and confirm:
+5 tests exist
+each has options with 1 correct option
+TestQuestion ordering is correct
+B) Student flow sanity
+For 1 FREE test with negative marking ON:
+Login → open TestHub list → tests appear immediately (after SSR fix).
+Open FREE test → brief → select language EN → start attempt
+Q1 choose option without saving → go to Q2 via palette
+✅ Q1 must remain Unattempted (red), not green
+Go back Q1 → Save & Next
+✅ Q1 becomes Answered (green)
+Mark Q3 for review with no selection
+✅ purple
+Select Q4 + Mark for Review & Next
+✅ purple + tick
+Submit → Attempts Summary shows counts no marks
+Generate Result → XP overlay appears + confetti 3s
+Close XP overlay → check totals:
+Gross / Negative / Net displayed
+Negative must reduce net correctly
+Review tab “Incorrect” shows only wrong questions
+Unattempted shows only unanswered
+If any one step fails, tell me the step number + screenshot.
+Step 4 — One critical schema alignment you must lock now
+Your schema drift fix changed DB enums and columns (Role → UserRole). This is correct but risky if you publish.
+Hardening: add a startup health check route:
+/api/health/db that confirms essential tables/columns exist and Prisma can query them.
+Replit prompt: add DB health endpoint
+Create app/api/health/db/route.ts that runs 3 simple Prisma queries:
+prisma.user.count()
+prisma.test.count()
+prisma.session.count() Return { ok: true } or { ok: false, error }.
+Ensure it does not leak secrets.
+Use this before publishing to confirm DB is aligned.
+What about publishing settings you showed?
+For now:
+Deployment type: Reserved VM (Autoscale) is fine.
+Security scan: keep ON.
+Feedback widget: optional (can help early).
+Machine: 2 vCPU/4GB is okay for launch.
+But do not publish until the 10-minute checklist above passes once.
