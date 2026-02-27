@@ -74,6 +74,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [autoSubmitted, setAutoSubmitted] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const questionStartTime = useRef<number>(Date.now());
   const autoSubmitTriggered = useRef(false);
@@ -84,6 +85,11 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         const res = await fetch(`/api/testhub/tests/${testId}/attempt-data`, {
           credentials: "include",
         });
+        if (res.status === 401) {
+          setSessionExpired(true);
+          setLoading(false);
+          return;
+        }
         if (!res.ok) {
           const data = await res.json();
           setError(data.error || "Failed to load test data");
@@ -214,6 +220,12 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         }),
       });
 
+      if (res.status === 401) {
+        setSessionExpired(true);
+        setSaving(false);
+        return;
+      }
+
       if (!res.ok) {
         setSaveError("Could not save. Check connection.");
         setSaving(false);
@@ -286,6 +298,12 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         }),
       });
 
+      if (res.status === 401) {
+        setSessionExpired(true);
+        setSubmitting(false);
+        return;
+      }
+
       if (res.ok) {
         router.push(`/testhub/tests/${testId}/submitted`);
       } else {
@@ -354,10 +372,35 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   }
 
-  if (loading) {
+  if (loading && !sessionExpired) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-pulse text-gray-400">Loading test...</div>
+      </div>
+    );
+  }
+
+  if (sessionExpired && (loading || !testMeta)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-50 flex items-center justify-center">
+            <svg className="w-7 h-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-[#2D1B69] mb-2">Session Expired</h3>
+          <p className="text-sm text-gray-500 mb-6">Please log in again to continue.</p>
+          <button
+            onClick={() => {
+              const from = encodeURIComponent(`/testhub/tests/${testId}/attempt`);
+              window.location.href = `/login?from=${from}`;
+            }}
+            className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-medium hover:bg-[var(--brand-primary-hover)]"
+          >
+            Log In
+          </button>
+        </div>
       </div>
     );
   }
@@ -579,6 +622,29 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           {paletteContent}
         </div>
       </div>
+
+      {sessionExpired && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
+            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-50 flex items-center justify-center">
+              <svg className="w-7 h-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-[#2D1B69] mb-2">Session Expired</h3>
+            <p className="text-sm text-gray-500 mb-6">Please log in again to continue.</p>
+            <button
+              onClick={() => {
+                const from = encodeURIComponent(`/testhub/tests/${testId}/attempt`);
+                window.location.href = `/login?from=${from}`;
+              }}
+              className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-medium hover:bg-[var(--brand-primary-hover)]"
+            >
+              Log In
+            </button>
+          </div>
+        </div>
+      )}
 
       {showSubmitConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4" onClick={() => setShowSubmitConfirm(false)}>

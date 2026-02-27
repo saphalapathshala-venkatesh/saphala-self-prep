@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { IDLE_TIMEOUT_MS } from "./constants";
 
 export interface Session {
   id: string;
@@ -22,24 +23,30 @@ export async function createSession(token: string, userId: string, expiresAt: Da
 export async function getSession(token: string): Promise<Session | null> {
   if (!token) return null;
 
-  const session = await prisma.session.findUnique({
-    where: { id: token },
-  });
+  const now = new Date();
+  const newExpiresAt = new Date(Date.now() + IDLE_TIMEOUT_MS);
 
-  if (!session) return null;
+  try {
+    const session = await prisma.session.update({
+      where: {
+        id: token,
+        expiresAt: { gt: now },
+      },
+      data: { expiresAt: newExpiresAt },
+    });
 
-  if (!session.token) {
-    console.error(`Session ${session.id} has no token — deleting invalid session`);
-    await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
+    if (!session.token) {
+      await prisma.session.delete({ where: { id: session.id } }).catch(() => {});
+      return null;
+    }
+
+    return session;
+  } catch {
+    await prisma.session.deleteMany({
+      where: { id: token, expiresAt: { lte: now } },
+    }).catch(() => {});
     return null;
   }
-
-  if (new Date() > session.expiresAt) {
-    await prisma.session.delete({ where: { id: token } }).catch(() => {});
-    return null;
-  }
-
-  return session;
 }
 
 export async function deleteSession(token: string): Promise<void> {

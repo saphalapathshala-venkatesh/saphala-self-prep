@@ -64,6 +64,8 @@ Preferred communication style: Simple, everyday language.
 - Cookie-based sessions using `saphala_session` cookie
 - Database-backed session store (`lib/sessionStore.ts`) — sessions persist in PostgreSQL Session table
 - Sessions expire after 7 days; expired sessions are cleaned up on access
+- **15-minute idle timeout** with sliding expiration — every authenticated request extends `expiresAt` by 15 minutes via atomic DB update
+- Atomic session check: `getSession()` uses `update WHERE expiresAt > now()` in one DB call (no TOCTOU race)
 - Server-side auth helpers: `lib/serverAuth.ts`, `lib/requireRole.ts`
 - API auth helpers: `lib/apiAuth.ts` (requireAuth, requireRole)
 - Registration validates +91 Indian mobile format (10 digits)

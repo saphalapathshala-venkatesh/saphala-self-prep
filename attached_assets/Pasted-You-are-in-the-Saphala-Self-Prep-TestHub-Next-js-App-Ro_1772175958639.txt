@@ -1,0 +1,51 @@
+You are in the Saphala Self Prep / TestHub Next.js App Router codebase with DB-backed sessions. Fix auth behavior so logged-in students do NOT get redirected to login incorrectly, and implement 15-minute inactivity timeout (sliding expiration).
+Goal
+If a user is logged in and navigates across TestHub pages (/brief, /attempt, /submitted, etc.), they must remain logged in.
+Session should expire only after 15 minutes of inactivity.
+“Inactivity” means no authenticated requests. Any authenticated page/API call should extend session expiry (sliding).
+When session is expired/missing → redirect to login (existing behavior).
+Tasks
+1) Confirm server auth helper is used consistently
+Identify the existing server helper used for guards (ex: getServerSessionUser(), getCurrentUser(), etc).
+Ensure all protected pages use the same helper.
+Ensure /testhub/tests/[id]/submitted (or equivalent) is protected by this helper in the same way as brief/attempt pages.
+2) Add/ensure session expiry fields in DB
+If Session model does not already have expiry:
+Add expiresAt DateTime to Session model.
+Migration required. If it already exists, reuse it.
+3) Implement 15-minute idle timeout (sliding)
+Define:
+IDLE_MINUTES = 15
+When a valid session is used (on any authenticated request):
+If expiresAt < now() → treat as expired (delete session optionally, return null).
+Else extend:
+expiresAt = now() + 15 minutes This must happen in a single DB update.
+Where to extend:
+In the central auth lookup function (the one reading cookie token and fetching Session).
+Also in middleware if middleware is the entry guard (optional), but server helper is mandatory.
+4) Ensure TestHub activity keeps session alive
+Calls that should count as activity:
+/api/auth/status
+/api/testhub/attempts/start
+/api/testhub/attempts/save-answer
+/api/testhub/attempts/submit
+any other authenticated TestHub API
+They all use the same session helper; session expiry extends automatically.
+5) Fix the incorrect “redirect to login” statement in code review text
+If there is any code that assumes submitted page should redirect even when logged in, remove that assumption. Submitted page should redirect only when session is actually missing/expired.
+6) Edge cases
+If session expires mid-test:
+On next API save/submit call, backend returns 401.
+Frontend shows a modal: “Session expired. Please log in again to continue.” with button to login preserving from URL. (Implement minimal UI; don’t overbuild.)
+Implementation Notes
+Cookie name and token column must match existing system.
+Do NOT change login credentials flow.
+Do NOT change banners/home UI.
+Keep changes focused to session expiry + guards.
+QA
+Login → open /testhub pages → no redirects.
+Wait <15 min → still logged in.
+Wait >15 min with no activity → next navigation/API should redirect to login.
+While actively clicking next/save during test, session should not expire.
+/submitted should never redirect if session is valid.
+Implement and commit.

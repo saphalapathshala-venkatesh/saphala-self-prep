@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { SESSION_COOKIE_NAME, SESSION_TTL_MS } from "./constants";
+import { SESSION_COOKIE_NAME, SESSION_TTL_MS, IDLE_TIMEOUT_MS } from "./constants";
 import { getSession, createSession, deleteSession } from "./sessionStore";
 import { prisma } from "./db";
 import { randomBytes } from "crypto";
@@ -31,7 +31,7 @@ export async function getCurrentUser() {
 
 export async function createSessionCookie(userId: string) {
   const token = generateToken();
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
+  const expiresAt = new Date(Date.now() + IDLE_TIMEOUT_MS);
   await createSession(token, userId, expiresAt);
 
   return {
