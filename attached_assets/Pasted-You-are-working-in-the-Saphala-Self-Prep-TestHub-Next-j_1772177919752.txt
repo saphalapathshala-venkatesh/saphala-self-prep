@@ -1,0 +1,185 @@
+You are working in the Saphala Self Prep / TestHub Next.js App Router codebase.
+Implement the Review Questions page shown after results are generated.
+Route:
+Copy code
+
+/testhub/tests/[testId]/review?attemptId=...
+This page allows learners to review answers with correctness visualization, timing comparison, feedback, and dispute reporting.
+Do NOT modify home page or unrelated modules.
+1️⃣ Review Page Flow (LOCKED)
+User reaches review page from Result page button:
+Copy code
+
+Review Questions
+Page shows:
+Question review interface
+Correct/incorrect visualization
+Timing comparison vs median
+Palette navigation
+Feedback section
+Report Issue (dispute)
+2️⃣ Data API
+Create:
+Copy code
+
+GET /api/testhub/attempts/review?attemptId=...
+Return:
+Copy code
+
+{
+  testMeta,
+  attemptMeta,
+  questions: [
+    {
+      questionId,
+      subjectName,
+      questionText_en,
+      questionText_te,
+      options_en,
+      options_te,
+      correctOption,
+      explanation_en,
+      explanation_te,
+      userSelectedOption,
+      isMarkedForReview,
+      timeSpentMs,
+      medianTimeMs,
+      validAttemptsCount
+    }
+  ]
+}
+Median Time Rule
+Median must be calculated using ONLY:
+submitted attempts
+valid attempts (status SUBMITTED)
+ignore abandoned attempts
+If validAttemptsCount < 20:
+medianTimeMs = null
+UI shows: “Timing insights will appear after more learners attempt.”
+3️⃣ Review UI Layout
+Reuse attempt layout:
+Desktop
+Question center
+Palette right sidebar
+Mobile
+Bottom palette drawer
+Palette colors remain same state colors.
+4️⃣ Correctness Visualization (LOCKED)
+During review ONLY:
+Correct option
+✅ green tick icon
+light green background
+Wrong selected option
+❌ red X icon
+Other options
+neutral
+No animation required.
+5️⃣ Timing Insight Panel (per question)
+Display below question:
+Copy code
+
+Your Time: 38s
+Median Time: 44s
+Pace: Ideal
+Pace Label Logic
+Let:
+Copy code
+
+t = user time
+m = median
+Very Fast → t ≤ 0.7m
+Ideal → 0.7m < t ≤ 1.25m
+Too Slow → t > 1.25m
+If median null: Show:
+Copy code
+
+Timing insights will appear after more learners attempt.
+6️⃣ Language Toggle
+Same rule as attempt:
+Primary language = attempt.language
+Add button:
+Copy code
+
+View Telugu / View English
+Shows secondary language in collapsible block below question.
+7️⃣ Palette Navigation
+Same behavior:
+click tile → jump question
+centered numbers
+deep blue outline for active question
+8️⃣ Report Issue (Dispute Feature)
+Below each question add button:
+Copy code
+
+Report an Issue
+Opens modal.
+Options (radio):
+Incorrect answer key
+Question unclear
+Translation issue
+Explanation issue
+Other
+Optional text area.
+POST endpoint:
+Copy code
+
+POST /api/testhub/questions/report
+{
+  attemptId,
+  questionId,
+  issueType,
+  message
+}
+Store minimal table:
+QuestionReport:
+id
+userId
+attemptId
+questionId
+issueType
+message
+createdAt
+Show success toast:
+Copy code
+
+Thank you. Our team will review this question.
+9️⃣ Feedback Section (End of Review)
+After last question OR sticky bottom section:
+Card title:
+Copy code
+
+Your valuable feedback helps us improve overall product experience.
+Fields:
+Star rating (1–5)
+Text feedback
+POST:
+Copy code
+
+/api/testhub/attempts/feedback
+{
+  attemptId,
+  rating,
+  comment
+}
+Create table:
+AttemptFeedback:
+id
+attemptId
+userId
+rating
+comment
+createdAt
+🔟 Performance Considerations
+Lazy load explanations only when question becomes visible.
+Preload next question.
+Avoid loading all images immediately.
+11️⃣ QA Checklist
+✅ Correct answers highlighted only in review
+✅ Wrong answer shows red X
+✅ Median timing visible after enough attempts
+✅ Pace labels correct
+✅ Language toggle works
+✅ Palette navigation works
+✅ Report Issue saves record
+✅ Feedback submits successfully
+Commit changes.

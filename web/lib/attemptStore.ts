@@ -128,6 +128,18 @@ export function getAnswersForAttempt(attemptId: string): MockAttemptAnswer[] {
   return results;
 }
 
+export function getAllSubmittedAnswersForQuestion(questionId: string): MockAttemptAnswer[] {
+  const result: MockAttemptAnswer[] = [];
+  for (const a of answers.values()) {
+    if (a.questionId !== questionId) continue;
+    const attempt = attempts.get(a.attemptId);
+    if (attempt && attempt.status === "SUBMITTED") {
+      result.push(a);
+    }
+  }
+  return result;
+}
+
 export function bulkUpsertAnswers(
   attemptId: string,
   finalAnswers: Array<{

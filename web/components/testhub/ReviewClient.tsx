@@ -1,0 +1,557 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { CheckCircle2, XCircle, Clock, Flag, Star, ChevronDown, ChevronUp, X, MessageSquare } from 'lucide-react';
+
+interface OptionData {
+  key: string;
+  text: string;
+}
+
+interface ReviewQuestion {
+  questionId: string;
+  order: number;
+  subjectName: string;
+  questionText_en: string;
+  questionText_te: string;
+  options_en: OptionData[];
+  options_te: OptionData[];
+  correctOption: string;
+  explanation_en: string;
+  explanation_te: string;
+  userSelectedOption: string | null;
+  isMarkedForReview: boolean;
+  timeSpentMs: number;
+  medianTimeMs: number | null;
+  validAttemptsCount: number;
+}
+
+interface ReviewData {
+  testMeta: {
+    id: string;
+    name: string;
+    code: string;
+    totalQuestions: number;
+    marksPerQuestion: number;
+    negativeMarks: number;
+  };
+  attemptMeta: {
+    attemptId: string;
+    language: "EN" | "TE";
+    submittedAt: string;
+  };
+  questions: ReviewQuestion[];
+}
+
+function formatTimeShort(ms: number): string {
+  const sec = Math.round(ms / 1000);
+  if (sec < 60) return `${sec}s`;
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}m ${s}s`;
+}
+
+function getPaceLabel(timeMs: number, medianMs: number): { label: string; color: string } {
+  const ratio = timeMs / medianMs;
+  if (ratio <= 0.7) return { label: "Very Fast", color: "text-blue-600 bg-blue-50" };
+  if (ratio <= 1.25) return { label: "Ideal", color: "text-green-600 bg-green-50" };
+  return { label: "Too Slow", color: "text-red-600 bg-red-50" };
+}
+
+const ISSUE_TYPES = [
+  { value: "incorrect_answer_key", label: "Incorrect answer key" },
+  { value: "question_unclear", label: "Question unclear" },
+  { value: "translation_issue", label: "Translation issue" },
+  { value: "explanation_issue", label: "Explanation issue" },
+  { value: "other", label: "Other" },
+];
+
+export default function ReviewClient({ attemptId, testId }: { attemptId: string; testId: string }) {
+  const [data, setData] = useState<ReviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [showAltLang, setShowAltLang] = useState(false);
+  const [reportModal, setReportModal] = useState(false);
+  const [reportType, setReportType] = useState("");
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackDone, setFeedbackDone] = useState(false);
+
+  const fetchReview = useCallback(async () => {
+    const res = await fetch(`/api/testhub/attempts/review?attemptId=${attemptId}`);
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || "Failed to load review");
+    }
+    return res.json();
+  }, [attemptId]);
+
+  useEffect(() => {
+    fetchReview()
+      .then((d) => { setData(d); setLoading(false); })
+      .catch((e) => { setError(e.message); setLoading(false); });
+  }, [fetchReview]);
+
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+
+  function navigateTo(idx: number) {
+    setCurrentIndex(idx);
+    setShowAltLang(false);
+    setPaletteOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  async function handleReport() {
+    if (!reportType || !data) return;
+    setReportSubmitting(true);
+    try {
+      const res = await fetch('/api/testhub/questions/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attemptId,
+          questionId: data.questions[currentIndex].questionId,
+          issueType: reportType,
+          message: reportMessage,
+        }),
+      });
+      if (res.ok) {
+        setToast("Thank you. Our team will review this question.");
+        setReportModal(false);
+        setReportType("");
+        setReportMessage("");
+      }
+    } catch {
+      setToast("Failed to submit report. Try again.");
+    }
+    setReportSubmitting(false);
+  }
+
+  async function handleFeedback() {
+    if (feedbackRating === 0) return;
+    setFeedbackSubmitting(true);
+    try {
+      const res = await fetch('/api/testhub/attempts/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attemptId, rating: feedbackRating, comment: feedbackComment }),
+      });
+      if (res.ok) {
+        setFeedbackDone(true);
+        setToast("Thanks for your feedback!");
+      }
+    } catch {
+      setToast("Failed to submit feedback. Try again.");
+    }
+    setFeedbackSubmitting(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex-grow flex items-center justify-center py-20">
+        <div className="animate-pulse text-gray-400">Loading review...</div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex-grow flex items-center justify-center py-20 px-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 max-w-md w-full p-8 text-center">
+          <p className="text-red-500 mb-4">{error || 'Something went wrong'}</p>
+          <Link href="/testhub" className="btn-glossy-primary px-8 py-3">Back to TestHub</Link>
+        </div>
+      </div>
+    );
+  }
+
+  const { testMeta, attemptMeta, questions } = data;
+  const currentQ = questions[currentIndex];
+  const primaryLang = attemptMeta.language;
+  const altLang = primaryLang === "EN" ? "TE" : "EN";
+
+  const qText = primaryLang === "TE" ? currentQ.questionText_te : currentQ.questionText_en;
+  const altQText = primaryLang === "TE" ? currentQ.questionText_en : currentQ.questionText_te;
+  const options = primaryLang === "TE" ? currentQ.options_te : currentQ.options_en;
+  const altOptions = primaryLang === "TE" ? currentQ.options_en : currentQ.options_te;
+  const explanation = primaryLang === "TE" ? currentQ.explanation_te : currentQ.explanation_en;
+
+  const isCorrect = currentQ.userSelectedOption === currentQ.correctOption;
+  const isAttempted = currentQ.userSelectedOption !== null;
+
+  function getStatusColor(q: ReviewQuestion, idx: number): string {
+    if (q.userSelectedOption === null && !q.isMarkedForReview) {
+      if (q.timeSpentMs === 0) return "bg-gray-200 text-gray-600";
+      return "bg-red-400 text-white";
+    }
+    if (q.isMarkedForReview && q.userSelectedOption !== null) return "bg-purple-500 text-white";
+    if (q.isMarkedForReview) return "bg-purple-500 text-white";
+    if (q.userSelectedOption !== null) return "bg-green-500 text-white";
+    return "bg-red-400 text-white";
+  }
+
+  const counts = (() => {
+    let correct = 0, incorrect = 0, unattempted = 0;
+    for (const q of questions) {
+      if (q.userSelectedOption === null) unattempted++;
+      else if (q.userSelectedOption === q.correctOption) correct++;
+      else incorrect++;
+    }
+    return { correct, incorrect, unattempted };
+  })();
+
+  const paletteContent = (
+    <div>
+      <div className="space-y-1.5 text-[11px] font-medium mb-4">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-green-500 inline-block" />
+            <span className="text-gray-500">Correct ({counts.correct})</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-red-400 inline-block" />
+            <span className="text-gray-500">Incorrect ({counts.incorrect})</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded-sm bg-gray-200 inline-block" />
+            <span className="text-gray-500">Unattempted ({counts.unattempted})</span>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-5 gap-2">
+        {questions.map((q, idx) => {
+          let color: string;
+          if (q.userSelectedOption === null) color = "bg-gray-200 text-gray-600";
+          else if (q.userSelectedOption === q.correctOption) color = "bg-green-500 text-white";
+          else color = "bg-red-400 text-white";
+
+          return (
+            <button
+              key={q.questionId}
+              onClick={() => navigateTo(idx)}
+              className={`w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${color} ${idx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
+            >
+              {idx + 1}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const isLastQuestion = currentIndex === questions.length - 1;
+
+  return (
+    <>
+      <div className="bg-[#2D1B69] text-white py-2.5 px-4 flex-shrink-0">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="min-w-0">
+            <h1 className="text-sm font-semibold truncate">{testMeta.name}</h1>
+            <p className="text-[10px] text-purple-200">{testMeta.code} — Review</p>
+          </div>
+          <Link
+            href={`/testhub/tests/${testId}/result?attemptId=${attemptId}`}
+            className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
+          >
+            Back to Result
+          </Link>
+        </div>
+      </div>
+
+      <div className="flex-grow flex max-w-7xl mx-auto w-full">
+        <div className="flex-grow p-4 md:p-6 overflow-y-auto">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-6 mb-4">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
+                Question {currentIndex + 1} of {questions.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-gray-400">{currentQ.subjectName}</span>
+                <span className="text-xs text-gray-400">
+                  +{testMeta.marksPerQuestion} / -{testMeta.negativeMarks}
+                </span>
+              </div>
+            </div>
+
+            {isAttempted && (
+              <div className={`flex items-center gap-2 mb-3 text-xs font-medium px-3 py-1.5 rounded-lg w-fit ${isCorrect ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+                {isCorrect ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
+                {isCorrect ? "Correct" : "Incorrect"}
+              </div>
+            )}
+
+            {!isAttempted && (
+              <div className="flex items-center gap-2 mb-3 text-xs font-medium px-3 py-1.5 rounded-lg w-fit bg-gray-50 text-gray-500">
+                Unattempted
+              </div>
+            )}
+
+            <p className="text-[15px] text-gray-800 leading-relaxed mb-6">{qText}</p>
+
+            <div className="space-y-3 mb-4">
+              {options.map((opt) => {
+                const isUserSelected = currentQ.userSelectedOption === opt.key;
+                const isCorrectOpt = currentQ.correctOption === opt.key;
+
+                let borderClass = "border-gray-150 bg-white";
+                let badgeClass = "bg-gray-100 text-gray-600";
+                let icon = null;
+
+                if (isCorrectOpt) {
+                  borderClass = "border-green-300 bg-green-50/50";
+                  badgeClass = "bg-green-500 text-white";
+                  icon = <CheckCircle2 size={16} className="text-green-600 ml-auto flex-shrink-0" />;
+                } else if (isUserSelected && !isCorrectOpt) {
+                  borderClass = "border-red-300 bg-red-50/50";
+                  badgeClass = "bg-red-400 text-white";
+                  icon = <XCircle size={16} className="text-red-500 ml-auto flex-shrink-0" />;
+                }
+
+                return (
+                  <div
+                    key={opt.key}
+                    className={`w-full text-left p-3.5 rounded-xl border-2 text-sm flex items-center ${borderClass}`}
+                  >
+                    <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold mr-3 flex-shrink-0 ${badgeClass}`}>
+                      {opt.key}
+                    </span>
+                    <span className="flex-grow">{opt.text}</span>
+                    {icon}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => setShowAltLang(!showAltLang)}
+              className="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1 mb-4"
+            >
+              {showAltLang ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              View {altLang === "TE" ? "Telugu" : "English"}
+            </button>
+
+            {showAltLang && (
+              <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-100">
+                <p className="text-sm text-gray-700 leading-relaxed mb-3">{altQText}</p>
+                <div className="space-y-2">
+                  {altOptions.map((opt) => (
+                    <div key={opt.key} className="text-sm text-gray-600">
+                      <span className="font-medium mr-2">{opt.key}.</span>{opt.text}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="bg-purple-50 rounded-lg p-4 mb-4 border border-purple-100">
+              <p className="text-xs font-semibold text-purple-700 mb-1">Explanation</p>
+              <p className="text-sm text-gray-700 leading-relaxed">{explanation}</p>
+            </div>
+
+            <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-100">
+              <div className="flex items-center gap-2 mb-2">
+                <Clock size={14} className="text-gray-500" />
+                <span className="text-xs font-semibold text-gray-600">Timing Insight</span>
+              </div>
+              {currentQ.medianTimeMs !== null ? (
+                <div className="flex items-center gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500">Your Time: </span>
+                    <span className="font-semibold text-gray-700">{formatTimeShort(currentQ.timeSpentMs)}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500">Median: </span>
+                    <span className="font-semibold text-gray-700">{formatTimeShort(currentQ.medianTimeMs)}</span>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getPaceLabel(currentQ.timeSpentMs, currentQ.medianTimeMs).color}`}>
+                    {getPaceLabel(currentQ.timeSpentMs, currentQ.medianTimeMs).label}
+                  </span>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500">Timing insights will appear after more learners attempt.</p>
+              )}
+            </div>
+
+            <button
+              onClick={() => { setReportModal(true); setReportType(""); setReportMessage(""); }}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors"
+            >
+              <Flag size={12} /> Report an Issue
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 mb-4">
+            {currentIndex > 0 && (
+              <button
+                onClick={() => navigateTo(currentIndex - 1)}
+                className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Previous
+              </button>
+            )}
+            {!isLastQuestion && (
+              <button
+                onClick={() => navigateTo(currentIndex + 1)}
+                className="px-4 py-2.5 text-sm rounded-xl bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-hover)] transition-colors"
+              >
+                Next Question
+              </button>
+            )}
+            {isLastQuestion && (
+              <Link
+                href={`/testhub/tests/${testId}/result?attemptId=${attemptId}`}
+                className="px-4 py-2.5 text-sm rounded-xl bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-hover)] transition-colors"
+              >
+                Back to Result
+              </Link>
+            )}
+          </div>
+
+          {isLastQuestion && !feedbackDone && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
+              <div className="flex items-center gap-2 mb-3">
+                <MessageSquare size={16} className="text-purple-600" />
+                <h3 className="text-sm font-semibold text-[#2D1B69]">Your Feedback</h3>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">Your valuable feedback helps us improve overall product experience.</p>
+              <div className="flex gap-1 mb-4">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setFeedbackRating(s)}
+                    className="p-1 transition-colors"
+                  >
+                    <Star
+                      size={24}
+                      className={s <= feedbackRating ? "text-yellow-400" : "text-gray-200"}
+                      fill={s <= feedbackRating ? "#FACC15" : "none"}
+                    />
+                  </button>
+                ))}
+              </div>
+              <textarea
+                value={feedbackComment}
+                onChange={(e) => setFeedbackComment(e.target.value)}
+                placeholder="Share your thoughts (optional)"
+                className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-purple-200 mb-3"
+                rows={3}
+              />
+              <button
+                onClick={handleFeedback}
+                disabled={feedbackRating === 0 || feedbackSubmitting}
+                className="btn-glossy-primary px-6 py-2.5 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {feedbackSubmitting ? "Submitting..." : "Submit Feedback"}
+              </button>
+            </div>
+          )}
+
+          {isLastQuestion && feedbackDone && (
+            <div className="bg-green-50 rounded-xl border border-green-100 p-5 mb-4 text-center">
+              <CheckCircle2 size={24} className="text-green-500 mx-auto mb-2" />
+              <p className="text-sm text-green-700 font-medium">Thanks for your feedback!</p>
+            </div>
+          )}
+
+          <div className="md:hidden mt-4 mb-4">
+            <button
+              onClick={() => setPaletteOpen(!paletteOpen)}
+              className="w-full flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3 text-sm"
+            >
+              <span className="font-medium text-gray-700">Question Palette</span>
+              <div className="flex items-center gap-2">
+                <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{counts.correct}</span>
+                <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-red-400 inline-block" />{counts.incorrect}</span>
+                <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-gray-200 inline-block" />{counts.unattempted}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${paletteOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </button>
+            {paletteOpen && (
+              <div className="mt-2 bg-white rounded-xl border border-gray-200 p-4">
+                {paletteContent}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="hidden md:block w-64 flex-shrink-0 border-l border-gray-200 bg-white p-4 sticky top-0 h-screen overflow-y-auto">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Question Palette</h3>
+          {paletteContent}
+        </div>
+      </div>
+
+      {reportModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4" onClick={() => setReportModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-[#2D1B69]">Report an Issue</h3>
+              <button onClick={() => setReportModal(false)} className="text-gray-400 hover:text-gray-600">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">Question {currentIndex + 1}</p>
+            <div className="space-y-2 mb-4">
+              {ISSUE_TYPES.map((it) => (
+                <label key={it.value} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="issueType"
+                    value={it.value}
+                    checked={reportType === it.value}
+                    onChange={(e) => setReportType(e.target.value)}
+                    className="accent-purple-600"
+                  />
+                  {it.label}
+                </label>
+              ))}
+            </div>
+            <textarea
+              value={reportMessage}
+              onChange={(e) => setReportMessage(e.target.value)}
+              placeholder="Additional details (optional)"
+              className="w-full border border-gray-200 rounded-lg p-3 text-sm text-gray-700 resize-none focus:outline-none focus:ring-2 focus:ring-purple-200 mb-4"
+              rows={3}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setReportModal(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReport}
+                disabled={!reportType || reportSubmitting}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 disabled:opacity-50"
+              >
+                {reportSubmitting ? "Submitting..." : "Submit Report"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-green-500 text-white text-xs font-medium px-4 py-2 rounded-full shadow-lg">
+          {toast}
+        </div>
+      )}
+    </>
+  );
+}

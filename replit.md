@@ -125,6 +125,20 @@ Preferred communication style: Simple, everyday language.
 - API: `GET /api/testhub/attempts/summary?attemptId=` — returns overall + subject-wise question state counts
 - API: `POST /api/testhub/attempts/generate-result` — computes gross/negative/net marks, accuracy, XP, rank/percentile; idempotent
 - API: `GET /api/testhub/attempts/result?attemptId=` — returns full result data with test meta, breakdown, leaderboard
+- API: `GET /api/testhub/attempts/review?attemptId=` — returns questions with correctOption, user answers, timing, median time
+- API: `POST /api/testhub/questions/report` — saves question issue reports (incorrect key, unclear, translation, etc.)
+- API: `POST /api/testhub/attempts/feedback` — saves star rating + comment feedback for an attempt
+- `/testhub/tests/[testId]/review` — review page with correctness visualization, timing insights, language toggle
+- `ReviewClient` (`components/testhub/`) — client component for reviewing answered questions post-result
+  - Green check on correct option, red X on wrong selected option
+  - Timing insight: Your Time vs Median with pace label (Very Fast/Ideal/Too Slow)
+  - Median only shown when >=20 submitted attempts exist for the question
+  - Language toggle to view alternate language (EN/TE)
+  - Palette navigation with correct/incorrect/unattempted colors
+  - Report Issue modal (radio options + text area) per question
+  - Feedback section (star rating 1-5 + comment) on last question
+- In-memory report store (`lib/reportStore.ts`) — stores question issue reports
+- In-memory feedback store (`lib/feedbackStore.ts`) — stores attempt feedback
 - Login/Register forms both support `?from=` redirect for post-auth navigation
 
 ### Route Protection
