@@ -4,13 +4,14 @@ import { getTestById } from "@/config/testhub";
 import Link from "next/link";
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
+import InstructionsPill from "@/components/testhub/InstructionsPill";
 
 export default async function AttemptPage({ params }: { params: Promise<{ testId: string }> }) {
   const user = await getCurrentUser();
   const { testId } = await params;
 
   if (!user) {
-    redirect(`/login?from=${encodeURIComponent(`/testhub/tests/${testId}/brief`)}`);
+    redirect(`/login?from=${encodeURIComponent(`/testhub/tests/${testId}/attempt`)}`);
   }
 
   const test = getTestById(testId);
@@ -35,11 +36,14 @@ export default async function AttemptPage({ params }: { params: Promise<{ testId
     <main className="min-h-screen flex flex-col bg-white">
       <div className="bg-[#2D1B69] text-white py-3 px-4">
         <div className="container mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-semibold">{test.title}</h1>
-            <p className="text-xs text-purple-200">{test.category} &middot; {test.series}</p>
+          <div className="flex items-center gap-3">
+            <div>
+              <h1 className="text-base font-semibold">{test.title}</h1>
+              <p className="text-xs text-purple-200">{test.category} &middot; {test.series}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-3 text-sm">
+            <InstructionsPill test={test} />
             <span className="bg-white/10 rounded-lg px-3 py-1">{test.questions} Qs</span>
             <span className="bg-white/10 rounded-lg px-3 py-1">{test.duration} min</span>
           </div>

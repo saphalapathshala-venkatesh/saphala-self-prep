@@ -1,0 +1,87 @@
+You are working in the Saphala Pathshala (Self Prep) Next.js App Router codebase. Implement the mandatory Exam Brief flow for TestHub before a student starts attempting a test.
+Scope
+Student-facing TestHub only. Do NOT change home page banners/hero/other modules.
+Behavior (LOCKED)
+When a logged-in student clicks a FREE test (Start Test), they must land on:
+/testhub/tests/[testId]/brief
+This Brief screen must show:
+Instructions + Exam Pattern + Rules
+FULLY visible (no collapsible sections)
+Can be 1 page with 2 clear sections OR 2 pages max (Step 1/Step 2). Prefer 1 page for mobile.
+Brief screen must include a Language dropdown:
+Default: English
+Options: English, Telugu
+Note below: “Questions will be shown only in selected language. You can view the other language per question during the test.”
+Student must check a checkbox:
+“I have read and understood the instructions.”
+Start Test button disabled until checked.
+On Start Test:
+Create (or resume) an Attempt session for this user+test
+Persist selected language in the attempt record (EN/TE)
+Navigate to /testhub/tests/[testId]/attempt
+If the user already has an active attempt for this test (not submitted):
+Brief screen should show a banner:
+“You have an ongoing attempt. Resume your test.”
+Primary CTA becomes “Resume Test”
+Still keep language locked to attempt’s saved language
+During attempt page:
+Show a small pill card: “ⓘ Instructions”
+On click, open a modal (or bottom sheet on mobile) showing the same instructions + exam pattern content (scrollable, but not collapsed).
+Close (X) top-right.
+Data requirements (minimal)
+Ensure test info available on brief:
+test name, test code, total questions, duration, marks per question, negative marking, attempts allowed, attempts left
+If some fields don’t exist yet, show safe defaults (but don’t break build):
+duration: show “—” if missing
+negative marking: show “No negative marking” if 0/null
+Language in attempt record:
+enum: EN | TE (or strings "EN"/"TE")
+default EN
+Files/Implementation
+A) Create page:
+app/testhub/tests/[testId]/brief/page.tsx
+Server guard: redirect to /login?from=... if not logged in (use existing auth helper)
+Fetch test meta needed for brief
+Render brief screen in a clean card layout
+Include language dropdown + checkbox + Start/Resume button
+On button click, call an API to create/resume attempt (client action)
+B) Create API route:
+app/api/testhub/attempts/start/route.ts
+POST body: { testId, language }
+If attempt exists and not submitted → return that attemptId
+Else create a new attempt:
+userId, testId, language, startedAt, status=IN_PROGRESS, attemptNumber (increment)
+Must respect attempts limit:
+If attempts used >= allowed attempts → return 403 with message “No attempts left for this test.”
+Response: { attemptId, status }
+C) Attempt page:
+app/testhub/tests/[testId]/attempt/page.tsx
+Server guard login
+Load attempt (active) for user+test
+Render attempt UI placeholder if needed, but must include:
+the “ⓘ Instructions” pill
+modal content pulled from same brief data (reuse a shared component)
+D) Shared component:
+Create components/testhub/ExamInstructionsContent.tsx
+Pure component that receives test meta and renders:
+Instructions section
+Exam pattern/rules section
+Used both in Brief page and in Attempt instructions modal so content stays identical.
+E) If you need to store/retrieve language choice:
+Use attempt.language as source of truth.
+UI Requirements
+No hide/collapse of instructions on brief page.
+Attempt page shows only “ⓘ Instructions” pill (no big instruction blocks during attempt).
+Keep style consistent with existing Saphala UI.
+Buttons use toned-down Saphala color.
+Provide clear error UI:
+If attempts exhausted, show a professional message card and a “Back to Tests” button.
+QA Checklist
+Logged-in user → click FREE test → lands on brief.
+Start Test disabled until checkbox checked.
+Default language is English; change to Telugu works.
+Start Test creates attempt and routes to attempt page.
+Attempt page shows ⓘ Instructions modal with same content.
+If attempt already exists → brief shows Resume banner and Resume button.
+If attempts exhausted → cannot start; show message.
+Implement cleanly and commit.

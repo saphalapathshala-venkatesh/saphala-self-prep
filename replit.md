@@ -77,11 +77,23 @@ Preferred communication style: Simple, everyday language.
 
 ### TestHub
 - `/testhub` — browse tests without login (client-side page with category filters)
-- `/testhub/tests/[testId]/brief` — test instructions (server-side auth guard, redirects to login)
-- `/testhub/tests/[testId]/attempt` — test-taking interface (server-side auth guard, redirects to login)
+- `/testhub/tests/[testId]/brief` — exam brief page (server-side auth guard, redirects to login)
+  - Full instructions, exam pattern, and rules (no collapsible sections)
+  - Language dropdown (English/Telugu), stored as EN/TE in attempt
+  - "I have read and understood" checkbox — Start Test disabled until checked
+  - Resume banner + "Resume Test" CTA when active attempt exists (language locked)
+  - Attempts exhausted card when all attempts used
+- `/testhub/tests/[testId]/attempt` — test-taking interface (server-side auth guard)
+  - "Instructions" pill in header bar opens modal with same ExamInstructionsContent
+- `ExamInstructionsContent` (`components/testhub/`) — shared component for instructions (used in brief + attempt modal)
+- `BriefClient` (`components/testhub/`) — client component handling language, checkbox, start/resume logic
+- `InstructionsPill` (`components/testhub/`) — pill button + modal for attempt page instructions
 - `LoginRequiredModal` (`components/testhub/`) — shown when unauthenticated user clicks "Start Test"
 - `useAuthStatus` hook (`lib/auth/useAuthStatus.ts`) — client-side auth check via `/api/auth/status`
-- Mock test data in `config/testhub.ts` (NEET/JEE categories)
+- Mock test data in `config/testhub.ts` (NEET/JEE categories, testCode, marksPerQuestion, negativeMarks, attemptsAllowed)
+- In-memory attempt store (`lib/attemptStore.ts`) — tracks active/completed attempts per user+test (server-side, resets on restart)
+- API: `POST /api/testhub/attempts/start` — creates or resumes attempt, enforces attempt limits
+- API: `GET /api/testhub/attempts/active?testId=` — checks for active attempt + attempts used
 - Login/Register forms both support `?from=` redirect for post-auth navigation
 
 ### Route Protection
