@@ -113,7 +113,14 @@ Preferred communication style: Simple, everyday language.
 - `InstructionsPill` (`components/testhub/`) — pill button + modal for attempt page instructions
 - `LoginRequiredModal` (`components/testhub/`) — shown when unauthenticated user clicks "Start Test"
 - `useAuthStatus` hook (`lib/auth/useAuthStatus.ts`) — client-side auth check via `/api/auth/status`
-- Mock test data in `config/testhub.ts` (NEET/JEE categories, testCode, marksPerQuestion, negativeMarks, attemptsAllowed)
+- Mock test data in `config/testhub.ts` (NEET/JEE categories, testCode, marksPerQuestion, negativeMarks, attemptsAllowed, languageAvailable)
+- `LanguageAvailable` type: "EN" | "TE" | "BOTH" — controls language options per test
+- 5 seed tests (SEED-001 to SEED-005) with Polity & Arithmetic subjects, realistic bilingual questions
+  - SEED-001: FREE, EN only, negative ON (0.25), 10 Qs
+  - SEED-002: FREE, BOTH, negative OFF, 10 Qs
+  - SEED-003: LOCKED, EN only, negative ON (0.25), 8 Qs
+  - SEED-004: LOCKED, BOTH, negative ON (0.25), 10 Qs
+  - SEED-005: LOCKED, TE only, negative OFF, 8 Qs
 - Mock questions in `config/mockQuestions.ts` — auto-generated bilingual (EN/TE) questions per test, includes `correctOption` per question
 - In-memory attempt store (`lib/attemptStore.ts`) — tracks attempts, answers, time per question (server-side, resets on restart)
 - In-memory result store (`lib/resultStore.ts`) — stores computed results, subject breakdowns, and user XP totals
@@ -150,3 +157,4 @@ Preferred communication style: Simple, everyday language.
 - `scripts/promoteAdmin.mjs` — promote user to ADMIN by email
 - `scripts/makeAdmin.mjs` — alternative admin promotion script
 - `scripts/deleteTestUser.mjs` — delete test users
+- `scripts/seed-testhub.mjs` — prints seed test data summary (`npm run seed:testhub`)

@@ -1,4 +1,5 @@
 export type AccessType = "FREE" | "LOCKED";
+export type LanguageAvailable = "EN" | "TE" | "BOTH";
 
 export interface MockTest {
   id: string;
@@ -13,6 +14,7 @@ export interface MockTest {
   marksPerQuestion: number;
   negativeMarks: number;
   attemptsAllowed: number;
+  languageAvailable: LanguageAvailable;
 }
 
 export const mockTests: MockTest[] = [
@@ -29,6 +31,7 @@ export const mockTests: MockTest[] = [
     marksPerQuestion: 4,
     negativeMarks: 1,
     attemptsAllowed: 3,
+    languageAvailable: "BOTH",
   },
   {
     id: "neet-chem-1",
@@ -43,6 +46,7 @@ export const mockTests: MockTest[] = [
     marksPerQuestion: 4,
     negativeMarks: 1,
     attemptsAllowed: 3,
+    languageAvailable: "BOTH",
   },
   {
     id: "neet-phy-1",
@@ -57,6 +61,7 @@ export const mockTests: MockTest[] = [
     marksPerQuestion: 4,
     negativeMarks: 1,
     attemptsAllowed: 3,
+    languageAvailable: "BOTH",
   },
   {
     id: "neet-grand-1",
@@ -71,6 +76,7 @@ export const mockTests: MockTest[] = [
     marksPerQuestion: 4,
     negativeMarks: 1,
     attemptsAllowed: 2,
+    languageAvailable: "BOTH",
   },
   {
     id: "jee-math-1",
@@ -85,6 +91,7 @@ export const mockTests: MockTest[] = [
     marksPerQuestion: 4,
     negativeMarks: 1,
     attemptsAllowed: 3,
+    languageAvailable: "BOTH",
   },
   {
     id: "jee-phy-1",
@@ -99,6 +106,82 @@ export const mockTests: MockTest[] = [
     marksPerQuestion: 4,
     negativeMarks: 1,
     attemptsAllowed: 2,
+    languageAvailable: "BOTH",
+  },
+  {
+    id: "seed-free-en-neg",
+    title: "Polity & Arithmetic - Quick Test (EN)",
+    testCode: "SEED-001",
+    category: "NEET",
+    series: "Seed Tests",
+    duration: 10,
+    questions: 10,
+    difficulty: "Easy",
+    accessType: "FREE",
+    marksPerQuestion: 1,
+    negativeMarks: 0.25,
+    attemptsAllowed: 2,
+    languageAvailable: "EN",
+  },
+  {
+    id: "seed-free-both-noneg",
+    title: "Polity & Arithmetic - Bilingual (No Negative)",
+    testCode: "SEED-002",
+    category: "NEET",
+    series: "Seed Tests",
+    duration: 15,
+    questions: 10,
+    difficulty: "Easy",
+    accessType: "FREE",
+    marksPerQuestion: 1,
+    negativeMarks: 0,
+    attemptsAllowed: 2,
+    languageAvailable: "BOTH",
+  },
+  {
+    id: "seed-locked-en-neg",
+    title: "Polity & Arithmetic - Premium (EN)",
+    testCode: "SEED-003",
+    category: "NEET",
+    series: "Seed Tests",
+    duration: 10,
+    questions: 8,
+    difficulty: "Medium",
+    accessType: "LOCKED",
+    marksPerQuestion: 1,
+    negativeMarks: 0.25,
+    attemptsAllowed: 2,
+    languageAvailable: "EN",
+  },
+  {
+    id: "seed-locked-both-neg",
+    title: "Polity & Arithmetic - Premium Bilingual",
+    testCode: "SEED-004",
+    category: "NEET",
+    series: "Seed Tests",
+    duration: 15,
+    questions: 10,
+    difficulty: "Medium",
+    accessType: "LOCKED",
+    marksPerQuestion: 1,
+    negativeMarks: 0.25,
+    attemptsAllowed: 2,
+    languageAvailable: "BOTH",
+  },
+  {
+    id: "seed-locked-te-noneg",
+    title: "రాజ్యాంగం & గణితం - ప్రీమియం (TE)",
+    testCode: "SEED-005",
+    category: "NEET",
+    series: "Seed Tests",
+    duration: 10,
+    questions: 8,
+    difficulty: "Easy",
+    accessType: "LOCKED",
+    marksPerQuestion: 1,
+    negativeMarks: 0,
+    attemptsAllowed: 2,
+    languageAvailable: "TE",
   },
 ];
 
