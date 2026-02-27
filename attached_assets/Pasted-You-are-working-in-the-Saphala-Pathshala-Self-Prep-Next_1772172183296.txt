@@ -1,0 +1,62 @@
+You are working in the Saphala Pathshala (Self Prep) Next.js App Router codebase. Implement FREE vs LOCKED test access gating for the student-facing TestHub, with a polite “Unlock Full Access” modal. This must work alongside the existing “Login Required” modal.
+Scope
+Students can browse categories → series → subjects → tests (no change).
+On each test card, there is a CTA (Start Test / Attempt / Take Test).
+If the test is FREE → proceed to /testhub/tests/[testId]/brief (but still requires login; if not logged in, show Login Required modal).
+If the test is LOCKED → show an Unlock Full Access modal (polite, not aggressive). Do not navigate.
+Do NOT change banners/hero/home UI. Keep changes scoped to TestHub list + related components.
+Modal UX (LOCKED wording)
+Create a modal card with:
+Title: Unlock Full Practice Experience
+Message (2 lines max):
+“This test is part of the complete preparation series designed to strengthen your exam readiness.
+Unlock full access to continue your learning journey and access performance insights.”
+Bullet points (max 4):
+Full Test Series Access
+Performance Insights
+Smart Reinforcement
+Detailed Analytics
+Primary CTA button text: Unlock Full Access
+Secondary CTA: Continue Exploring (closes modal)
+Close (X) in top-right
+Backdrop click closes
+Button styling uses existing toned-down Saphala CTA color.
+Primary CTA should route to your plans/pricing page:
+If you already have a route like /pricing or /plans, use it.
+If none exists, create a placeholder route /plans that shows a simple page “Plans coming soon” (do not add more features).
+Data / Logic
+How to determine if a test is FREE or LOCKED:
+If your Test model already has a boolean or enum like isFree, is_paid, accessType, etc., use it.
+If not present, add a field in Prisma:
+accessType enum: FREE | LOCKED
+default: LOCKED
+Add migration and update any seed/default creation so existing tests don’t break (fallback: treat missing as LOCKED).
+In API responses for tests, include accessType.
+UI requirements on Test Card
+If FREE:
+Show a small badge/pill: “Free Access”
+CTA label: “Start Test”
+If LOCKED:
+Show subtle lock icon + badge “Locked”
+CTA label: “View Access” (not “Buy Now”)
+Slightly reduced opacity on card content (e.g., 90%) but keep readable.
+Interactions (Priority order)
+On clicking CTA:
+If user is not logged in → show LoginRequiredModal (existing) and do nothing else.
+If logged in AND test is LOCKED → show Unlock Full Access modal.
+If logged in AND test is FREE → navigate to Exam Brief.
+Make sure both modals can coexist cleanly (do not show both at once).
+Files to update
+Add components/testhub/UnlockAccessModal.tsx (client component).
+Update test card component to:
+render badges
+open the correct modal
+navigate only when allowed.
+Update backend/API/prisma as needed to provide accessType.
+QA Checklist
+Logged out + FREE test click → Login Required modal.
+Logged out + LOCKED test click → Login Required modal (login gate is first).
+Logged in + FREE test click → goes to /brief.
+Logged in + LOCKED test click → Unlock modal appears; CTA routes to plans page.
+No other UI changes elsewhere.
+Implement cleanly and commit

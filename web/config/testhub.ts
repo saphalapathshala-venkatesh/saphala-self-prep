@@ -1,3 +1,5 @@
+export type AccessType = "FREE" | "LOCKED";
+
 export interface MockTest {
   id: string;
   title: string;
@@ -6,6 +8,7 @@ export interface MockTest {
   duration: number;
   questions: number;
   difficulty: "Easy" | "Medium" | "Hard";
+  accessType: AccessType;
 }
 
 export const mockTests: MockTest[] = [
@@ -17,6 +20,7 @@ export const mockTests: MockTest[] = [
     duration: 30,
     questions: 25,
     difficulty: "Easy",
+    accessType: "FREE",
   },
   {
     id: "neet-chem-1",
@@ -26,6 +30,7 @@ export const mockTests: MockTest[] = [
     duration: 45,
     questions: 30,
     difficulty: "Medium",
+    accessType: "LOCKED",
   },
   {
     id: "neet-phy-1",
@@ -35,6 +40,7 @@ export const mockTests: MockTest[] = [
     duration: 40,
     questions: 20,
     difficulty: "Medium",
+    accessType: "FREE",
   },
   {
     id: "neet-grand-1",
@@ -44,6 +50,7 @@ export const mockTests: MockTest[] = [
     duration: 180,
     questions: 200,
     difficulty: "Hard",
+    accessType: "LOCKED",
   },
   {
     id: "jee-math-1",
@@ -53,6 +60,7 @@ export const mockTests: MockTest[] = [
     duration: 35,
     questions: 20,
     difficulty: "Medium",
+    accessType: "FREE",
   },
   {
     id: "jee-phy-1",
@@ -62,6 +70,7 @@ export const mockTests: MockTest[] = [
     duration: 50,
     questions: 25,
     difficulty: "Hard",
+    accessType: "LOCKED",
   },
 ];
 

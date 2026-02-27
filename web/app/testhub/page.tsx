@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
-import { mockTests } from "@/config/testhub";
+import { mockTests, type MockTest } from "@/config/testhub";
 import { useAuthStatus } from "@/lib/auth/useAuthStatus";
 import LoginRequiredModal from "@/components/testhub/LoginRequiredModal";
+import UnlockAccessModal from "@/components/testhub/UnlockAccessModal";
 
 const categories = Array.from(new Set(mockTests.map((t) => t.category)));
 
@@ -14,19 +15,26 @@ export default function TestHubPage() {
   const router = useRouter();
   const { isAuthed } = useAuthStatus();
   const [selectedCategory, setSelectedCategory] = useState<string>("All");
-  const [modalTestId, setModalTestId] = useState<string | null>(null);
+  const [loginModalTestId, setLoginModalTestId] = useState<string | null>(null);
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
 
   const filteredTests =
     selectedCategory === "All"
       ? mockTests
       : mockTests.filter((t) => t.category === selectedCategory);
 
-  function handleAttempt(testId: string) {
+  function handleAttempt(test: MockTest) {
     if (isAuthed === false) {
-      setModalTestId(testId);
-    } else {
-      router.push(`/testhub/tests/${testId}/brief`);
+      setLoginModalTestId(test.id);
+      return;
     }
+
+    if (test.accessType === "LOCKED") {
+      setShowUnlockModal(true);
+      return;
+    }
+
+    router.push(`/testhub/tests/${test.id}/brief`);
   }
 
   return (
@@ -60,54 +68,78 @@ export default function TestHubPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTests.map((test) => (
-            <div
-              key={test.id}
-              className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
-            >
-              <div className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
-                    {test.category}
-                  </span>
-                  <span
-                    className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-                      test.difficulty === "Easy"
-                        ? "text-green-700 bg-green-50"
-                        : test.difficulty === "Medium"
-                        ? "text-yellow-700 bg-yellow-50"
-                        : "text-red-700 bg-red-50"
-                    }`}
+          {filteredTests.map((test) => {
+            const isLocked = test.accessType === "LOCKED";
+
+            return (
+              <div
+                key={test.id}
+                className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${
+                  isLocked ? "opacity-90" : ""
+                }`}
+              >
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
+                        {test.category}
+                      </span>
+                      {isLocked ? (
+                        <span className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                          Locked
+                        </span>
+                      ) : (
+                        <span className="text-xs font-medium text-green-700 bg-green-50 px-2.5 py-1 rounded-full">
+                          Free Access
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`text-xs font-medium px-2.5 py-1 rounded-full ${
+                        test.difficulty === "Easy"
+                          ? "text-green-700 bg-green-50"
+                          : test.difficulty === "Medium"
+                          ? "text-yellow-700 bg-yellow-50"
+                          : "text-red-700 bg-red-50"
+                      }`}
+                    >
+                      {test.difficulty}
+                    </span>
+                  </div>
+
+                  <h3 className="text-base font-bold text-[#2D1B69] mb-2 leading-snug">{test.title}</h3>
+                  <p className="text-gray-400 text-xs mb-4">{test.series}</p>
+
+                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-5">
+                    <span>{test.questions} Qs</span>
+                    <span>{test.duration} min</span>
+                  </div>
+
+                  <button
+                    onClick={() => handleAttempt(test)}
+                    className="btn-glossy-primary w-full text-sm py-2.5"
                   >
-                    {test.difficulty}
-                  </span>
+                    {isLocked ? "View Access" : "Start Test"}
+                  </button>
                 </div>
-
-                <h3 className="text-base font-bold text-[#2D1B69] mb-2 leading-snug">{test.title}</h3>
-                <p className="text-gray-400 text-xs mb-4">{test.series}</p>
-
-                <div className="flex items-center gap-4 text-sm text-gray-500 mb-5">
-                  <span>{test.questions} Qs</span>
-                  <span>{test.duration} min</span>
-                </div>
-
-                <button
-                  onClick={() => handleAttempt(test.id)}
-                  className="btn-glossy-primary w-full text-sm py-2.5"
-                >
-                  Start Test
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
-      {modalTestId && (
+      {loginModalTestId && (
         <LoginRequiredModal
-          returnTo={`/testhub/tests/${modalTestId}/brief`}
-          onClose={() => setModalTestId(null)}
+          returnTo={`/testhub/tests/${loginModalTestId}/brief`}
+          onClose={() => setLoginModalTestId(null)}
         />
+      )}
+
+      {showUnlockModal && (
+        <UnlockAccessModal onClose={() => setShowUnlockModal(false)} />
       )}
 
       <Footer />
