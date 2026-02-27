@@ -84,16 +84,31 @@ Preferred communication style: Simple, everyday language.
   - Resume banner + "Resume Test" CTA when active attempt exists (language locked)
   - Attempts exhausted card when all attempts used
 - `/testhub/tests/[testId]/attempt` — test-taking interface (server-side auth guard)
+  - `TestAttemptClient` renders full exam UI: question display, option selection, palette, timer
   - "Instructions" pill in header bar opens modal with same ExamInstructionsContent
+  - Desktop: sticky right sidebar palette; Mobile: collapsible bottom drawer with status counts
+  - Question palette with 5 status colors: Not Visited (grey), Unanswered (red), Answered (green), Marked for Review (purple), Answered + Marked (purple + green tick)
+  - Draft vs Saved answer states: selecting an option is draft-only; Save & Next or Mark for Review & Next persists
+  - Clear Response clears both draft and saved state
+  - Timer uses server-authoritative `endsAt`; auto-submits at 0 with "Time is Over" message
+  - Submit confirmation modal shows answered/unanswered/review counts
+  - Final auto-commit: unsaved drafts (non-null, differing from saved) are committed on submit
+  - After submission, redirects to `/testhub/tests/[testId]/submitted`
+- `/testhub/tests/[testId]/submitted` — placeholder submitted page with success message
+- `TestAttemptClient` (`components/testhub/`) — main client component for test-taking UI
 - `ExamInstructionsContent` (`components/testhub/`) — shared component for instructions (used in brief + attempt modal)
 - `BriefClient` (`components/testhub/`) — client component handling language, checkbox, start/resume logic
 - `InstructionsPill` (`components/testhub/`) — pill button + modal for attempt page instructions
 - `LoginRequiredModal` (`components/testhub/`) — shown when unauthenticated user clicks "Start Test"
 - `useAuthStatus` hook (`lib/auth/useAuthStatus.ts`) — client-side auth check via `/api/auth/status`
 - Mock test data in `config/testhub.ts` (NEET/JEE categories, testCode, marksPerQuestion, negativeMarks, attemptsAllowed)
-- In-memory attempt store (`lib/attemptStore.ts`) — tracks active/completed attempts per user+test (server-side, resets on restart)
+- Mock questions in `config/mockQuestions.ts` — auto-generated bilingual (EN/TE) questions per test
+- In-memory attempt store (`lib/attemptStore.ts`) — tracks attempts, answers, time per question (server-side, resets on restart)
 - API: `POST /api/testhub/attempts/start` — creates or resumes attempt, enforces attempt limits
 - API: `GET /api/testhub/attempts/active?testId=` — checks for active attempt + attempts used
+- API: `GET /api/testhub/tests/[testId]/attempt-data` — returns test meta, attempt meta, questions, saved answers
+- API: `POST /api/testhub/attempts/save-answer` — upserts single answer with time tracking
+- API: `POST /api/testhub/attempts/submit` — bulk upserts final answers, marks attempt SUBMITTED
 - Login/Register forms both support `?from=` redirect for post-auth navigation
 
 ### Route Protection

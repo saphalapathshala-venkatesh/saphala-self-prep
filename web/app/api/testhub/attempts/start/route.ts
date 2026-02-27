@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const attempt = createAttempt(user.id, testId, language as "EN" | "TE");
+  const attempt = createAttempt(user.id, testId, language as "EN" | "TE", test.duration);
 
   return Response.json({
     attemptId: attempt.attemptId,

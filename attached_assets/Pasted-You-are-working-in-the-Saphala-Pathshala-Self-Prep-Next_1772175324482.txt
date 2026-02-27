@@ -1,0 +1,123 @@
+You are working in the Saphala Pathshala (Self Prep) Next.js App Router codebase. Implement the Test Attempt UI core for TestHub with palette + timer + save behavior as locked.
+Scope
+Student-facing attempt screen only: /testhub/tests/[testId]/attempt
+Do NOT implement results/analytics yet. Do NOT change home page.
+1) Data Models / Minimal Backend
+A) Attempt fields (ensure exist)
+Attempt must have:
+id
+userId
+testId
+status = IN_PROGRESS | SUBMITTED
+attemptNumber
+language = EN | TE
+startedAt
+endsAt (server computed = startedAt + duration)
+submittedAt nullable
+B) AttemptAnswer model (if not present, create)
+One row per attempt per question:
+id
+attemptId
+questionId
+selectedOption (A/B/C/D or null)
+isMarkedForReview boolean default false
+timeSpentMs integer default 0  (we will start capturing basic time)
+savedAt datetime nullable
+updatedAt
+Note: “saved” means savedAt != null (created/updated only by Save & Next or Mark for Review & Next or final auto-commit on submit).
+C) Fetching test + questions
+Create/ensure an API route:
+GET /api/testhub/tests/[testId]/attempt-data Returns:
+test meta: { id, name, code, durationMinutes, totalQuestions, negativeMarking, marksPerQuestion }
+attempt meta: { attemptId, language, endsAt, status }
+questions ordered: include bilingual fields:
+questionText_en, questionText_te
+optionA_en/te ... optionD_en/te
+subjectId/topicId mapping if exists (for later)
+existing saved answers for this attempt (AttemptAnswer rows)
+2) Attempt Page UI (Client)
+Update app/testhub/tests/[testId]/attempt/page.tsx to render a client component: <TestAttemptClient testId={params.testId} />
+Create components/testhub/TestAttemptClient.tsx (client component) implementing:
+Layout (LOCKED)
+Desktop: palette sticky right sidebar
+Mobile: palette bottom drawer (collapsed bar showing counts, tap expands)
+Header bar: test title + code, timer centered, XP placeholder (optional)
+Below header: small pill ⓘ Instructions (already built) – keep it
+Main question area with options
+Bottom action bar with buttons:
+Clear Response
+Mark for Review & Next
+Save & Next
+No correctness colors during attempt
+Options are neutral. Selected option is only subtle highlight (soft purple border).
+3) Question Navigation + Palette
+Status states (LOCKED)
+Not Visited (grey)
+Unattempted (red) = visited but no saved answer and not marked
+Answered (green) = saved answer and not marked
+Marked for Review (purple) = marked and no saved answer
+Answered & Marked (purple + green tick) = marked and saved answer exists
+Important: If user selects an option but DOES NOT press save, it is NOT saved, and status must NOT become Answered.
+Palette tile rules
+Square tiles, number centered (flex center)
+Answered & Marked shows a small green tick overlay at top-right without shifting number
+Current question has deep-blue outline only (no background change)
+Live legend counts
+Compute counts in real time from current state (visited, saved answers, marked flags). Legend displays colored mini-box with centered count.
+Direct jump
+Clicking any palette tile navigates to that question instantly.
+4) Save Rules (LOCKED)
+Maintain two layers of answer state:
+A) Draft (unsaved selection)
+When user taps an option, store it as “draftSelectedOption” for that question (client state only). This is not persisted and does not change palette to Answered.
+B) Saved (persisted)
+Only when user presses:
+Save & Next
+Mark for Review & Next
+Do:
+Upsert AttemptAnswer with selectedOption = draftSelectedOption (or null), isMarkedForReview accordingly
+Set savedAt = now()
+Final Auto-Commit
+When user submits or time ends:
+For all questions:
+if draftSelectedOption exists and no savedAt yet OR differs from saved selection
+upsert AttemptAnswer with selectedOption = draftSelectedOption and set savedAt = now()
+Then mark attempt submitted.
+5) Timer (Server Authoritative)
+Use endsAt from server. Compute remaining time client-side = endsAt - now.
+When remaining time reaches 0:
+Trigger auto-submit flow (final auto-commit + submit API).
+Show message: “Time is over. Your test has been submitted automatically.”
+Timer continues regardless of navigation. No pause.
+6) APIs to implement
+A) Save endpoint
+POST /api/testhub/attempts/save-answer Body: { attemptId, questionId, selectedOption|null, isMarkedForReview, timeSpentMsDelta }
+Upsert AttemptAnswer
+Update timeSpentMs += delta
+Set savedAt = now
+B) Submit endpoint
+POST /api/testhub/attempts/submit Body: { attemptId, finalAnswers: [{questionId, selectedOption|null, isMarkedForReview, timeSpentMs}] }
+Validate attempt belongs to user and IN_PROGRESS
+Upsert all answers (final auto-commit)
+Set attempt.status=SUBMITTED, submittedAt=now
+Return { success: true }
+7) Time spent per question (basic v1)
+Implement simple tracking:
+When question becomes active, start a timer.
+When user navigates away (palette click, next buttons), compute delta ms and store in client.
+On save/submit send delta for that question.
+Do not overcomplicate.
+8) UX details
+Disable Save buttons while saving network call to prevent double taps.
+Show small toast/inline text “Saved” after Save & Next.
+If save fails, show “Could not save. Check connection.” and keep draft.
+9) QA Checklist
+Selecting an option alone does not change to Answered.
+Save & Next creates saved answer and turns tile green.
+Mark for Review & Next turns purple (or purple+tick if saved).
+Clearing response removes draft; if previously saved, then it becomes unattempted unless saved again (do NOT auto-save on clear).
+Palette counts update instantly.
+Timer auto-submits at 0.
+Submit performs final auto-commit (draft answers become saved even if not saved earlier).
+After submission, redirect to a placeholder route /testhub/tests/[testId]/submitted for now (we’ll build Attempts Summary next step).
+Implement cleanly and commit.
