@@ -3,6 +3,7 @@ export interface MockQuestion {
   order: number;
   subjectId: string;
   subjectName: string;
+  correctOption: "A" | "B" | "C" | "D";
   questionText_en: string;
   questionText_te: string;
   optionA_en: string;
@@ -34,11 +35,14 @@ function generateQuestionsForTest(testId: string, count: number): MockQuestion[]
   const questions: MockQuestion[] = [];
   for (let i = 1; i <= count; i++) {
     const subject = subjects[(i - 1) % subjects.length];
+    const options: Array<"A" | "B" | "C" | "D"> = ["A", "B", "C", "D"];
+    const correctOption = options[(i - 1) % 4];
     questions.push({
       id: `${testId}-q${i}`,
       order: i,
       subjectId: subject.id,
       subjectName: subject.name,
+      correctOption,
       questionText_en: `Question ${i}: This is a sample question for the test. Which of the following options is correct?`,
       questionText_te: `ప్రశ్న ${i}: ఇది పరీక్ష కోసం నమూనా ప్రశ్న. కింది ఎంపికలలో ఏది సరైనది?`,
       optionA_en: `Option A for question ${i}`,

@@ -1,0 +1,148 @@
+You are working in the Saphala Self Prep / TestHub Next.js App Router codebase. Implement Result Generation v1 and the Result Page UI, including negative marking breakdown, rank/percentile/top 10, and XP reward overlay (with 3-second Saphala-colored confetti).
+Scope
+Student-facing TestHub only
+Use existing DB-backed session auth helpers
+Do NOT modify home page banners/hero/other modules
+1) Data Rules (LOCKED)
+A) Evaluation inclusion
+Evaluate answers that exist at submission time (AttemptAnswer rows).
+“Answered & Marked for Review” counts as answered for evaluation (including negative marking).
+Unattempted / Not visited / Marked only (no selected option) → no marks, no negative marks.
+B) Marks
+If negative marking is enabled:
+Gross Marks = sum(correct * marksPerQuestion)
+Negative Marks = sum(incorrect * negativeMarksPerQuestion)
+Net Marks = Gross − Negative
+Show this:
+Per Subject
+Entire test overall
+If negative marking disabled or 0:
+Negative = 0
+Net = Gross
+C) Leaderboard sorting (LOCKED)
+Sort attempts for a test by:
+Higher Net Marks
+Higher Accuracy
+Lower Total Time Used
+Earlier SubmittedAt (stable tie-break)
+D) Percentile (LOCKED)
+Percentile formula (simple and acceptable):
+percentile = 100 * (count of attempts with netMarks < userNetMarks) / totalAttempts (Optionally include half-weight ties later; v1 is fine.)
+Show tooltip note:
+“Percentile 72 means you performed better than 72% learners who attempted this test.”
+2) DB Schema (minimal additions)
+A) Store computed results
+If you don’t already have a Result model, create:
+Result (or AttemptResult):
+id
+attemptId (unique)
+testId
+userId
+grossMarksTotal
+negativeMarksTotal
+netMarksTotal
+accuracyPercent
+totalTimeUsedMs
+rank
+percentile
+createdAt
+And a child table for subject-wise: ResultSubjectBreakdown:
+id
+resultId
+subjectId
+subjectName (or join)
+grossMarks
+negativeMarks
+netMarks
+correctCount
+incorrectCount
+unattemptedCount
+timeUsedMs
+Run prisma migration.
+If you already have similar tables, reuse them.
+3) API: Generate Result (real computation)
+Update/replace: POST /api/testhub/attempts/generate-result Body: { attemptId }
+Behavior:
+Auth: validate attempt belongs to current user and is SUBMITTED.
+If result already exists for attemptId, return it (idempotent).
+Load:
+Attempt
+Test (marksPerQuestion, negativeMarksPerQuestion, totalQuestions)
+Questions for the test with subject mapping (subjectId/subjectName)
+AttemptAnswer rows (selectedOption, timeSpentMs, isMarkedForReview)
+Compute per question:
+correct if selectedOption == question.correctOption
+incorrect if selectedOption != null and not correct
+Aggregate:
+totals and per subject: gross/negative/net correct/incorrect/unattempted counts timeUsedMs (sum of attemptAnswer.timeSpentMs grouped by subject)
+Compute accuracy:
+accuracyPercent = 100 * correctCount / answeredCount (if answeredCount==0 -> 0)
+Persist Result + Subject breakdown rows.
+Compute rank/percentile:
+Query all results for same test (or compute on the fly using attempts if first-time)
+If other attempts do not yet have results, you may compute rank using AttemptAnswer evaluation directly OR generate results for missing attempts lazily (preferred: compute rank based on Result table only; for now if missing, generate for those attempts in background is not allowed. So compute rank based on attempts that already have results, and show “Rank will update as more learners attempt.” until N>=30.)
+Only show rank/percentile/top10 if totalResults >= 30, else return flags showLeaderboard=false.
+When showLeaderboard=false, still store user result.
+Return payload: { resultId, showLeaderboard, totals, subjectBreakdown[], rank, percentile, top10: [{ displayName, netMarks, accuracyPercent, timeUsedMs }] (only if showLeaderboard) }
+Display name logic:
+Use user’s chosen leaderboard name fields (already decided earlier).
+If not set, fallback to “Learner #”.
+4) Result Page UI
+Implement: app/testhub/tests/[testId]/result/page.tsx
+Auth guard (server)
+Read attemptId from query
+Fetch result data via server call or client fetch
+Show XP overlay immediately when result data is ready
+A) XP Reward Overlay (LOCKED)
+Show modal overlay as soon as result loads
+Has X close top-right
+Two star/stat blocks centered:
+XP earned in this test
+Total XP earned overall
+Total XP stat box must be flex and auto-resize with long numbers
+Show a clean appreciation line: “Well done — your effort is building real exam confidence.”
+Confetti: trigger for 3 seconds when overlay appears
+Confetti colors limited to Saphala palette (purple/blue/green)
+Use a lightweight confetti implementation (e.g., canvas-confetti). If not installed, add it.
+Ensure it stops after 3 seconds automatically.
+After closing overlay:
+Show full Result page content.
+B) Result content (after overlay dismissed)
+Test header: name, code
+Summary cards:
+Net Marks
+Accuracy %
+Time Used
+Negative marking breakdown section:
+Total Gross Marks
+Total Negative Marks
+Total Net Marks
+Subject-wise table/cards:
+Subject name
+Gross, Negative, Net
+Correct/Incorrect/Unattempted counts
+Rank/Percentile/Top10 section:
+If showLeaderboard=true:
+“Your Position”: Rank, Percentile (with tooltip note)
+“Top 10 Performers” list (score/accuracy/time)
+If showLeaderboard=false:
+show a polite message: “Rank & percentile will appear once more learners attempt this test.”
+Buttons:
+“Review Questions”
+“Back to Series”
+Review Questions can navigate to an existing review route or placeholder (next step).
+5) XP Calculation (simple v1)
+Implement XP as:
+baseXP = number of correct answers * 2
+bonusXP = +10 if accuracy >= 80%
+totalEarned = baseXP + bonusXP Persist to user profile XP total table if exists; else create: UserXP:
+userId (unique)
+totalXp And store attempt earned XP in Result.
+6) QA Checklist
+Generate Result computes gross/negative/net correctly.
+Subject breakdown correct.
+Rank/percentile/top10 appears only when enough data (>=30), else shows the polite message.
+XP overlay appears immediately after result loads; confetti runs 3 seconds then stops.
+Close overlay shows full result.
+Total XP stat box doesn’t overflow with large numbers.
+Implement cleanly and commit.

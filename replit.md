@@ -101,7 +101,12 @@ Preferred communication style: Simple, everyday language.
   - Subject-wise breakdown table (for multi-subject tests)
   - Time used vs total duration
   - "Generate Result" CTA → calls API → redirects to result page
-- `/testhub/tests/[testId]/result` — result page placeholder (coming next step)
+- `/testhub/tests/[testId]/result` — full result page with XP overlay (3s confetti), marks breakdown, subject-wise analysis, rank/percentile/top10
+- `ResultPageClient` (`components/testhub/`) — client component for result display with XP overlay and confetti
+- Result computation: gross = correct * marksPerQuestion, negative = incorrect * negativeMarks, net = gross - negative
+- XP: baseXP = correct * 2, +10 bonus if accuracy >= 80%
+- Rank/percentile/top10 shown only when >= 30 results exist for the test; else polite message
+- canvas-confetti package for 3-second Saphala-colored confetti on XP overlay
 - `TestAttemptClient` (`components/testhub/`) — main client component for test-taking UI
 - `ExamInstructionsContent` (`components/testhub/`) — shared component for instructions (used in brief + attempt modal)
 - `BriefClient` (`components/testhub/`) — client component handling language, checkbox, start/resume logic
@@ -109,15 +114,17 @@ Preferred communication style: Simple, everyday language.
 - `LoginRequiredModal` (`components/testhub/`) — shown when unauthenticated user clicks "Start Test"
 - `useAuthStatus` hook (`lib/auth/useAuthStatus.ts`) — client-side auth check via `/api/auth/status`
 - Mock test data in `config/testhub.ts` (NEET/JEE categories, testCode, marksPerQuestion, negativeMarks, attemptsAllowed)
-- Mock questions in `config/mockQuestions.ts` — auto-generated bilingual (EN/TE) questions per test
+- Mock questions in `config/mockQuestions.ts` — auto-generated bilingual (EN/TE) questions per test, includes `correctOption` per question
 - In-memory attempt store (`lib/attemptStore.ts`) — tracks attempts, answers, time per question (server-side, resets on restart)
+- In-memory result store (`lib/resultStore.ts`) — stores computed results, subject breakdowns, and user XP totals
 - API: `POST /api/testhub/attempts/start` — creates or resumes attempt, enforces attempt limits
 - API: `GET /api/testhub/attempts/active?testId=` — checks for active attempt + attempts used
 - API: `GET /api/testhub/tests/[testId]/attempt-data` — returns test meta, attempt meta, questions, saved answers
 - API: `POST /api/testhub/attempts/save-answer` — upserts single answer with time tracking
 - API: `POST /api/testhub/attempts/submit` — bulk upserts final answers, marks attempt SUBMITTED
 - API: `GET /api/testhub/attempts/summary?attemptId=` — returns overall + subject-wise question state counts
-- API: `POST /api/testhub/attempts/generate-result` — validates attempt, placeholder for result computation
+- API: `POST /api/testhub/attempts/generate-result` — computes gross/negative/net marks, accuracy, XP, rank/percentile; idempotent
+- API: `GET /api/testhub/attempts/result?attemptId=` — returns full result data with test meta, breakdown, leaderboard
 - Login/Register forms both support `?from=` redirect for post-auth navigation
 
 ### Route Protection
