@@ -95,8 +95,13 @@ Preferred communication style: Simple, everyday language.
   - Timer uses server-authoritative `endsAt`; auto-submits at 0 with "Time is Over" message
   - Submit confirmation modal shows answered/unanswered/review counts
   - Final auto-commit: unsaved drafts (non-null, differing from saved) are committed on submit
-  - After submission, redirects to `/testhub/tests/[testId]/submitted`
-- `/testhub/tests/[testId]/submitted` — placeholder submitted page with success message
+  - After submission, redirects to `/testhub/tests/[testId]/submitted?attemptId=...`
+- `/testhub/tests/[testId]/submitted` — attempts summary page (overall + subject-wise counts, no marks)
+  - Shows answered/unattempted/marked/answered+marked/not-visited counts
+  - Subject-wise breakdown table (for multi-subject tests)
+  - Time used vs total duration
+  - "Generate Result" CTA → calls API → redirects to result page
+- `/testhub/tests/[testId]/result` — result page placeholder (coming next step)
 - `TestAttemptClient` (`components/testhub/`) — main client component for test-taking UI
 - `ExamInstructionsContent` (`components/testhub/`) — shared component for instructions (used in brief + attempt modal)
 - `BriefClient` (`components/testhub/`) — client component handling language, checkbox, start/resume logic
@@ -111,6 +116,8 @@ Preferred communication style: Simple, everyday language.
 - API: `GET /api/testhub/tests/[testId]/attempt-data` — returns test meta, attempt meta, questions, saved answers
 - API: `POST /api/testhub/attempts/save-answer` — upserts single answer with time tracking
 - API: `POST /api/testhub/attempts/submit` — bulk upserts final answers, marks attempt SUBMITTED
+- API: `GET /api/testhub/attempts/summary?attemptId=` — returns overall + subject-wise question state counts
+- API: `POST /api/testhub/attempts/generate-result` — validates attempt, placeholder for result computation
 - Login/Register forms both support `?from=` redirect for post-auth navigation
 
 ### Route Protection

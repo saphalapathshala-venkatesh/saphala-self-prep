@@ -305,7 +305,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
       }
 
       if (res.ok) {
-        router.push(`/testhub/tests/${testId}/submitted`);
+        router.push(`/testhub/tests/${testId}/submitted?attemptId=${attemptMeta.attemptId}`);
       } else {
         setSubmitting(false);
         setSaveError("Failed to submit. Please try again.");
@@ -335,7 +335,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     } catch {}
 
     setTimeout(() => {
-      router.push(`/testhub/tests/${testId}/submitted`);
+      router.push(`/testhub/tests/${testId}/submitted?attemptId=${attemptMeta?.attemptId ?? ""}`);
     }, 3000);
   }
 

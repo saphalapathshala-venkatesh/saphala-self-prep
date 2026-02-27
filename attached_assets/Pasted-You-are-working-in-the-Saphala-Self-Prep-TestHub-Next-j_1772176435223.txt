@@ -1,0 +1,83 @@
+You are working in the Saphala Self Prep / TestHub Next.js App Router codebase. Implement the Attempts Summary screen that appears immediately after a test is submitted, BEFORE showing marks/results.
+Locked behavior
+After submit (manual submit or auto submit):
+Redirect user to: /testhub/tests/[testId]/submitted?attemptId=...
+This page shows Attempts Summary only (NO marks, NO score, NO rank, NO percentile, NO XP).
+Attempts Summary includes:
+Overall question state counts (Answered, Unattempted, Marked for Review, Answered & Marked, Not Visited if you keep it)
+Subject-wise breakdown: for each subject, counts of those same states
+Time used vs total duration
+Page has a primary CTA:
+Button text: Generate Result
+On click, compute/store results and redirect to /testhub/tests/[testId]/result?attemptId=...
+Add server auth guard. If not logged in, redirect to login with from param.
+Important: Save behavior alignment
+Remember: At submission time, final auto-commit already stored final answers. Use AttemptAnswer rows as source of truth.
+1) Data + APIs
+A) Add an endpoint to fetch submitted attempt summary
+Create: GET /api/testhub/attempts/summary?attemptId=...
+Return:
+attempt meta: { attemptId, testId, submittedAt, startedAt, endsAt, language }
+overall counts:
+answeredCount
+unattemptedCount
+markedOnlyCount
+answeredAndMarkedCount
+notVisitedCount (optional; can be derived if you have total questions)
+subject-wise counts array:
+{ subjectId, subjectName, answeredCount, unattemptedCount, markedOnlyCount, answeredAndMarkedCount, notVisitedCount }
+totalQuestions
+Rules for classifying a question:
+Use AttemptAnswer rows for this attempt.
+A question is “Answered” if selectedOption is not null AND isMarkedForReview=false AND savedAt != null
+“Answered & Marked” if selectedOption not null AND isMarkedForReview=true AND savedAt != null
+“Marked only” if selectedOption is null AND isMarkedForReview=true
+“Unattempted” if visited/saved row exists but selectedOption null and not marked OR if a row exists without savedAt? (By now after submit, everything committed; treat null selectedOption + not marked as unattempted.)
+“Not visited” for questions that have no AttemptAnswer row at all (or no record), derived using totalQuestions list.
+Subject-wise mapping:
+Each Question has subjectId or subject relation in DB. Use that.
+Group counts by subject.
+B) Add result generation endpoint (placeholder now)
+Create: POST /api/testhub/attempts/generate-result Body: { attemptId }
+For now, do NOT calculate complex analytics. Only:
+Validate attempt belongs to user and is SUBMITTED.
+Compute basic marks later; for this step return { ok: true }.
+We will implement full marks + negative marking + gross/negative/net in the next step.
+2) UI Pages
+A) Submitted page
+Create/update: app/testhub/tests/[testId]/submitted/page.tsx
+Server auth guard using your existing helper
+Read attemptId from query params
+Render a client component AttemptSummaryClient
+Create: components/testhub/AttemptSummaryClient.tsx
+UI:
+Title: “Attempts Summary”
+Small note: “Marks will be calculated after result generation.”
+Overall summary cards (big):
+Answered
+Unattempted
+Marked for Review
+Answered & Marked
+Not Visited (optional)
+Subject-wise table/cards:
+Subject name
+counts for each state (compact chips/badges)
+Buttons:
+Primary: Generate Result
+Secondary: Back to Series (optional)
+On Generate Result click:
+call POST /api/testhub/attempts/generate-result with attemptId
+show loading state “Generating…”
+on success redirect to /testhub/tests/[testId]/result?attemptId=...
+B) Result page placeholder (just routing)
+Create: app/testhub/tests/[testId]/result/page.tsx
+For now show:
+“Result page coming next step”
+Display attemptId Do not show marks yet (next step).
+3) QA Checklist
+Submit test → lands on submitted page with attemptId.
+Submitted page shows overall counts and subject-wise counts.
+No marks/score/rank visible here.
+Generate Result button calls API and redirects to result page.
+Auth guard works: if logged out, redirect to login; after login, return back.
+Implement cleanly and commit.
