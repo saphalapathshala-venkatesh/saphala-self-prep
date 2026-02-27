@@ -1,6 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getAttemptById } from "@/lib/attemptStore";
-import { getTestById } from "@/config/testhub";
+import { getAttemptById, getDbTestById } from "@/lib/testhubDb";
 import {
   getResultByAttemptId,
   getAllResultsForTest,
@@ -22,7 +21,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "attemptId is required" }, { status: 400 });
   }
 
-  const attempt = getAttemptById(attemptId);
+  const attempt = await getAttemptById(attemptId);
   if (!attempt) {
     return Response.json({ error: "Attempt not found" }, { status: 404 });
   }
@@ -36,8 +35,8 @@ export async function GET(request: Request) {
     return Response.json({ error: "Result not generated yet" }, { status: 404 });
   }
 
-  const test = getTestById(attempt.testId);
-  const maxMarks = test ? test.questions * test.marksPerQuestion : 0;
+  const test = await getDbTestById(attempt.testId);
+  const maxMarks = test ? test.totalQuestions * test.marksPerQuestion : 0;
 
   const allResults = getAllResultsForTest(attempt.testId);
   const showLeaderboard = allResults.length >= 30;
@@ -70,10 +69,10 @@ export async function GET(request: Request) {
   return Response.json({
     resultId: result.resultId,
     testTitle: test?.title ?? "",
-    testCode: test?.testCode ?? "",
-    totalQuestions: test?.questions ?? 0,
+    testCode: test?.code ?? "",
+    totalQuestions: test?.totalQuestions ?? 0,
     maxMarks,
-    durationMinutes: test?.duration ?? 0,
+    durationMinutes: test?.durationMinutes ?? 0,
     showLeaderboard,
     totals: {
       grossMarksTotal: result.grossMarksTotal,

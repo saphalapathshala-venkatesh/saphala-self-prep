@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getAttemptById, upsertAnswer } from "@/lib/attemptStore";
+import { getAttemptById, upsertAnswer, resolveOptionIdFromLetter } from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "attemptId and questionId are required" }, { status: 400 });
   }
 
-  const attempt = getAttemptById(attemptId);
+  const attempt = await getAttemptById(attemptId);
   if (!attempt) {
     return Response.json({ error: "Attempt not found" }, { status: 404 });
   }
@@ -29,10 +29,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "Attempt already submitted" }, { status: 400 });
   }
 
-  const answer = upsertAnswer(
+  let resolvedOptionId: string | null = null;
+  if (selectedOption) {
+    resolvedOptionId = await resolveOptionIdFromLetter(questionId, selectedOption);
+  }
+
+  const answer = await upsertAnswer(
     attemptId,
     questionId,
-    selectedOption ?? null,
+    resolvedOptionId,
     isMarkedForReview ?? false,
     timeSpentMsDelta ?? 0
   );
@@ -41,7 +46,7 @@ export async function POST(request: Request) {
     success: true,
     answer: {
       questionId: answer.questionId,
-      selectedOption: answer.selectedOption,
+      selectedOption: selectedOption ?? null,
       isMarkedForReview: answer.isMarkedForReview,
       savedAt: answer.savedAt,
     },

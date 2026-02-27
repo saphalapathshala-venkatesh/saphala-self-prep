@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { getTestById } from "@/config/testhub";
+import { getDbTestById } from "@/lib/testhubDb";
 import Link from "next/link";
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
@@ -14,9 +14,9 @@ export default async function AttemptPage({ params }: { params: Promise<{ testId
     redirect(`/login?from=${encodeURIComponent(`/testhub/tests/${testId}/attempt`)}`);
   }
 
-  const test = getTestById(testId);
+  const dbTest = await getDbTestById(testId);
 
-  if (!test) {
+  if (!dbTest) {
     return (
       <main className="min-h-screen flex flex-col">
         <Header />
@@ -31,6 +31,22 @@ export default async function AttemptPage({ params }: { params: Promise<{ testId
       </main>
     );
   }
+
+  const test = {
+    id: dbTest.id,
+    title: dbTest.title,
+    testCode: dbTest.code || "",
+    category: dbTest.category || "NEET",
+    series: dbTest.series || "",
+    duration: dbTest.durationMinutes,
+    questions: dbTest.totalQuestions,
+    difficulty: dbTest.difficulty as "Easy" | "Medium" | "Hard",
+    accessType: dbTest.accessType,
+    marksPerQuestion: dbTest.marksPerQuestion,
+    negativeMarks: dbTest.negativeMarks,
+    attemptsAllowed: dbTest.attemptsAllowed,
+    languageAvailable: dbTest.languageAvailable,
+  };
 
   return <TestAttemptClient testId={testId} test={test} />;
 }

@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getActiveAttempt, getAttemptsForUserTest } from "@/lib/attemptStore";
+import { getActiveAttempt, getAttemptsForUserTest } from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
 
@@ -16,12 +16,12 @@ export async function GET(request: Request) {
     return Response.json({ error: "testId is required" }, { status: 400 });
   }
 
-  const active = getActiveAttempt(user.id, testId);
-  const allAttempts = getAttemptsForUserTest(user.id, testId);
+  const active = await getActiveAttempt(user.id, testId);
+  const allAttempts = await getAttemptsForUserTest(user.id, testId);
 
   return Response.json({
     activeAttempt: active
-      ? { attemptId: active.attemptId, language: active.language, attemptNumber: active.attemptNumber }
+      ? { attemptId: active.id, language: active.language, attemptNumber: active.attemptNumber }
       : null,
     attemptsUsed: allAttempts.length,
   });

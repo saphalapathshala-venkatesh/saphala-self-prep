@@ -113,17 +113,21 @@ Preferred communication style: Simple, everyday language.
 - `InstructionsPill` (`components/testhub/`) — pill button + modal for attempt page instructions
 - `LoginRequiredModal` (`components/testhub/`) — shown when unauthenticated user clicks "Start Test"
 - `useAuthStatus` hook (`lib/auth/useAuthStatus.ts`) — client-side auth check via `/api/auth/status`
-- Mock test data in `config/testhub.ts` (NEET/JEE categories, testCode, marksPerQuestion, negativeMarks, attemptsAllowed, languageAvailable)
+- **DB-backed test data**: Tests, questions, and options stored in Prisma/PostgreSQL via `lib/testhubDb.ts`
 - `LanguageAvailable` type: "EN" | "TE" | "BOTH" — controls language options per test
-- 5 seed tests (SEED-001 to SEED-005) with Polity & Arithmetic subjects, realistic bilingual questions
+- 5 seed tests (SEED-001 to SEED-005) imported to DB via `npm run import:testhub`
   - SEED-001: FREE, EN only, negative ON (0.25), 10 Qs
   - SEED-002: FREE, BOTH, negative OFF, 10 Qs
   - SEED-003: LOCKED, EN only, negative ON (0.25), 8 Qs
   - SEED-004: LOCKED, BOTH, negative ON (0.25), 10 Qs
   - SEED-005: LOCKED, TE only, negative OFF, 8 Qs
-- Mock questions in `config/mockQuestions.ts` — auto-generated bilingual (EN/TE) questions per test, includes `correctOption` per question
-- In-memory attempt store (`lib/attemptStore.ts`) — tracks attempts, answers, time per question (server-side, resets on restart)
-- In-memory result store (`lib/resultStore.ts`) — stores computed results, subject breakdowns, and user XP totals
+- Config files (`config/testhub.ts`, `config/mockQuestions.ts`) still exist for type definitions (MockTest) used by client components
+- `lib/testhubDb.ts` — DB adapter layer: `getDbTestById`, `getAllPublishedTests`, `getDbQuestionsForTest`, `resolveOptionIdFromLetter`, `optionIdToLetter`
+- Test difficulty derived from question DifficultyLevel (FOUNDATIONAL→Easy, PROFICIENT→Medium, MASTERY→Hard)
+- Option identifiers: Client uses letters (A/B/C/D), APIs translate to/from DB option UUIDs via `resolveOptionIdFromLetter`/`optionIdToLetter`
+- `/testhub` page fetches from `/api/testhub/tests` dynamically (no config import)
+- Brief & attempt pages use `getDbTestById` from `lib/testhubDb.ts` (not config)
+- In-memory result store (`lib/resultStore.ts`) — stores computed results, subject breakdowns, and user XP totals (still in-memory, resets on restart)
 - API: `POST /api/testhub/attempts/start` — creates or resumes attempt, enforces attempt limits
 - API: `GET /api/testhub/attempts/active?testId=` — checks for active attempt + attempts used
 - API: `GET /api/testhub/tests/[testId]/attempt-data` — returns test meta, attempt meta, questions, saved answers
@@ -134,6 +138,7 @@ Preferred communication style: Simple, everyday language.
 - API: `GET /api/testhub/attempts/result?attemptId=` — returns full result data with test meta, breakdown, leaderboard
 - API: `GET /api/testhub/attempts/review?attemptId=` — returns questions with correctOption, user answers, timing, median time
 - API: `POST /api/testhub/questions/report` — saves question issue reports (incorrect key, unclear, translation, etc.)
+- API: `GET /api/testhub/tests` — lists all published tests from DB
 - API: `POST /api/testhub/attempts/feedback` — saves star rating + comment feedback for an attempt
 - `/testhub/tests/[testId]/review` — review page with correctness visualization, timing insights, language toggle
 - `ReviewClient` (`components/testhub/`) — client component for reviewing answered questions post-result
@@ -158,3 +163,4 @@ Preferred communication style: Simple, everyday language.
 - `scripts/makeAdmin.mjs` — alternative admin promotion script
 - `scripts/deleteTestUser.mjs` — delete test users
 - `scripts/seed-testhub.mjs` — prints seed test data summary (`npm run seed:testhub`)
+- `scripts/import-testhub-config-to-db.ts` — imports config tests/questions to DB (`npm run import:testhub`)

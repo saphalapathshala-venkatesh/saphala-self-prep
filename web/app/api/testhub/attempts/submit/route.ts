@@ -1,5 +1,10 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getAttemptById, submitAttempt, bulkUpsertAnswers } from "@/lib/attemptStore";
+import {
+  getAttemptById,
+  submitAttempt,
+  bulkUpsertAnswers,
+  resolveOptionIdFromLetter,
+} from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +21,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "attemptId is required" }, { status: 400 });
   }
 
-  const attempt = getAttemptById(attemptId);
+  const attempt = await getAttemptById(attemptId);
   if (!attempt) {
     return Response.json({ error: "Attempt not found" }, { status: 404 });
   }
@@ -30,14 +35,28 @@ export async function POST(request: Request) {
   }
 
   if (finalAnswers && Array.isArray(finalAnswers) && finalAnswers.length > 0) {
-    bulkUpsertAnswers(attemptId, finalAnswers);
+    const resolved = await Promise.all(
+      finalAnswers.map(async (fa: { questionId: string; selectedOption: string | null; isMarkedForReview: boolean; timeSpentMs: number }) => {
+        let optionId: string | null = null;
+        if (fa.selectedOption) {
+          optionId = await resolveOptionIdFromLetter(fa.questionId, fa.selectedOption);
+        }
+        return {
+          questionId: fa.questionId,
+          selectedOptionId: optionId,
+          isMarkedForReview: fa.isMarkedForReview,
+          timeSpentMs: fa.timeSpentMs,
+        };
+      })
+    );
+    await bulkUpsertAnswers(attemptId, resolved);
   }
 
-  const submitted = submitAttempt(attemptId);
+  const submitted = await submitAttempt(attemptId);
 
   return Response.json({
     success: true,
-    attemptId: submitted?.attemptId,
-    submittedAt: submitted?.submittedAt,
+    attemptId: submitted.id,
+    submittedAt: submitted.submittedAt,
   });
 }

@@ -1,7 +1,10 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getAttemptById, getAnswersForAttempt } from "@/lib/attemptStore";
-import { getTestById } from "@/config/testhub";
-import { getQuestionsForTest } from "@/config/mockQuestions";
+import {
+  getAttemptById,
+  getAnswersForAttempt,
+  getDbTestById,
+  getDbQuestionsForTest,
+} from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +21,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "attemptId is required" }, { status: 400 });
   }
 
-  const attempt = getAttemptById(attemptId);
+  const attempt = await getAttemptById(attemptId);
   if (!attempt) {
     return Response.json({ error: "Attempt not found" }, { status: 404 });
   }
@@ -31,13 +34,13 @@ export async function GET(request: Request) {
     return Response.json({ error: "Attempt not yet submitted" }, { status: 400 });
   }
 
-  const test = getTestById(attempt.testId);
+  const test = await getDbTestById(attempt.testId);
   if (!test) {
     return Response.json({ error: "Test not found" }, { status: 404 });
   }
 
-  const questions = getQuestionsForTest(attempt.testId, test.questions);
-  const answers = getAnswersForAttempt(attemptId);
+  const questions = await getDbQuestionsForTest(attempt.testId);
+  const answers = await getAnswersForAttempt(attemptId);
 
   const answerMap = new Map(answers.map((a) => [a.questionId, a]));
 
@@ -61,10 +64,13 @@ export async function GET(request: Request) {
   > = {};
 
   for (const q of questions) {
-    if (!subjectCounts[q.subjectId]) {
-      subjectCounts[q.subjectId] = {
-        subjectId: q.subjectId,
-        subjectName: q.subjectName,
+    const sid = q.subjectId || "general";
+    const sname = q.subjectName || "General";
+
+    if (!subjectCounts[sid]) {
+      subjectCounts[sid] = {
+        subjectId: sid,
+        subjectName: sname,
         answered: 0,
         unattempted: 0,
         markedOnly: 0,
@@ -73,19 +79,19 @@ export async function GET(request: Request) {
       };
     }
 
-    const sub = subjectCounts[q.subjectId];
+    const sub = subjectCounts[sid];
     const ans = answerMap.get(q.id);
 
     if (!ans) {
       notVisitedCount++;
       sub.notVisited++;
-    } else if (ans.selectedOption !== null && ans.isMarkedForReview) {
+    } else if (ans.selectedOptionId !== null && ans.isMarkedForReview) {
       answeredAndMarkedCount++;
       sub.answeredAndMarked++;
-    } else if (ans.selectedOption !== null && !ans.isMarkedForReview) {
+    } else if (ans.selectedOptionId !== null && !ans.isMarkedForReview) {
       answeredCount++;
       sub.answered++;
-    } else if (ans.selectedOption === null && ans.isMarkedForReview) {
+    } else if (ans.selectedOptionId === null && ans.isMarkedForReview) {
       markedOnlyCount++;
       sub.markedOnly++;
     } else {
@@ -96,7 +102,7 @@ export async function GET(request: Request) {
 
   return Response.json({
     attempt: {
-      attemptId: attempt.attemptId,
+      attemptId: attempt.id,
       testId: attempt.testId,
       submittedAt: attempt.submittedAt,
       startedAt: attempt.startedAt,
@@ -104,7 +110,7 @@ export async function GET(request: Request) {
       language: attempt.language,
     },
     totalQuestions: questions.length,
-    durationMinutes: test.duration,
+    durationMinutes: test.durationMinutes,
     overall: {
       answeredCount,
       unattemptedCount,

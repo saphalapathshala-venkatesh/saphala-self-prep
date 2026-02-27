@@ -69,6 +69,19 @@ enum XpRuleKey {
   FLASHCARD_XP
   RR_XP
 }
+enum TestAccessType {
+  FREE
+  LOCKED
+}
+enum LanguageAvailable {
+  EN
+  TE
+  BOTH
+}
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
 // CORE IDENTITY + SESSIONS (LOCKED)
 model User {
   id           String    @id @default(cuid())
@@ -183,7 +196,11 @@ model Question {
   difficulty   DifficultyLevel
   status       QuestionStatus @default(DRAFT)
   stem         String
+  stemEn       String?
+  stemTe       String?
   explanation  String?
+  explanationEn String?
+  explanationTe String?
   tags         String[]       @default([])
   contentHash  String         @unique
   options      QuestionOption[]
@@ -200,6 +217,8 @@ model QuestionOption {
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   text       String
+  textEn     String?
+  textTe     String?
   isCorrect  Boolean  @default(false)
   order      Int
   @@index([questionId])
@@ -271,6 +290,15 @@ model Test {
   publishedAt    DateTime?
   createdById    String
   createdBy      User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  code                    String?          @unique
+  accessType              TestAccessType   @default(LOCKED)
+  languageAvailable       LanguageAvailable @default(BOTH)
+  marksPerQuestion        Float            @default(1)
+  negativeMarksPerQuestion Float           @default(0)
+  attemptsAllowed         Int              @default(2)
+  categoryId              String?
+  subjectIds              String[]         @default([])
+  syllabusTags            String[]         @default([])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   sections       TestSection[]
@@ -278,6 +306,7 @@ model Test {
   attempts       Attempt[]
   @@index([isPublished])
   @@index([seriesId])
+  @@index([code])
 }
 model TestSection {
   id           String @id @default(cuid())
@@ -309,17 +338,23 @@ model Attempt {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   testId      String
   test        Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  status      AttemptStatus @default(IN_PROGRESS)
+  attemptNumber Int    @default(1)
+  language    LanguageAvailable @default(EN)
   startedAt   DateTime @default(now())
+  endsAt      DateTime?
   submittedAt DateTime?
   scorePct    Float    @default(0)
   correctCount Int     @default(0)
   wrongCount   Int     @default(0)
   unansweredCount Int  @default(0)
+  totalTimeUsedMs Int  @default(0)
   rrGenerated Boolean  @default(false)
   answers     AttemptAnswer[]
   createdAt   DateTime @default(now())
   @@index([userId, startedAt])
   @@index([testId, startedAt])
+  @@index([userId, testId, status])
 }
 model AttemptAnswer {
   id         String   @id @default(cuid())
@@ -328,8 +363,14 @@ model AttemptAnswer {
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
   selectedOptionIds String[] @default([])
+  selectedOptionId  String?
   isCorrect  Boolean  @default(false)
+  isMarkedForReview Boolean @default(false)
+  timeSpentMs Int     @default(0)
+  savedAt    DateTime?
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  @@unique([attemptId, questionId])
   @@index([attemptId])
   @@index([questionId])
 }

@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { getTestById } from "@/config/testhub";
+import { getDbTestById } from "@/lib/testhubDb";
 import Link from "next/link";
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
@@ -14,7 +14,7 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
     redirect(`/login?from=${encodeURIComponent(`/testhub/tests/${testId}/brief`)}`);
   }
 
-  const test = getTestById(testId);
+  const test = await getDbTestById(testId);
 
   if (!test) {
     return (
@@ -32,12 +32,28 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
     );
   }
 
+  const briefTest = {
+    id: test.id,
+    title: test.title,
+    testCode: test.code || "",
+    category: test.category || "NEET",
+    series: test.series || "",
+    duration: test.durationMinutes,
+    questions: test.totalQuestions,
+    difficulty: test.difficulty as "Easy" | "Medium" | "Hard",
+    accessType: test.accessType,
+    marksPerQuestion: test.marksPerQuestion,
+    negativeMarks: test.negativeMarks,
+    attemptsAllowed: test.attemptsAllowed,
+    languageAvailable: test.languageAvailable,
+  };
+
   return (
     <main className="min-h-screen flex flex-col bg-gray-50">
       <Header />
 
       <div className="flex-grow flex items-center justify-center py-10 px-4">
-        <BriefClient test={test} />
+        <BriefClient test={briefTest} />
       </div>
 
       <Footer />

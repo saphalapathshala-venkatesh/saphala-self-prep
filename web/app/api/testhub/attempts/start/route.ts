@@ -1,6 +1,10 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getTestById } from "@/config/testhub";
-import { getActiveAttempt, getAttemptsForUserTest, createAttempt } from "@/lib/attemptStore";
+import {
+  getDbTestById,
+  getActiveAttempt,
+  getAttemptsForUserTest,
+  createAttempt,
+} from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +25,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid language. Use EN or TE." }, { status: 400 });
   }
 
-  const test = getTestById(testId);
+  const test = await getDbTestById(testId);
   if (!test) {
     return Response.json({ error: "Test not found" }, { status: 404 });
   }
@@ -30,10 +34,10 @@ export async function POST(request: Request) {
     return Response.json({ error: "This test requires a premium plan." }, { status: 403 });
   }
 
-  const active = getActiveAttempt(user.id, testId);
+  const active = await getActiveAttempt(user.id, testId);
   if (active) {
     return Response.json({
-      attemptId: active.attemptId,
+      attemptId: active.id,
       status: active.status,
       language: active.language,
       testId,
@@ -41,7 +45,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const allAttempts = getAttemptsForUserTest(user.id, testId);
+  const allAttempts = await getAttemptsForUserTest(user.id, testId);
   if (allAttempts.length >= test.attemptsAllowed) {
     return Response.json(
       { error: `No attempts left for this test. You have used all ${test.attemptsAllowed} attempts.` },
@@ -49,10 +53,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const attempt = createAttempt(user.id, testId, language as "EN" | "TE", test.duration);
+  const attempt = await createAttempt(user.id, testId, language as "EN" | "TE", test.durationMinutes);
 
   return Response.json({
-    attemptId: attempt.attemptId,
+    attemptId: attempt.id,
     status: attempt.status,
     language: attempt.language,
     testId,

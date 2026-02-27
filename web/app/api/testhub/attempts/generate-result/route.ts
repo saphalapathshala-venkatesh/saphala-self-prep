@@ -1,7 +1,10 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getAttemptById, getAnswersForAttempt } from "@/lib/attemptStore";
-import { getTestById } from "@/config/testhub";
-import { getQuestionsForTest } from "@/config/mockQuestions";
+import {
+  getAttemptById,
+  getAnswersForAttempt,
+  getDbTestById,
+  getDbQuestionsForTest,
+} from "@/lib/testhubDb";
 import {
   getResultByAttemptId,
   saveResult,
@@ -13,6 +16,10 @@ import {
 } from "@/lib/resultStore";
 
 export const dynamic = "force-dynamic";
+
+function optionLetter(order: number): string {
+  return ["A", "B", "C", "D"][order] || "A";
+}
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -27,7 +34,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "attemptId is required" }, { status: 400 });
   }
 
-  const attempt = getAttemptById(attemptId);
+  const attempt = await getAttemptById(attemptId);
   if (!attempt) {
     return Response.json({ error: "Attempt not found" }, { status: 404 });
   }
@@ -45,13 +52,13 @@ export async function POST(request: Request) {
     return buildResponse(existing, attempt.testId, user.id);
   }
 
-  const test = getTestById(attempt.testId);
+  const test = await getDbTestById(attempt.testId);
   if (!test) {
     return Response.json({ error: "Test not found" }, { status: 404 });
   }
 
-  const questions = getQuestionsForTest(test.id, test.questions);
-  const answers = getAnswersForAttempt(attemptId);
+  const questions = await getDbQuestionsForTest(test.id);
+  const answers = await getAnswersForAttempt(attemptId);
   const answerMap = new Map(answers.map((a) => [a.questionId, a]));
 
   const subjectAgg: Record<
@@ -74,10 +81,13 @@ export async function POST(request: Request) {
   let totalTimeUsedMs = 0;
 
   for (const q of questions) {
-    if (!subjectAgg[q.subjectId]) {
-      subjectAgg[q.subjectId] = {
-        subjectId: q.subjectId,
-        subjectName: q.subjectName,
+    const sid = q.subjectId || "general";
+    const sname = q.subjectName || "General";
+
+    if (!subjectAgg[sid]) {
+      subjectAgg[sid] = {
+        subjectId: sid,
+        subjectName: sname,
         correct: 0,
         incorrect: 0,
         unattempted: 0,
@@ -86,10 +96,10 @@ export async function POST(request: Request) {
         timeUsedMs: 0,
       };
     }
-    const sub = subjectAgg[q.subjectId];
+    const sub = subjectAgg[sid];
     const ans = answerMap.get(q.id);
 
-    if (!ans || ans.selectedOption === null) {
+    if (!ans || ans.selectedOptionId === null) {
       sub.unattempted++;
       totalUnattempted++;
       if (ans) {
@@ -99,7 +109,8 @@ export async function POST(request: Request) {
       continue;
     }
 
-    const isCorrect = ans.selectedOption === q.correctOption;
+    const correctOption = q.options.find((o) => o.isCorrect);
+    const isCorrect = correctOption ? ans.selectedOptionId === correctOption.id : false;
     sub.timeUsedMs += ans.timeSpentMs;
     totalTimeUsedMs += ans.timeSpentMs;
 

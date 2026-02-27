@@ -1,0 +1,120 @@
+You are working in the Saphala Self Prep / TestHub Next.js + Prisma codebase. TestHub currently reads tests/questions from config files. Migrate TestHub to be DB-backed using the existing Prisma models: Test, Question, QuestionOption, TestQuestion, Attempt, AttemptAnswer.
+Goal
+Add minimal DB fields required for TestHub v1.
+Import the existing mock config tests + questions into DB (one script).
+Switch student TestHub APIs to read from DB (not config).
+Do not break existing admin/question-bank features.
+1) Prisma schema changes (minimal + safe)
+A) Add enums
+Add these enums:
+enum TestAccessType { FREE LOCKED }
+enum LanguageAvailable { EN TE BOTH }
+enum AttemptStatus { IN_PROGRESS SUBMITTED }
+B) Extend Test model (TestHub metadata)
+Add fields to model Test:
+code String? @unique  // testCode like APSIDT001, SEED-001
+accessType TestAccessType @default(LOCKED)
+languageAvailable LanguageAvailable @default(BOTH)
+marksPerQuestion Float @default(1)
+negativeMarksPerQuestion Float @default(0) // 0 means no negative marking
+attemptsAllowed Int @default(2)
+categoryId String?  // optional direct category filter (since TestSeries.categoryId exists too)
+subjectIds String[] @default([]) // optional quick filter (v1)
+syllabusTags String[] @default([]) // optional v1
+Do NOT delete existing fields.
+C) Extend Question model (bilingual-safe)
+Keep existing stem for backward compatibility. Add:
+stemEn String?
+stemTe String?
+explanationEn String?
+explanationTe String?
+Also ensure Question.type supports MCQ_SINGLE (already exists).
+D) Extend QuestionOption model (bilingual options)
+Keep existing text. Add:
+textEn String?
+textTe String?
+E) Extend Attempt & AttemptAnswer to match your locked TestHub flow
+Your current Attempt is missing core TestHub properties. Add to Attempt:
+status AttemptStatus @default(IN_PROGRESS)
+attemptNumber Int @default(1)
+language LanguageAvailable @default(EN)  // for attempt language selection (EN/TE)
+endsAt DateTime? // startedAt + test.durationSec
+totalTimeUsedMs Int @default(0) // optional v1
+Update AttemptAnswer to support TestHub review/palette:
+Add:
+selectedOptionId String? // single selection for MCQ_SINGLE
+isMarkedForReview Boolean @default(false)
+timeSpentMs Int @default(0)
+savedAt DateTime?
+updatedAt DateTime @updatedAt
+Keep existing selectedOptionIds String[] for future MCQ_MULTIPLE; do not remove. For v1, prefer selectedOptionId.
+Also: remove isCorrect field dependency from runtime; correctness is computed from QuestionOption.isCorrect.
+F) Run migration
+Run prisma migration and ensure build passes.
+2) Importer Script: config → DB
+Create script:
+scripts/import-testhub-config-to-db.ts
+Behavior:
+Read mock tests from config/testhub.ts
+Read question bank from config/mockQuestions.ts
+For each config test:
+Ensure a TestSeries exists (or use an existing default “Seed Series”)
+Upsert Test by code:
+title
+mode = TIMED
+isTimed = true
+durationSec = durationMinutes * 60
+isPublished = true (so it appears)
+accessType + languageAvailable + marksPerQuestion + negativeMarksPerQuestion + attemptsAllowed
+For each question:
+Create a Question with:
+type = MCQ_SINGLE
+difficulty = FOUNDATIONAL (or based on config)
+status = APPROVED
+stemEn/stemTe (and stem fallback)
+explanationEn/explanationTe optional
+contentHash generate deterministically (hash of stemEn+stemTe+options)
+Create QuestionOption rows (A/B/C/D) with:
+textEn/textTe and text fallback
+set isCorrect=true for the correct option
+Create TestQuestion rows linking Question → Test with order.
+Print summary: tests created/updated, questions inserted, mapping.
+Add npm script:
+"import:testhub": "tsx scripts/import-testhub-config-to-db.ts" (or ts-node depending on repo)
+Ensure it can run on Replit.
+3) Switch Student APIs to DB (stop using config)
+Identify the student TestHub API routes currently reading from config, especially:
+test list
+test details
+attempt-data for attempt page
+Update them to read from DB:
+A) Test list endpoint (or server loader)
+Return tests grouped by:
+category → series → subject cards → tests Use:
+TestSeries + Test + optional Test.subjectIds (or derive from linked questions’ subjects if needed)
+For v1 (fast):
+Keep your current UI grouping logic but populate from DB:
+series = TestSeries
+tests = Test (isPublished=true)
+subject cards derived from subjectIds or from linked TestQuestion.question.subjectId
+B) Attempt-data endpoint
+Implement/modify: GET /api/testhub/tests/[testId]/attempt-data
+Must return:
+test meta from DB (including accessType, languageAvailable, marksPerQuestion, negativeMarksPerQuestion, attemptsAllowed, duration)
+attempt meta (status, language, endsAt)
+questions ordered (with bilingual fields + options bilingual)
+saved answers from AttemptAnswer for this attempt
+C) Correctness / review
+Use QuestionOption.isCorrect as the truth for correct option.
+4) Backward compatibility
+Don’t break admin question bank (still uses Question.stem/options.text).
+When importing bilingual, also fill stem and options.text with EN fallback.
+Ensure contentHash uniqueness is preserved (if collision occurs, append test code suffix to hash).
+5) QA checklist
+Run npm run import:testhub
+Open TestHub → see the 5 seed tests from DB
+FREE/LOCKED gating uses Test.accessType
+Exam brief uses Test.marksPerQuestion and negativeMarksPerQuestion
+Attempt page loads questions from DB
+Review page shows bilingual toggle correctly from DB
+Implement cleanly and commit.

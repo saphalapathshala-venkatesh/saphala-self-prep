@@ -1,7 +1,11 @@
 import { getCurrentUser } from "@/lib/auth";
-import { getTestById } from "@/config/testhub";
-import { getActiveAttempt, getAnswersForAttempt } from "@/lib/attemptStore";
-import { getQuestionsForTest } from "@/config/mockQuestions";
+import {
+  getDbTestById,
+  getDbQuestionsForTest,
+  getActiveAttempt,
+  getAnswersForAttempt,
+  optionIdToLetter,
+} from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
 
@@ -15,31 +19,35 @@ export async function GET(
   }
 
   const { testId } = await params;
-  const test = getTestById(testId);
+  const test = await getDbTestById(testId);
   if (!test) {
     return Response.json({ error: "Test not found" }, { status: 404 });
   }
 
-  const attempt = getActiveAttempt(user.id, testId);
+  const attempt = await getActiveAttempt(user.id, testId);
   if (!attempt) {
     return Response.json({ error: "No active attempt found" }, { status: 404 });
   }
 
-  const questions = getQuestionsForTest(testId, test.questions);
-  const savedAnswers = getAnswersForAttempt(attempt.attemptId);
+  const questions = await getDbQuestionsForTest(testId);
+  const savedAnswers = await getAnswersForAttempt(attempt.id);
+
+  const optionsByQuestion = new Map(
+    questions.map((q) => [q.id, q.options.map((o) => ({ id: o.id }))])
+  );
 
   return Response.json({
     test: {
       id: test.id,
       name: test.title,
-      code: test.testCode,
-      durationMinutes: test.duration,
-      totalQuestions: test.questions,
+      code: test.code,
+      durationMinutes: test.durationMinutes,
+      totalQuestions: test.totalQuestions,
       negativeMarking: test.negativeMarks,
       marksPerQuestion: test.marksPerQuestion,
     },
     attempt: {
-      attemptId: attempt.attemptId,
+      attemptId: attempt.id,
       language: attempt.language,
       endsAt: attempt.endsAt,
       status: attempt.status,
@@ -49,20 +57,27 @@ export async function GET(
       order: q.order,
       questionText_en: q.questionText_en,
       questionText_te: q.questionText_te,
-      optionA_en: q.optionA_en,
-      optionA_te: q.optionA_te,
-      optionB_en: q.optionB_en,
-      optionB_te: q.optionB_te,
-      optionC_en: q.optionC_en,
-      optionC_te: q.optionC_te,
-      optionD_en: q.optionD_en,
-      optionD_te: q.optionD_te,
+      optionA_en: q.options[0]?.textEn || null,
+      optionA_te: q.options[0]?.textTe || null,
+      optionB_en: q.options[1]?.textEn || null,
+      optionB_te: q.options[1]?.textTe || null,
+      optionC_en: q.options[2]?.textEn || null,
+      optionC_te: q.options[2]?.textTe || null,
+      optionD_en: q.options[3]?.textEn || null,
+      optionD_te: q.options[3]?.textTe || null,
     })),
-    savedAnswers: savedAnswers.map((a) => ({
-      questionId: a.questionId,
-      selectedOption: a.selectedOption,
-      isMarkedForReview: a.isMarkedForReview,
-      timeSpentMs: a.timeSpentMs,
-    })),
+    savedAnswers: savedAnswers.map((a) => {
+      const opts = optionsByQuestion.get(a.questionId) || [];
+      const letter = a.selectedOptionId
+        ? optionIdToLetter(a.selectedOptionId, opts)
+        : null;
+
+      return {
+        questionId: a.questionId,
+        selectedOption: letter,
+        isMarkedForReview: a.isMarkedForReview,
+        timeSpentMs: a.timeSpentMs,
+      };
+    }),
   });
 }
