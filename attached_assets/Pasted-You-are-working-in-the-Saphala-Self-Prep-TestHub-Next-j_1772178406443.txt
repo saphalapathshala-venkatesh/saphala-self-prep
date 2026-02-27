@@ -1,0 +1,112 @@
+You are working in the Saphala Self Prep / TestHub Next.js App Router project.
+Enhance the existing Review Questions page by adding filtering tabs.
+Route (already exists):
+Copy code
+
+/testhub/tests/[testId]/review?attemptId=...
+Do NOT change APIs or result computation. This is a frontend filtering enhancement.
+1️⃣ Tabs (LOCKED UI)
+Add tabs at top of review page, below header and above question area:
+Copy code
+
+All | Incorrect | Unattempted
+Rules
+Default selected tab = All
+Tabs must be horizontally aligned.
+Active tab uses Saphala primary color underline.
+Smooth transition (no page reload).
+2️⃣ Definitions (LOCKED)
+Each question already has:
+Copy code
+
+correctOption
+userSelectedOption
+Compute client-side:
+Incorrect
+Show questions where:
+Copy code
+
+userSelectedOption != null
+AND userSelectedOption !== correctOption
+Unattempted
+Show questions where:
+Copy code
+
+userSelectedOption == null
+(This includes not visited or cleared answers.)
+All
+Show every question.
+3️⃣ Implementation Approach
+Inside:
+Copy code
+
+components/testhub/ReviewClient.tsx
+(or your equivalent component)
+Add state:
+TypeScript
+Copy code
+const [filter, setFilter] = useState<"all" | "incorrect" | "unattempted">("all");
+Create derived list:
+TypeScript
+Copy code
+const filteredQuestions = useMemo(() => {
+  if (filter === "incorrect") {
+    return questions.filter(
+      q => q.userSelectedOption &&
+           q.userSelectedOption !== q.correctOption
+    );
+  }
+
+  if (filter === "unattempted") {
+    return questions.filter(
+      q => !q.userSelectedOption
+    );
+  }
+
+  return questions;
+}, [questions, filter]);
+Render questions using filteredQuestions instead of full list.
+4️⃣ Palette Sync Behavior (IMPORTANT)
+Palette must reflect filtered navigation logically.
+When filter is active:
+Palette shows ONLY filtered question numbers.
+Question numbering remains original numbering (do NOT renumber).
+Clicking palette still jumps correctly.
+Example:
+If Incorrect tab shows Q2, Q5, Q9 → palette shows tiles 2,5,9 only.
+5️⃣ Auto Navigation Behavior
+When switching tabs:
+Automatically move view to first question in filtered list.
+If no questions match: show clean empty state:
+Copy code
+
+No questions in this category.
+Great work!
+6️⃣ Tab UI Example
+Structure:
+Copy code
+
+<div className="flex gap-6 border-b">
+  <Tab label="All" />
+  <Tab label="Incorrect" />
+  <Tab label="Unattempted" />
+</div>
+Active tab:
+purple text
+bottom border highlight
+Inactive:
+muted text
+7️⃣ Performance Rules
+Do NOT refetch API.
+Filtering must be client-side only.
+Use memoization.
+No rerender loops.
+8️⃣ QA Checklist
+✅ Default tab = All
+✅ Incorrect shows only wrong answers
+✅ Unattempted shows unanswered questions
+✅ Palette updates with filter
+✅ Clicking palette jumps correctly
+✅ Switching tabs auto-focuses first question
+✅ Empty state handled cleanly
+Commit changes.

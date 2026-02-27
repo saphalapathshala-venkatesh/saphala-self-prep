@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, XCircle, Clock, Flag, Star, ChevronDown, ChevronUp, X, MessageSquare } from 'lucide-react';
 
@@ -83,6 +83,28 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
   const [feedbackComment, setFeedbackComment] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackDone, setFeedbackDone] = useState(false);
+  const [filter, setFilter] = useState<"all" | "incorrect" | "unattempted">("all");
+
+  const filteredQuestions = useMemo(() => {
+    if (!data) return [];
+    if (filter === "incorrect") {
+      return data.questions.filter(
+        (q) => q.userSelectedOption !== null && q.userSelectedOption !== q.correctOption
+      );
+    }
+    if (filter === "unattempted") {
+      return data.questions.filter((q) => q.userSelectedOption === null);
+    }
+    return data.questions;
+  }, [data, filter]);
+
+  function switchFilter(f: "all" | "incorrect" | "unattempted") {
+    setFilter(f);
+    setCurrentIndex(0);
+    setShowAltLang(false);
+    setPaletteOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   const fetchReview = useCallback(async () => {
     const res = await fetch(`/api/testhub/attempts/review?attemptId=${attemptId}`);
@@ -114,7 +136,7 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
   }
 
   async function handleReport() {
-    if (!reportType || !data) return;
+    if (!reportType || !filteredQuestions.length) return;
     setReportSubmitting(true);
     try {
       const res = await fetch('/api/testhub/questions/report', {
@@ -122,7 +144,7 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           attemptId,
-          questionId: data.questions[currentIndex].questionId,
+          questionId: filteredQuestions[currentIndex].questionId,
           issueType: reportType,
           message: reportMessage,
         }),
@@ -178,31 +200,10 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
   }
 
   const { testMeta, attemptMeta, questions } = data;
-  const currentQ = questions[currentIndex];
   const primaryLang = attemptMeta.language;
   const altLang = primaryLang === "EN" ? "TE" : "EN";
 
-  const qText = primaryLang === "TE" ? currentQ.questionText_te : currentQ.questionText_en;
-  const altQText = primaryLang === "TE" ? currentQ.questionText_en : currentQ.questionText_te;
-  const options = primaryLang === "TE" ? currentQ.options_te : currentQ.options_en;
-  const altOptions = primaryLang === "TE" ? currentQ.options_en : currentQ.options_te;
-  const explanation = primaryLang === "TE" ? currentQ.explanation_te : currentQ.explanation_en;
-
-  const isCorrect = currentQ.userSelectedOption === currentQ.correctOption;
-  const isAttempted = currentQ.userSelectedOption !== null;
-
-  function getStatusColor(q: ReviewQuestion, idx: number): string {
-    if (q.userSelectedOption === null && !q.isMarkedForReview) {
-      if (q.timeSpentMs === 0) return "bg-gray-200 text-gray-600";
-      return "bg-red-400 text-white";
-    }
-    if (q.isMarkedForReview && q.userSelectedOption !== null) return "bg-purple-500 text-white";
-    if (q.isMarkedForReview) return "bg-purple-500 text-white";
-    if (q.userSelectedOption !== null) return "bg-green-500 text-white";
-    return "bg-red-400 text-white";
-  }
-
-  const counts = (() => {
+  const counts = useMemo(() => {
     let correct = 0, incorrect = 0, unattempted = 0;
     for (const q of questions) {
       if (q.userSelectedOption === null) unattempted++;
@@ -210,7 +211,25 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
       else incorrect++;
     }
     return { correct, incorrect, unattempted };
-  })();
+  }, [questions]);
+
+  const currentQ = filteredQuestions[currentIndex];
+  const hasQuestions = filteredQuestions.length > 0;
+
+  const qText = currentQ ? (primaryLang === "TE" ? currentQ.questionText_te : currentQ.questionText_en) : "";
+  const altQText = currentQ ? (primaryLang === "TE" ? currentQ.questionText_en : currentQ.questionText_te) : "";
+  const options = currentQ ? (primaryLang === "TE" ? currentQ.options_te : currentQ.options_en) : [];
+  const altOptions = currentQ ? (primaryLang === "TE" ? currentQ.options_en : currentQ.options_te) : [];
+  const explanation = currentQ ? (primaryLang === "TE" ? currentQ.explanation_te : currentQ.explanation_en) : "";
+
+  const isCorrect = currentQ ? currentQ.userSelectedOption === currentQ.correctOption : false;
+  const isAttempted = currentQ ? currentQ.userSelectedOption !== null : false;
+
+  const filterTabs: Array<{ key: "all" | "incorrect" | "unattempted"; label: string; count: number }> = [
+    { key: "all", label: "All", count: questions.length },
+    { key: "incorrect", label: "Incorrect", count: counts.incorrect },
+    { key: "unattempted", label: "Unattempted", count: counts.unattempted },
+  ];
 
   const paletteContent = (
     <div>
@@ -233,7 +252,7 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
         </div>
       </div>
       <div className="grid grid-cols-5 gap-2">
-        {questions.map((q, idx) => {
+        {filteredQuestions.map((q, filteredIdx) => {
           let color: string;
           if (q.userSelectedOption === null) color = "bg-gray-200 text-gray-600";
           else if (q.userSelectedOption === q.correctOption) color = "bg-green-500 text-white";
@@ -242,10 +261,10 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
           return (
             <button
               key={q.questionId}
-              onClick={() => navigateTo(idx)}
-              className={`w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${color} ${idx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
+              onClick={() => navigateTo(filteredIdx)}
+              className={`w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${color} ${filteredIdx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
             >
-              {idx + 1}
+              {q.order}
             </button>
           );
         })}
@@ -253,7 +272,7 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
     </div>
   );
 
-  const isLastQuestion = currentIndex === questions.length - 1;
+  const isLastQuestion = currentIndex === filteredQuestions.length - 1;
 
   return (
     <>
@@ -272,12 +291,39 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
         </div>
       </div>
 
+      <div className="border-b border-gray-200 bg-white">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 flex gap-6">
+          {filterTabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => switchFilter(tab.key)}
+              className={`py-3 text-sm font-medium border-b-2 transition-colors ${
+                filter === tab.key
+                  ? "border-[#6D4BCB] text-[#6D4BCB]"
+                  : "border-transparent text-gray-400 hover:text-gray-600"
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="flex-grow flex max-w-7xl mx-auto w-full">
         <div className="flex-grow p-4 md:p-6 overflow-y-auto">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-6 mb-4">
+          {!hasQuestions && (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-12 mb-4 text-center">
+              <div className="w-14 h-14 rounded-full bg-green-50 mx-auto mb-4 flex items-center justify-center">
+                <CheckCircle2 size={24} className="text-green-500" />
+              </div>
+              <p className="text-gray-500 text-sm">No questions in this category.</p>
+              <p className="text-gray-400 text-xs mt-1">Great work!</p>
+            </div>
+          )}
+          {hasQuestions && <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-6 mb-4">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
-                Question {currentIndex + 1} of {questions.length}
+                Q{currentQ.order} ({currentIndex + 1} of {filteredQuestions.length})
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-400">{currentQ.subjectName}</span>
@@ -392,9 +438,9 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
             >
               <Flag size={12} /> Report an Issue
             </button>
-          </div>
+          </div>}
 
-          <div className="flex items-center gap-2 mb-4">
+          {hasQuestions && <div className="flex items-center gap-2 mb-4">
             {currentIndex > 0 && (
               <button
                 onClick={() => navigateTo(currentIndex - 1)}
@@ -419,9 +465,9 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
                 Back to Result
               </Link>
             )}
-          </div>
+          </div>}
 
-          {isLastQuestion && !feedbackDone && (
+          {hasQuestions && isLastQuestion && !feedbackDone && (
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
               <div className="flex items-center gap-2 mb-3">
                 <MessageSquare size={16} className="text-purple-600" />
@@ -460,7 +506,7 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
             </div>
           )}
 
-          {isLastQuestion && feedbackDone && (
+          {hasQuestions && isLastQuestion && feedbackDone && (
             <div className="bg-green-50 rounded-xl border border-green-100 p-5 mb-4 text-center">
               <CheckCircle2 size={24} className="text-green-500 mx-auto mb-2" />
               <p className="text-sm text-green-700 font-medium">Thanks for your feedback!</p>
@@ -505,7 +551,7 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
                 <X size={18} />
               </button>
             </div>
-            <p className="text-xs text-gray-500 mb-4">Question {currentIndex + 1}</p>
+            <p className="text-xs text-gray-500 mb-4">Question {currentQ?.order ?? currentIndex + 1}</p>
             <div className="space-y-2 mb-4">
               {ISSUE_TYPES.map((it) => (
                 <label key={it.value} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
