@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Header } from "@/ui-core/Header";
-import { Footer } from "@/ui-core/Footer";
 import AttemptSummaryClient from "@/components/testhub/AttemptSummaryClient";
 import Link from "next/link";
 
@@ -33,7 +32,6 @@ export default async function SubmittedPage({
             <Link href="/testhub" className="btn-glossy-primary px-6 py-2.5">Back to TestHub</Link>
           </div>
         </div>
-        <Footer />
       </main>
     );
   }
@@ -44,7 +42,6 @@ export default async function SubmittedPage({
       <div className="flex-grow flex items-center justify-center py-10 px-4">
         <AttemptSummaryClient testId={testId} attemptId={attemptId} />
       </div>
-      <Footer />
     </main>
   );
 }

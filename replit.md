@@ -157,6 +157,14 @@ Preferred communication style: Simple, everyday language.
 
 ### Route Protection
 - `proxy.ts` protects: /dashboard, /course, /courses, /test, /admin (redirects unauthenticated to /login)
+- `middleware.ts` was removed — Next.js 16 only supports `proxy.ts`
+
+### Navigation & Layout
+- `Header` is auth-aware: shows student nav (Dashboard, TestHub, Courses + Log Out) when authenticated, guest nav (Home, Courses, Products + Log In / Create Account) when not
+- During auth check (`isAuthed === null`), nav links are hidden to prevent flash of guest nav
+- Authenticated-only pages (dashboard, brief, submitted, result, review) do NOT render `<Footer />`
+- Public/mixed pages (home, /testhub, /courses) still render `<Footer />`
+- `/dashboard` — server-rendered student home with quick links, free test cards, account info
 - `/admin/*` additionally enforced server-side via `app/admin/layout.tsx` requiring ADMIN role
 - `/testhub/tests/[testId]/brief` and `/attempt` — server-side auth via `getCurrentUser()` + `redirect()`
 

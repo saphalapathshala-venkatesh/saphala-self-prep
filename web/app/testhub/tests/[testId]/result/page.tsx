@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Header } from "@/ui-core/Header";
-import { Footer } from "@/ui-core/Footer";
 import ResultPageClient from "@/components/testhub/ResultPageClient";
 
 export default async function ResultPage({
@@ -30,7 +29,6 @@ export default async function ResultPage({
     <main className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       <ResultPageClient attemptId={attemptId} testId={testId} />
-      <Footer />
     </main>
   );
 }

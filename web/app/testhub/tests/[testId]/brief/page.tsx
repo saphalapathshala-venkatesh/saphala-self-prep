@@ -3,7 +3,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { getDbTestById } from "@/lib/testhubDb";
 import Link from "next/link";
 import { Header } from "@/ui-core/Header";
-import { Footer } from "@/ui-core/Footer";
 import BriefClient from "@/components/testhub/BriefClient";
 
 export default async function BriefPage({ params }: { params: Promise<{ testId: string }> }) {
@@ -27,7 +26,6 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
             <Link href="/testhub" className="btn-glossy-primary">Back to TestHub</Link>
           </div>
         </div>
-        <Footer />
       </main>
     );
   }
@@ -55,8 +53,6 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
       <div className="flex-grow flex items-center justify-center py-10 px-4">
         <BriefClient test={briefTest} />
       </div>
-
-      <Footer />
     </main>
   );
 }

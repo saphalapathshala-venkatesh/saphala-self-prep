@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { Header } from "@/ui-core/Header";
-import { Footer } from "@/ui-core/Footer";
 import ReviewClient from "@/components/testhub/ReviewClient";
 
 export default async function ReviewPage({
@@ -30,7 +29,6 @@ export default async function ReviewPage({
     <main className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       <ReviewClient attemptId={attemptId} testId={testId} />
-      <Footer />
     </main>
   );
 }

@@ -1,0 +1,62 @@
+We are now in Saphala Self Prep testing phase. I tested the student frontend and found launch-blocking issues. Fix them carefully without breaking existing auth/session flow.
+
+Issues found:
+1. After successful login, the dashboard still shows public header buttons like "Log In" and "Create Account".
+2. Public marketing footer and public site sections are still visible inside logged-in student pages.
+3. While already logged in, clicking protected nav links like Courses redirects to /login?from=... again.
+4. I cannot see any tests on the student side, even though 6 tests were already created in admin/Replit.
+5. The current dashboard looks like a basic account page, not a proper student TestHub home.
+
+Implement the following cleanly:
+
+A. Create a dedicated authenticated student layout/shell for logged-in routes such as:
+- /dashboard
+- /courses
+- /testhub
+- /tests
+- test attempt/result related pages
+This logged-in layout must:
+- hide guest CTA buttons (Log In / Create Account)
+- hide public marketing footer
+- show a student navbar with Dashboard, TestHub/My Tests, and Logout
+- render consistently on refresh and client navigation
+
+B. Refactor the navbar so it is session-aware:
+- guest users see Log In / Create Account
+- logged-in users see Dashboard / TestHub / Logout
+- do not show guest buttons when session exists
+- keep SSR/client hydration consistent
+
+C. Fix protected route behavior:
+- if user is already authenticated, navigating to protected pages should never redirect back to login
+- ensure from param redirect works only for unauthenticated users
+- use one consistent session source across middleware, server components, and client navigation
+
+D. Build a proper student TestHub list page/section:
+- fetch and show only published tests
+- show title, duration, question count, and Start Test button
+- add empty state if no published tests exist
+- link this from dashboard/student navbar
+
+E. Verify test retrieval end-to-end:
+- confirm the existing 6 tests are actually fetched from DB
+- if tests are in draft/unpublished status, make that obvious in admin or provide clear filtering
+- if no tests are returned, log/debug the exact reason safely
+
+F. Improve student dashboard UX:
+- replace bare account card with a simple student home
+- show welcome section
+- show available tests / quick links to TestHub
+- keep clean mobile-friendly layout
+
+Important constraints:
+- Do not break admin routes or role-based guards
+- Do not change DB schema unless absolutely necessary
+- Preserve current session/auth system and strengthen it
+- Use SSR where appropriate so session state and test list are reliable
+- Ensure Vercel compatibility
+
+After changes:
+1. summarize root causes found,
+2. list files changed,
+3. explain how to test login → dashboard → test list → protected navigation.
