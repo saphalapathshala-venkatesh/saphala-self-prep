@@ -120,9 +120,7 @@ export default function RegisterForm() {
         return;
       }
 
-      const dest = new URL(data.redirectTo || from, window.location.origin);
-      dest.searchParams.set("login", "success");
-      router.push(dest.pathname + dest.search);
+      router.push("/login?signup=success");
     } catch {
       setErrors({ general: "An unexpected error occurred. Please try again." });
     } finally {
