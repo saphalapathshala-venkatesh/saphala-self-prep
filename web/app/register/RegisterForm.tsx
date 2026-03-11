@@ -72,8 +72,8 @@ export default function RegisterForm() {
       newErrors.email = "Please enter a valid email address.";
     }
 
-    if (formData.mobile.length !== 10) {
-      newErrors.mobile = "Please enter a valid 10-digit Indian mobile number.";
+    if (!/^\d{10}$/.test(formData.mobile)) {
+      newErrors.mobile = "Enter a valid 10-digit mobile number.";
     }
 
     if (!formData.state) {
@@ -84,8 +84,8 @@ export default function RegisterForm() {
       newErrors.gender = "Please select a gender option.";
     }
 
-    if (!formData.password || formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters long.";
+    if (!formData.password || formData.password.length < 8 || !/[a-zA-Z]/.test(formData.password) || !/[0-9]/.test(formData.password)) {
+      newErrors.password = "Password must be at least 8 characters long and include at least one letter and one number.";
     }
 
     if (formData.password !== formData.confirmPassword) {

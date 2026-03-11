@@ -20,8 +20,8 @@ export function validateMobile(mobile: string): ValidationResult {
 }
 
 export function validatePassword(password: string): ValidationResult {
-  if (!password || password.length < 8) {
-    return { valid: false, error: "Password must be at least 8 characters long." };
+  if (!password || password.length < 8 || !/[a-zA-Z]/.test(password) || !/[0-9]/.test(password)) {
+    return { valid: false, error: "Password must be at least 8 characters long and include at least one letter and one number." };
   }
   return { valid: true };
 }
