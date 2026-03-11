@@ -13,7 +13,7 @@
   }
 
   .btn-glossy-secondary {
-    @apply bg-white text-purple-700 font-semibold py-2.5 px-5 rounded-full border border-purple-200 shadow-sm transition-all duration-200 ease-in-out hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-300 cursor-pointer;
+    @apply bg-white text-purple-700 font-semibold py-2.5 px-5 rounded-full border border-purple-600 shadow-sm transition-all duration-200 ease-in-out hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-300 cursor-pointer;
   }
 }
 
