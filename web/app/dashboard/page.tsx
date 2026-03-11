@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { Header } from "@/ui-core/Header";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getPublishedTestsForStudent } from "@/lib/testhubDb";
 import LogoutButton from "./LogoutButton";
+import LoginSuccessToast from "./LoginSuccessToast";
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
@@ -33,6 +35,9 @@ export default async function DashboardPage() {
         </section>
 
         <div className="container mx-auto max-w-4xl px-4 py-8 space-y-8">
+          <Suspense>
+            <LoginSuccessToast email={user.email ?? ""} />
+          </Suspense>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Link
               href="/testhub"

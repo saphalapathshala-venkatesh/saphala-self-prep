@@ -49,7 +49,9 @@ export default function LoginForm() {
         return;
       }
 
-      router.replace(from);
+      const dest = new URL(from, window.location.origin);
+      dest.searchParams.set("login", "success");
+      router.replace(dest.pathname + dest.search);
     } catch {
       setErrors({ general: "An unexpected error occurred. Please try again." });
     } finally {
