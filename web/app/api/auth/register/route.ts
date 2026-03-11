@@ -12,7 +12,8 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, mobile, password, confirmPassword, fullName, state, gender } = body;
+    const { mobile, password, confirmPassword, fullName, state, gender } = body;
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : body.email;
 
     const emailResult = validateEmail(email);
     if (!emailResult.valid) return NextResponse.json({ error: emailResult.error }, { status: 400 });
