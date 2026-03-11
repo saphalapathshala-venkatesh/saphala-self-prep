@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 
-export default function LoginSuccessToast({ email }: { email: string }) {
+export default function LoginSuccessToast({ displayName }: { displayName: string }) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [visible, setVisible] = useState(false);
@@ -31,7 +31,7 @@ export default function LoginSuccessToast({ email }: { email: string }) {
         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
       </svg>
       <span className="text-sm font-medium">
-        Logged in successfully as {email}
+        Logged in successfully as {displayName}
       </span>
     </div>
   );

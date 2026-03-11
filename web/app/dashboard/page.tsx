@@ -16,7 +16,16 @@ export default async function DashboardPage() {
 
   const tests = await getPublishedTestsForStudent();
   const freeTests = tests.filter((t) => t.accessType === "FREE");
-  const firstName = (user.email ?? "Student").split("@")[0];
+
+  let greeting = "Welcome back";
+  if (user.fullName) {
+    const salutation =
+      user.gender === "Male" ? "Mr. " :
+      user.gender === "Female" ? "Ms. " : "";
+    greeting = `Welcome back, ${salutation}${user.fullName}`;
+  }
+
+  const displayName = user.fullName ?? user.email ?? user.mobile ?? "Student";
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50">
@@ -26,7 +35,7 @@ export default async function DashboardPage() {
         <section className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] text-white py-10 px-4">
           <div className="container mx-auto max-w-4xl">
             <h1 className="text-2xl md:text-3xl font-bold mb-2">
-              Welcome back, {firstName}!
+              {greeting}!
             </h1>
             <p className="text-purple-200 text-sm md:text-base">
               Ready to continue your preparation? Pick up where you left off.
@@ -36,7 +45,7 @@ export default async function DashboardPage() {
 
         <div className="container mx-auto max-w-4xl px-4 py-8 space-y-8">
           <Suspense>
-            <LoginSuccessToast email={user.email ?? ""} />
+            <LoginSuccessToast displayName={displayName} />
           </Suspense>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <Link

@@ -1,0 +1,111 @@
+We are improving Saphala Self Prep student onboarding and personalized dashboard experience. Implement the following enhancements carefully without breaking existing auth, sessions, or admin functionality.
+
+PART A — Sign Up form enhancement
+
+Update the Sign Up / registration form to collect the following additional student fields:
+
+1. Full Name (required)
+2. State (required dropdown)
+3. Gender (required dropdown)
+
+State dropdown must include:
+- All Indian States
+- All Union Territories
+- One final option: Other
+
+Gender dropdown options:
+- Male
+- Female
+- Other
+- Prefer not to say
+
+Requirements:
+- Add these fields to the signup form UI
+- Validate them properly
+- Persist them in the student/user database model
+- Keep backward compatibility for existing users who do not yet have these fields
+- Do not break existing login flow
+- Do not break admin auth/session system
+
+PART B — Login success message
+
+After successful login and redirect to the dashboard, show a temporary success message card at the top.
+
+Message:
+"Logged in successfully as [Full Name]"
+
+Fallback:
+- If full name is missing, use email
+
+UI requirements:
+- light green background
+- green border
+- check icon
+- rounded corners
+- padding
+- modern clean look
+
+Behavior:
+- auto-dismiss after 4 seconds
+- appear only immediately after login
+- do not reappear on page refresh
+
+Implementation suggestion:
+Use a short-lived flag or query param during login redirect.
+
+PART C — Personalized welcome banner
+
+On the student dashboard, show a personalized greeting using full name and gender-based salutation.
+
+Display rules:
+
+Male → "Welcome back, Mr. [Full Name]"
+Female → "Welcome back, Ms. [Full Name]"
+Other / Prefer not to say → "Welcome back, [Full Name]"
+If full name is missing → "Welcome back"
+
+Important:
+Do NOT collect salutation manually. It must be derived automatically from the stored gender value.
+
+PART D — White CTA button styling
+
+Update white buttons such as "Explore Courses" so they have:
+
+- white background
+- clearly visible purple border
+- purple text
+
+Recommended Tailwind classes:
+
+border border-purple-600
+text-purple-700
+hover:bg-purple-50
+
+Do not change button size, layout, routes, or click behavior.
+
+PART E — Student UI direction
+
+Keep the logged-in student UI aligned with the "Exam Command Center" layout direction:
+
+- left-side collapsible sidebar with hamburger support
+- clean student workspace layout
+- remove marketing-site feel from authenticated pages
+- consistent branding using Saphala colors
+
+PART F — Compatibility and safety
+
+Important constraints:
+
+- Preserve current auth/session system
+- Do not break admin routes
+- Do not break test creation or test visibility
+- Existing users without fullName/state/gender must still log in normally
+- If database changes are needed, make them backward-compatible
+- Keep TypeScript clean
+- Ensure Vercel deployment compatibility
+
+After implementation, provide:
+1. files changed
+2. schema updates (if any)
+3. how existing users are handled
+4. how to test signup → login → dashboard greeting.

@@ -59,6 +59,11 @@ Preferred communication style: Simple, everyday language.
 - Build script runs `prisma generate` before `next build`; `postinstall` also runs `prisma generate`
 - UserRole enum: STUDENT (default), ADMIN, SUPER_ADMIN
 - User model uses `passwordHash` field (not `password`)
+- User model has optional `fullName`, `state`, `gender` fields (added for student onboarding)
+- Registration collects: Full Name, Email, Mobile, State (Indian states dropdown), Gender (Male/Female/Other/Prefer not to say), Password
+- Existing users without fullName/state/gender can still log in normally (fields are nullable)
+- Dashboard greeting uses gender-based salutation: Male→"Mr.", Female→"Ms.", Other/Prefer not to say→no prefix
+- Login success toast shows fullName with email fallback
 
 ### Authentication
 - Cookie-based sessions using `saphala_session` cookie

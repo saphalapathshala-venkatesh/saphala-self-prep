@@ -12,7 +12,7 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, mobile, password, confirmPassword } = body;
+    const { email, mobile, password, confirmPassword, fullName, state, gender } = body;
 
     const emailResult = validateEmail(email);
     if (!emailResult.valid) return NextResponse.json({ error: emailResult.error }, { status: 400 });
@@ -41,8 +41,37 @@ export async function POST(request: NextRequest) {
 
     const hashed = await bcrypt.hash(password, 10);
 
+    if (!fullName || typeof fullName !== "string" || fullName.trim().length === 0) {
+      return NextResponse.json({ error: "Full name is required." }, { status: 400 });
+    }
+    const validStates = [
+      "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+      "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand",
+      "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+      "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
+      "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+      "Uttar Pradesh", "Uttarakhand", "West Bengal",
+      "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+      "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
+      "Other",
+    ];
+    if (!state || !validStates.includes(state)) {
+      return NextResponse.json({ error: "Please select a valid state." }, { status: 400 });
+    }
+    const validGenders = ["Male", "Female", "Other", "Prefer not to say"];
+    if (!gender || !validGenders.includes(gender)) {
+      return NextResponse.json({ error: "Please select a valid gender option." }, { status: 400 });
+    }
+
     const user = await prisma.user.create({
-      data: { email, mobile, passwordHash: hashed },
+      data: {
+        email,
+        mobile,
+        passwordHash: hashed,
+        fullName: fullName.trim(),
+        state: state.trim(),
+        gender,
+      },
       select: { id: true },
     });
 

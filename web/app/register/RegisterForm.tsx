@@ -4,9 +4,26 @@ import { useState, type FormEvent, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+const INDIAN_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+  "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand",
+  "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur",
+  "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
+  "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura",
+  "Uttar Pradesh", "Uttarakhand", "West Bengal",
+  "Andaman and Nicobar Islands", "Chandigarh", "Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi", "Jammu and Kashmir", "Ladakh", "Lakshadweep", "Puducherry",
+  "Other",
+];
+
+const GENDER_OPTIONS = ["Male", "Female", "Other", "Prefer not to say"];
+
 interface FormErrors {
+  fullName?: string;
   email?: string;
   mobile?: string;
+  state?: string;
+  gender?: string;
   password?: string;
   confirmPassword?: string;
   general?: string;
@@ -18,23 +35,26 @@ export default function RegisterForm() {
   const from = searchParams?.get("from") || "/dashboard";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
+    fullName: "",
     email: "",
     mobile: "",
+    state: "",
+    gender: "",
     password: "",
     confirmPassword: "",
   });
   const [errors, setErrors] = useState<FormErrors>({});
 
-  function handleChange(e: ChangeEvent<HTMLInputElement>) {
+  function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = e.target;
-    
+
     if (name === "mobile") {
       const digitsOnly = value.replace(/\D/g, "").slice(0, 10);
       setFormData((prev) => ({ ...prev, mobile: digitsOnly }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
-    
+
     if (errors[name as keyof FormErrors]) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -43,6 +63,10 @@ export default function RegisterForm() {
   function validateForm(): boolean {
     const newErrors: FormErrors = {};
 
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = "Full name is required.";
+    }
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email || !emailRegex.test(formData.email)) {
       newErrors.email = "Please enter a valid email address.";
@@ -50,6 +74,14 @@ export default function RegisterForm() {
 
     if (formData.mobile.length !== 10) {
       newErrors.mobile = "Please enter a valid 10-digit Indian mobile number.";
+    }
+
+    if (!formData.state) {
+      newErrors.state = "Please select your state.";
+    }
+
+    if (!formData.gender) {
+      newErrors.gender = "Please select a gender option.";
     }
 
     if (!formData.password || formData.password.length < 8) {
@@ -66,7 +98,7 @@ export default function RegisterForm() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -88,13 +120,20 @@ export default function RegisterForm() {
         return;
       }
 
-      router.push(data.redirectTo || from);
+      const dest = new URL(data.redirectTo || from, window.location.origin);
+      dest.searchParams.set("login", "success");
+      router.push(dest.pathname + dest.search);
     } catch {
       setErrors({ general: "An unexpected error occurred. Please try again." });
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const selectClass =
+    "w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all bg-white appearance-none";
+  const inputClass =
+    "w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all";
 
   return (
     <>
@@ -107,6 +146,24 @@ export default function RegisterForm() {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
+            Full Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="fullName"
+            value={formData.fullName}
+            onChange={handleChange}
+            placeholder="Enter your full name"
+            className={inputClass}
+            required
+          />
+          {errors.fullName && (
+            <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
             Email Address <span className="text-red-500">*</span>
           </label>
           <input
@@ -115,7 +172,7 @@ export default function RegisterForm() {
             value={formData.email}
             onChange={handleChange}
             placeholder="email@example.com"
-            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+            className={inputClass}
             required
           />
           {errors.email && (
@@ -148,6 +205,50 @@ export default function RegisterForm() {
           )}
         </div>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              State <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="state"
+              value={formData.state}
+              onChange={handleChange}
+              className={selectClass}
+              required
+            >
+              <option value="" disabled>Select state</option>
+              {INDIAN_STATES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            {errors.state && (
+              <p className="text-red-500 text-xs mt-1">{errors.state}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Gender <span className="text-red-500">*</span>
+            </label>
+            <select
+              name="gender"
+              value={formData.gender}
+              onChange={handleChange}
+              className={selectClass}
+              required
+            >
+              <option value="" disabled>Select gender</option>
+              {GENDER_OPTIONS.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+            {errors.gender && (
+              <p className="text-red-500 text-xs mt-1">{errors.gender}</p>
+            )}
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Password <span className="text-red-500">*</span>
@@ -158,7 +259,7 @@ export default function RegisterForm() {
             value={formData.password}
             onChange={handleChange}
             placeholder="Min 8 characters"
-            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+            className={inputClass}
             minLength={8}
             required
           />
@@ -177,7 +278,7 @@ export default function RegisterForm() {
             value={formData.confirmPassword}
             onChange={handleChange}
             placeholder="Re-enter your password"
-            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none transition-all"
+            className={inputClass}
             required
           />
           {errors.confirmPassword && (

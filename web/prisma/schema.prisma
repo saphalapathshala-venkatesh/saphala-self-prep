@@ -88,6 +88,9 @@ model User {
   email        String?   @unique
   mobile       String?   @unique
   name         String?
+  fullName     String?
+  state        String?
+  gender       String?
   passwordHash String
   role         UserRole  @default(STUDENT)
   isActive     Boolean   @default(true)

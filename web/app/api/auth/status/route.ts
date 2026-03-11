@@ -4,5 +4,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const user = await getCurrentUser();
-  return Response.json({ isAuthed: !!user });
+  if (!user) return Response.json({ isAuthed: false });
+  return Response.json({
+    isAuthed: true,
+    fullName: user.fullName ?? null,
+    email: user.email ?? null,
+  });
 }
