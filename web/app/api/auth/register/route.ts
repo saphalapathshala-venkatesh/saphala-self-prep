@@ -33,10 +33,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (existing?.email === email) {
-      return NextResponse.json({ error: "This email is already registered." }, { status: 409 });
+      return NextResponse.json({ error: "An account with this email already exists. Please log in instead." }, { status: 409 });
     }
     if (existing?.mobile === mobile) {
-      return NextResponse.json({ error: "This mobile number is already registered." }, { status: 409 });
+      return NextResponse.json({ error: "An account with this mobile number already exists. Please log in instead." }, { status: 409 });
     }
 
     const hashed = await bcrypt.hash(password, 10);
@@ -79,8 +79,22 @@ export async function POST(request: NextRequest) {
     const res = NextResponse.json({ success: true, redirectTo: "/dashboard" });
     res.cookies.set(cookie.name, cookie.value, cookie.options);
     return res;
-  } catch (e) {
+  } catch (e: unknown) {
     console.error(e);
+    if (
+      typeof e === "object" && e !== null && "code" in e &&
+      (e as { code: string }).code === "P2002"
+    ) {
+      const meta = (e as { meta?: { target?: string[] } }).meta;
+      const field = meta?.target?.[0];
+      if (field === "email") {
+        return NextResponse.json({ error: "An account with this email already exists. Please log in instead." }, { status: 409 });
+      }
+      if (field === "mobile") {
+        return NextResponse.json({ error: "An account with this mobile number already exists. Please log in instead." }, { status: 409 });
+      }
+      return NextResponse.json({ error: "An account with these details already exists. Please log in instead." }, { status: 409 });
+    }
     return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
   }
 }
