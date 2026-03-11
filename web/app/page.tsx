@@ -21,7 +21,7 @@ export default function Home() {
             Access premium modules and state-of-the-art simulators today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/register" className="btn-glossy-primary">Create Free Account</Link>
+            <Link href="/register" className="btn-glossy-primary">Create Account</Link>
             <Link href="/courses" className="btn-glossy-secondary">Explore Courses</Link>
           </div>
         </div>
