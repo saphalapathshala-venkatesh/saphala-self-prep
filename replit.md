@@ -169,7 +169,15 @@ Preferred communication style: Simple, everyday language.
 - During auth check (`isAuthed === null`), nav links are hidden to prevent flash of guest nav
 - Authenticated-only pages (dashboard, brief, submitted, result, review) do NOT render `<Footer />`
 - Public/mixed pages (home, /testhub, /courses) still render `<Footer />`
-- `/dashboard` — server-rendered student home with quick links, free test cards, account info
+
+### Student Dashboard (Command Center)
+- `/dashboard` uses `DashboardShell` layout with left sidebar + content area (no marketing Header/Footer)
+- **Sidebar** (`components/dashboard/Sidebar.tsx`): collapsible left-side nav with sections
+  - Dashboard, Saphala Self Prep (Smart Learning [coming soon], TestHub), Saphala Learn (Pathshala [coming soon], Prep Library [coming soon]), Results [coming soon], Profile [coming soon], Logout
+  - Desktop: always visible; Mobile: hamburger button opens overlay sidebar
+- **DashboardShell** (`components/dashboard/DashboardShell.tsx`): manages sidebar visibility + mobile header
+- **Dashboard cards**: Welcome banner, stat cards (XP Earned, Sadhana Streak, Tests Attempted, Accuracy), product access cards, free tests section
+- Tests Attempted uses live DB count from `Attempt` table; other stats are placeholder (XP/streak systems not yet built)
 - `/admin/*` additionally enforced server-side via `app/admin/layout.tsx` requiring ADMIN role
 - `/testhub/tests/[testId]/brief` and `/attempt` — server-side auth via `getCurrentUser()` + `redirect()`
 

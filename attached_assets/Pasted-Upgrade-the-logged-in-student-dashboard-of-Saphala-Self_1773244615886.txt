@@ -1,0 +1,101 @@
+Upgrade the logged-in student dashboard of Saphala Self Prep into a real student command center with a left-side collapsible menu and dashboard cards.
+
+Implement the following carefully without breaking existing auth, sessions, test visibility, or admin routes.
+
+PART A — Left sidebar menu
+
+Create or update the logged-in student sidebar navigation to include these top-level items:
+
+1. Dashboard
+
+2. Saphala Self Prep
+   - Smart Learning
+   - TestHub
+
+3. Saphala Learn
+   - Pathshala
+   - Prep Library
+
+4. Results
+
+5. Profile
+
+6. Logout
+
+Requirements:
+- Sidebar should support left-side collapsible / hamburger behavior
+- Top-level items for "Saphala Self Prep" and "Saphala Learn" should expand/collapse as dropdown sections
+- Keep the layout clean, premium, and mobile-friendly
+- Use the existing Saphala design direction
+- Do not break existing navigation or route protection
+
+PART B — Dashboard home cards
+
+Rebuild the main dashboard home so it includes:
+
+1. Welcome banner
+- personalized greeting using full name / salutation logic already implemented
+- short motivational message
+- clean premium card/banner styling
+
+2. Progress cards row
+Show these cards:
+- XP Earned
+- Sadhana Streak
+- Tests Attempted
+- Learning Progress (or Accuracy if already available)
+
+3. Product access cards
+Show clear dashboard cards for:
+- Saphala Self Prep
+  - Smart Learning
+  - TestHub
+- Saphala Learn
+  - Pathshala
+  - Prep Library
+
+Each card should have:
+- title
+- short description
+- button/link to open module
+- clean visual hierarchy
+
+4. Secondary section
+Include a simple section for:
+- recent activity
+- available tests
+- continue learning / next recommended step
+Use existing real data where available; otherwise provide graceful placeholder/empty states.
+
+PART C — Naming
+
+Use the exact label:
+"Sadhana Streak"
+
+Do not rename it to Daily Streak.
+
+PART D — Route / feature handling
+
+If any linked module is not fully built yet:
+- show it as "Coming Soon" or disabled gracefully
+- do not create broken links
+
+If routes already exist:
+- connect cards and sidebar items to those routes
+
+PART E — Safety
+
+Important constraints:
+- Do not break current login/signup flow
+- Do not break testhub or published test listing
+- Do not break admin routes
+- Preserve session-aware header/sidebar behavior
+- Keep TypeScript clean
+- Ensure Vercel compatibility
+
+After implementation provide:
+1. files changed
+2. routes linked
+3. which cards use live data vs placeholder data
+4. how sidebar behaves on desktop and mobile
+5. how to test dashboard navigation end-to-end
