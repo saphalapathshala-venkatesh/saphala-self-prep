@@ -1,0 +1,130 @@
+Before adding any new features, I need a clear and concise status of the current system.
+
+Please analyze the existing codebase and provide a crisp answer to the following questions about the Saphala Self Prep system.
+
+Do not implement any new features. Only inspect and report.
+
+--------------------------------------
+
+1. Admin → Frontend Connection
+
+Is the Saphala Admin app currently connected to the Saphala Self Prep frontend?
+
+Specifically confirm:
+
+• When an admin creates or edits a course/test in Admin, does it automatically appear in the Self Prep frontend?
+
+• Are both Admin and Self Prep using the same database?
+
+• Which models/tables are shared between Admin and frontend (examples: Users, Tests, Courses, Questions, Attempts)?
+
+Explain the data flow clearly.
+
+--------------------------------------
+
+2. Existing Admin Features
+
+List the features that currently exist in the Admin app.
+
+For example, confirm whether these already exist:
+
+• Admin login
+• User management
+• Create test
+• Edit test
+• Publish / unpublish test
+• Question management
+• Course creation
+• Course pricing
+• Featured courses
+• Category management
+
+Provide a simple list of what is implemented vs not implemented.
+
+--------------------------------------
+
+3. Existing Student Features (Self Prep frontend)
+
+List all features that currently exist for students.
+
+For example confirm whether these work:
+
+• Signup
+• Login
+• Dashboard
+• Test list
+• Test instructions page
+• Attempt test
+• Save & next
+• Mark for review
+• Timer
+• Submit test
+• Result page
+• Answer review
+• My courses
+• Category filtering
+• Course purchase
+• Free course access
+
+Mark each feature as:
+
+• Working
+• Partially implemented
+• Not implemented
+
+--------------------------------------
+
+4. Database Structure
+
+Provide a short overview of the current database models.
+
+For example:
+
+• User
+• Session
+• Test
+• Question
+• Attempt
+• Course
+• Purchase
+• Category
+
+Explain which ones exist and which are missing.
+
+--------------------------------------
+
+5. How to Test the System
+
+Provide step-by-step instructions to test the current system:
+
+Admin testing:
+• how to log in
+• how to create a test
+• how to publish a test
+
+Student testing:
+• how to sign up
+• how to view tests
+• how to attempt a test
+• how to view results
+
+--------------------------------------
+
+6. Current System Limitations
+
+List the biggest missing features or gaps preventing the product from being production-ready.
+
+--------------------------------------
+
+Output Format:
+
+Provide a short structured report with these sections:
+
+• Admin → Frontend connection
+• Existing Admin features
+• Existing Student features
+• Database structure
+• How to test the system
+• Missing critical features
+
+Keep the explanation clear and concise.
