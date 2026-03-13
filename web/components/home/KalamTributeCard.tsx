@@ -11,12 +11,12 @@ export default function KalamTributeCard() {
       style={{ border: "1px solid #E5E7EB", borderTop: "4px solid #8050C0" }}
     >
       {/* Portrait */}
-      <div className="shrink-0 w-[64px] h-[64px] rounded-full overflow-hidden ring-2 ring-[#8050C0]/25 shadow-md bg-purple-100">
+      <div className="shrink-0 w-[96px] h-[96px] rounded-full overflow-hidden ring-2 ring-[#8050C0]/25 shadow-md bg-purple-100">
         <Image
           src="/images/kalam-portrait.png"
           alt="Dr. A.P.J. Abdul Kalam"
-          width={64}
-          height={64}
+          width={96}
+          height={96}
           className="w-full h-full object-cover object-top"
         />
       </div>
