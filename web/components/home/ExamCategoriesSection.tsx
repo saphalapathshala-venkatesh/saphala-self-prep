@@ -74,6 +74,11 @@ export default function ExamCategoriesSection() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState({ left: 0, width: 30 });
 
+  const scrollLeft = () =>
+    scrollRef.current?.scrollBy({ left: -280, behavior: "smooth" });
+  const scrollRight = () =>
+    scrollRef.current?.scrollBy({ left: 280, behavior: "smooth" });
+
   useEffect(() => {
     fetch("/api/public/categories")
       .then((r) => r.json())
@@ -145,15 +150,40 @@ export default function ExamCategoriesSection() {
             ))}
           </div>
         ) : (
-          <div
-            ref={scrollRef}
-            className="exam-scroll flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory"
-          >
-            {categories.map((cat) => (
-              <div key={cat.id} className="snap-start">
-                <CategoryCard cat={cat} />
-              </div>
-            ))}
+          <div className="flex items-center gap-2">
+            {/* Left arrow — desktop only */}
+            <button
+              onClick={scrollLeft}
+              aria-label="Scroll left"
+              className="hidden md:flex shrink-0 w-9 h-9 rounded-full bg-white border border-gray-200 shadow-md items-center justify-center text-[#8050C0] hover:bg-[#F6F2FF] hover:border-[#8050C0]/30 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+
+            {/* Scroll container */}
+            <div
+              ref={scrollRef}
+              className="exam-scroll flex-1 flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory"
+            >
+              {categories.map((cat) => (
+                <div key={cat.id} className="snap-start">
+                  <CategoryCard cat={cat} />
+                </div>
+              ))}
+            </div>
+
+            {/* Right arrow — desktop only */}
+            <button
+              onClick={scrollRight}
+              aria-label="Scroll right"
+              className="hidden md:flex shrink-0 w-9 h-9 rounded-full bg-white border border-gray-200 shadow-md items-center justify-center text-[#8050C0] hover:bg-[#F6F2FF] hover:border-[#8050C0]/30 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6" />
+              </svg>
+            </button>
           </div>
         )}
 
