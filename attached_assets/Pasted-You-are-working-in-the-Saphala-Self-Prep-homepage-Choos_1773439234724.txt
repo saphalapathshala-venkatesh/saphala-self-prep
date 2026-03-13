@@ -1,0 +1,104 @@
+You are working in the Saphala Self Prep homepage “Choose Your Exam” horizontal category section.
+
+We need to fix the mobile slider/scrollbar visibility.
+
+Current problem
+
+On mobile, the horizontal slider/scrollbar is not visible by default.
+It appears only after the user starts sliding, which is not acceptable.
+
+Required behavior
+
+The slider/scroll indicator must:
+
+be visible immediately on page load
+
+stay visible by default on mobile
+
+look similar to the desktop/web version
+
+use dark purple brand color
+
+clearly communicate that the section is horizontally scrollable
+
+Important clarification
+
+Do not rely only on the browser’s default transient scrollbar behavior on mobile.
+
+Implement a solution where the scroll indicator is persistently visible, even before the user interacts.
+
+What to change
+1. Always-visible custom scroll indicator
+
+If native mobile scrollbar cannot stay persistently visible across browsers, create a custom always-visible horizontal scroll indicator below the exam cards.
+
+This custom indicator should:
+
+visually match the desktop scrollbar style
+
+remain visible at all times on mobile
+
+update based on horizontal scroll position
+
+clearly show that more cards exist to the right/left
+
+2. Visual style
+
+Use:
+
+thumb color: #8050C0
+
+track color: subtle light gray/lavender
+
+rounded ends
+
+strong enough contrast to be noticeable
+
+It should resemble the desktop/web appearance as closely as possible.
+
+3. Mobile UX
+
+On mobile:
+
+the indicator must be visible without any swipe
+
+horizontal swipe scrolling must still work normally
+
+indicator should not overlap cards
+
+keep helper text if useful, but the indicator itself must communicate scrollability
+
+4. Desktop
+
+Do not break the current desktop behavior.
+Desktop/web appearance should remain intact.
+
+Do not change
+
+card layout
+
+card sizes
+
+category data
+
+section heading/subheading
+
+scroll mechanics
+
+Only fix the always-visible mobile slider indicator and ensure it matches desktop style.
+
+QA checklist
+
+Verify:
+
+on mobile, slider indicator is visible immediately on load
+
+it does not wait for user scrolling to appear
+
+it uses dark purple
+
+it looks close to desktop/web style
+
+horizontal scroll still works smoothly
+
+no overlap with cards or text
