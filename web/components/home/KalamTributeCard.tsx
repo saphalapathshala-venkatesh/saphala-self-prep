@@ -13,12 +13,11 @@ export default function KalamTributeCard() {
       {/* Portrait */}
       <div className="shrink-0 w-[64px] h-[64px] rounded-full overflow-hidden ring-2 ring-[#8050C0]/25 shadow-md bg-purple-100">
         <Image
-          src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/A_P_J_Abdul_Kalam.jpg/400px-A_P_J_Abdul_Kalam.jpg"
+          src="/images/kalam-portrait.png"
           alt="Dr. A.P.J. Abdul Kalam"
           width={64}
           height={64}
           className="w-full h-full object-cover object-top"
-          unoptimized
         />
       </div>
 
