@@ -47,6 +47,16 @@ export const Header = () => {
           </Link>
         </div>
 
+        {/* Mobile center brand — visible only on xs screens (below sm) */}
+        <div className="flex-1 flex flex-col items-center sm:hidden pointer-events-none select-none">
+          <span className="text-[15px] font-bold text-[var(--brand-primary)] tracking-tight leading-tight">
+            Saphala Pathshala
+          </span>
+          <span className="text-[11px] font-medium text-blue-900 opacity-90 leading-tight">
+            Your Success is Our Focus
+          </span>
+        </div>
+
         <nav className="hidden md:flex items-center gap-6 lg:gap-10 absolute left-1/2 -translate-x-1/2 pointer-events-none w-max z-0">
           {navLinks.map((link) => {
             const hideClass = link.desktopOnly

@@ -1,0 +1,280 @@
+You are working in the Saphala Self Prep frontend homepage.
+
+This task has two parts:
+
+1️⃣ Implement the Quote of the Day + Dr. A.P.J. Abdul Kalam strip below the navbar.
+2️⃣ Improve the mobile navbar branding so the empty space is properly used.
+
+Do not redesign the homepage.
+Do not modify the hero banners.
+Only implement the features described here.
+
+Part 1 — Quote + Kalam Strip
+
+Add a top section immediately below the navbar and above the hero banners.
+
+The section must follow a 60% / 40% layout.
+
+Desktop Layout
+---------------------------------------------------------
+|                    |                                   |
+|   Quote of the Day |   Dr. A.P.J. Abdul Kalam Tribute  |
+|        60%         |              40%                   |
+|                    |                                   |
+---------------------------------------------------------
+
+Use clean premium card styling consistent with the homepage design.
+
+Spacing must feel balanced and modern.
+
+Quote of the Day Section (Left — 60%)
+Title
+Quote of the Day
+Quote Text
+
+Display a motivational quote.
+
+Example:
+
+“Dream, dream, dream. Dreams transform into thoughts and thoughts result in action.”
+
+Author
+
+Show below the quote.
+
+Example:
+
+— Dr. A.P.J. Abdul Kalam
+
+If author is missing, display:
+
+— Anonymous
+Quote Behavior
+
+Quotes must automatically update once per calendar day.
+
+Rules:
+
+Quote stays the same for the whole day
+
+Quote updates at 12:00 AM
+
+Quote must not change on page refresh
+
+Use deterministic daily selection logic
+
+Example approach:
+
+quoteIndex = dayOfYear % quotes.length
+Quote Dataset
+
+Create a reusable dataset file.
+
+Example:
+
+/data/quotes.ts
+
+Structure:
+
+{
+  text: "...",
+  author: "..."
+}
+Quote Theme Restrictions
+
+Quotes must be related to:
+
+education
+
+discipline
+
+planning
+
+focus
+
+effort
+
+consistency
+
+personality development
+
+aspirant motivation
+
+goal achievement
+
+Do not include unrelated inspirational quotes.
+
+Quote Card Styling
+
+The card should feel premium.
+
+Example concept:
+
+background: white
+border-radius: 14px
+padding: 28px
+box-shadow: 0 8px 24px rgba(0,0,0,0.08)
+
+Quote text must be large and readable.
+
+Dr. A.P.J. Abdul Kalam Tribute Card (Right — 40%)
+
+This card represents Saphala’s dedication.
+
+Image
+
+Use a real portrait of Dr. A.P.J. Abdul Kalam.
+
+Message
+All Saphala products are dedicated to
+
+Dr. A.P.J. Abdul Kalam
+
+whose vision continues to inspire millions of students to dream, learn, and achieve.
+Kalam Card Design
+
+Must feel:
+
+respectful
+
+premium
+
+modern
+
+Acceptable styles:
+
+white card
+
+subtle purple accent
+
+clean portrait placement
+
+Avoid:
+
+flashy colors
+
+oversized graphics
+
+clutter
+
+Mobile Layout for Quote Section
+
+On mobile screens, stack cards vertically.
+
+Order:
+
+1️⃣ Quote of the Day
+2️⃣ Kalam Tribute Card
+
+Example:
+
+Quote of the Day
+-----------------
+[Quote Card]
+
+Kalam Tribute
+--------------
+[Image + Message]
+
+Cards must remain full width with comfortable spacing.
+
+Part 2 — Fix Mobile Navbar Branding
+
+Currently on mobile:
+
+left: logo
+
+right: hamburger menu
+
+large empty white space in the center
+
+This space must be used to display the brand identity.
+
+Mobile Navbar Requirements
+
+On mobile, the navbar must show:
+
+Left side:
+
+Saphala logo
+
+Center:
+
+Saphala Pathshala
+Your Success is Our Focus
+
+Right side:
+
+hamburger menu
+
+Branding Styling Rules
+
+The mobile branding must match the same styling used in the desktop site.
+
+Use the same fonts, colors, and typographic hierarchy as the web version.
+
+Example structure:
+
+Saphala Pathshala
+Your Success is Our Focus
+
+Where:
+
+brand name slightly larger
+
+tagline smaller
+
+both centered in the navbar middle area
+
+Do not use different fonts or colors.
+
+Mobile Layout Example
+[Logo]   Saphala Pathshala
+         Your Success is Our Focus      [☰]
+
+Text should remain readable without crowding.
+
+If necessary:
+
+reduce font size slightly
+
+maintain clear spacing
+
+keep alignment centered
+
+Technical Requirements
+
+Create reusable components:
+
+QuoteCard
+
+KalamTributeCard
+
+Keep quote logic modular so it can later connect to backend data.
+
+Do not hardcode quotes directly inside the page component.
+
+QA Checklist
+
+Verify:
+
+✔ Quote displays correctly
+✔ Author displays correctly
+✔ Quote remains the same throughout the day
+✔ Quote updates correctly at midnight
+✔ Kalam image and message display correctly
+✔ Desktop layout shows 60/40 split
+✔ Mobile layout stacks properly
+✔ Mobile navbar shows brand name and tagline
+✔ No empty space remains in mobile navbar
+✔ No layout overflow or spacing issues
+
+Final Output
+
+After implementation, report:
+
+1️⃣ where the quote dataset is stored
+2️⃣ how the daily quote logic works
+3️⃣ what components were created
+4️⃣ how the mobile navbar branding was implemented
+5️⃣ how responsiveness was handled
