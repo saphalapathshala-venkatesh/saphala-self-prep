@@ -126,10 +126,10 @@ export default function ExamCategoriesSection() {
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
         <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#2D1B69] mb-3">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#8050C0] mb-3">
             Choose Your Exam
           </h2>
-          <p className="text-gray-500 max-w-xl mx-auto">
+          <p className="text-[#6B5CA5] max-w-xl mx-auto">
             Browse preparation options based on your target exam and start with
             the learning path that fits you best.
           </p>

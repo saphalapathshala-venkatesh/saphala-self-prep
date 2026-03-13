@@ -74,10 +74,10 @@ export default function ProductTypesSection() {
     <section className="py-16 bg-gray-50">
       <div className="container mx-auto px-4">
         <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-[#2D1B69] mb-3">
+          <h2 className="text-3xl md:text-4xl font-bold text-[#8050C0] mb-3">
             Prepare Your Way
           </h2>
-          <p className="text-gray-500 max-w-2xl mx-auto">
+          <p className="text-[#6B5CA5] max-w-2xl mx-auto">
             Find the right learning approach for you. Every student prepares
             differently — Saphala supports all styles.
           </p>
