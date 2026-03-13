@@ -107,7 +107,7 @@ export default function ExamCategoriesSection() {
             ))}
           </div>
         ) : (
-          <div className="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-hide">
+          <div className="exam-scroll flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
             {categories.map((cat) => (
               <div key={cat.id} className="snap-start">
                 <CategoryCard cat={cat} />

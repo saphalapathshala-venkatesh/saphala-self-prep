@@ -1,0 +1,112 @@
+You are working in the Saphala Self Prep homepage "Choose Your Exam" section.
+
+The section contains a horizontal slider of exam category cards.
+
+Currently the horizontal scrollbar/slider indicator is not prominent on mobile, which may cause users to miss the fact that the section is scrollable.
+
+We need to improve the visibility and styling of this slider, especially for mobile devices.
+
+Do not redesign the cards.
+Do not change the layout structure.
+Only improve the scroll indicator visibility and color.
+
+1. Scrollbar Visibility
+
+Ensure the horizontal scroll indicator is clearly visible on mobile screens.
+
+Currently it appears faint and easy to miss.
+
+Increase visibility by:
+
+increasing scrollbar thickness slightly
+
+improving contrast
+
+ensuring it remains visible on light backgrounds
+
+2. Brand Color
+
+Use Saphala dark purple for the scrollbar thumb.
+
+Brand color:
+
+#8050C0
+
+Example styling concept:
+
+scrollbar-thumb-color: #8050C0
+
+Track background should remain subtle:
+
+#E5E7EB
+
+This ensures the slider feels interactive and branded.
+
+3. Scrollbar Styling Example
+
+Apply custom scrollbar styling for the horizontal container.
+
+Example:
+
+.exam-scroll-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.exam-scroll-container::-webkit-scrollbar-track {
+  background: #E5E7EB;
+  border-radius: 6px;
+}
+
+.exam-scroll-container::-webkit-scrollbar-thumb {
+  background: #8050C0;
+  border-radius: 6px;
+}
+
+.exam-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #6D3BB5;
+}
+4. Mobile Behavior
+
+On mobile:
+
+scrollbar must remain visible
+
+horizontal swipe scrolling must work smoothly
+
+scrollbar should not overlap the cards
+
+spacing below cards must remain comfortable
+
+Ensure the slider does not get hidden by overflow:hidden.
+
+5. Visual Hint for Users
+
+Keep the helper text below the slider:
+
+Scroll to see more exam categories →
+
+But make sure the scrollbar itself is visually strong enough so users immediately understand that the section is scrollable.
+
+6. Do Not Change
+
+Do not modify:
+
+card layout
+
+category data source
+
+horizontal scrolling behavior
+
+responsive card widths
+
+Only improve scrollbar visibility and color.
+
+7. QA Checklist
+
+Verify:
+
+✔ horizontal scrolling works on mobile
+✔ scrollbar clearly visible
+✔ scrollbar color is dark purple (#8050C0)
+✔ no layout overlap
+✔ cards remain unchanged
