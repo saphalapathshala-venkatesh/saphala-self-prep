@@ -1,15 +1,51 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  BookOpen,
+  Zap,
+  ClipboardCheck,
+  TrendingUp,
+} from "lucide-react";
 
+// ─── Preparation System Strip ─────────────────────────────────────────────────
+// Same across all 5 banners
+const PREP_STEPS = [
+  {
+    icon: BookOpen,
+    label: "Learn",
+    desc: "Concept clarity through structured lessons",
+  },
+  {
+    icon: Zap,
+    label: "Revise",
+    desc: "Quick recall with smart flashcards and notes",
+  },
+  {
+    icon: ClipboardCheck,
+    label: "Practice",
+    desc: "Topic tests, mock exams, and performance drills",
+  },
+  {
+    icon: TrendingUp,
+    label: "Improve",
+    desc: "Track progress, find weak areas, prepare better",
+  },
+];
+
+// ─── Slide data ───────────────────────────────────────────────────────────────
+// All banners share the SAME dark purple visual system — only image changes.
+// Images: production assets can be swapped by updating the `image` field alone.
 const slides = [
   {
     id: 1,
     badge: "Our Platform",
     headline: "Saphala Pathshala",
-    headlineAccent: "Your Success is Our Focus",
+    subheadline: "Your Success is Our Focus",
     subtext:
       "A complete exam preparation platform that helps aspirants learn with clarity, revise with purpose, and practice with confidence.",
     benefits: [
@@ -19,14 +55,18 @@ const slides = [
       "Focuses on exam relevance, not unnecessary overload",
       "Designed to make quality preparation more accessible",
     ],
-    cta: { label: "Explore Courses", href: "/courses" },
-    accent: "from-[#2D1B69] via-[#4a2d9e] to-[#6D4BCB]",
+    primaryCta: { label: "Explore Courses", href: "/courses" },
+    // Books / library — knowledge and aspiration theme
+    image:
+      "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=900&q=80",
+    imageAlt: "Books and library representing knowledge",
+    imagePosition: "object-center",
   },
   {
     id: 2,
     badge: "Self Prep System",
     headline: "Self Prep Courses",
-    headlineAccent: "Learn, Revise, and Practice in One Flow",
+    subheadline: "Learn, Revise, and Practice in One Flow",
     subtext:
       "A complete self-learning system that combines ebooks, PDFs, tests, and flashcards for disciplined independent preparation.",
     benefits: [
@@ -36,14 +76,18 @@ const slides = [
       "Practice regularly without needing separate resources",
       "Ideal for flexible daily study at your own pace",
     ],
-    cta: { label: "Start Self Prep", href: "/courses?type=self-prep" },
-    accent: "from-[#1e3a5f] via-[#2d5a8e] to-[#4a90d9]",
+    primaryCta: { label: "Start Self Prep", href: "/courses?type=self-prep" },
+    // Student studying at desk with books
+    image:
+      "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=900&q=80",
+    imageAlt: "Student studying with books and notes",
+    imagePosition: "object-center",
   },
   {
     id: 3,
     badge: "Video Learning",
     headline: "Video Courses",
-    headlineAccent: "Understand Difficult Topics with Clear Teaching",
+    subheadline: "Understand Difficult Topics with Clear Teaching",
     subtext:
       "Topic-wise video learning for students who want guided explanation, concept clarity, and repeatable revision.",
     benefits: [
@@ -53,14 +97,18 @@ const slides = [
       "Study at your own speed without missing classes",
       "Better for students who learn well through teaching",
     ],
-    cta: { label: "Watch Video Courses", href: "/courses?type=video" },
-    accent: "from-[#1a3a2a] via-[#2d5e42] to-[#3d8b5a]",
+    primaryCta: { label: "Watch Video Courses", href: "/courses?type=video" },
+    // Laptop screen / online learning
+    image:
+      "https://images.unsplash.com/photo-1588702547923-7408a8f58bd9?auto=format&fit=crop&w=900&q=80",
+    imageAlt: "Student watching video lesson on laptop",
+    imagePosition: "object-center",
   },
   {
     id: 4,
     badge: "Smart Revision",
     headline: "Flash Cards",
-    headlineAccent: "Quick Revision for Better Memory",
+    subheadline: "Quick Revision for Better Memory",
     subtext:
       "Smart active-recall revision designed to help you remember facts, formulas, definitions, and key concepts faster.",
     benefits: [
@@ -70,14 +118,18 @@ const slides = [
       "Helps retain facts, formulas, and key points",
       "Makes revision lighter, faster, and more focused",
     ],
-    cta: { label: "Try Flash Cards", href: "/courses?type=flashcards" },
-    accent: "from-[#3a1a4a] via-[#6a2d8e] to-[#9b5ad4]",
+    primaryCta: { label: "Try Flash Cards", href: "/courses?type=flashcards" },
+    // Notes / flashcard-style revision on mobile or paper
+    image:
+      "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=80",
+    imageAlt: "Flashcards and revision notes",
+    imagePosition: "object-top",
   },
   {
     id: 5,
     badge: "Practice Tests",
     headline: "Practice Tests",
-    headlineAccent: "Improve Speed, Accuracy, and Confidence",
+    subheadline: "Improve Speed, Accuracy, and Confidence",
     subtext:
       "Real exam-style practice that helps you measure readiness, find weak areas, and improve performance before the actual exam.",
     benefits: [
@@ -87,125 +139,203 @@ const slides = [
       "Builds confidence through repeated exam practice",
       "Makes preparation more performance-oriented",
     ],
-    cta: { label: "Attempt a Test", href: "/testhub" },
-    accent: "from-[#3a1a1a] via-[#8e2d2d] to-[#c94f4f]",
+    primaryCta: { label: "Attempt a Test", href: "/testhub" },
+    // Exam / test-taking environment
+    image:
+      "https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=900&q=80",
+    imageAlt: "Online exam and test simulation interface",
+    imagePosition: "object-center",
   },
 ];
 
+// ─── Component ────────────────────────────────────────────────────────────────
 export default function HeroSlider() {
   const [current, setCurrent] = useState(0);
-  const [animating, setAnimating] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const goTo = useCallback(
-    (index: number) => {
-      if (animating) return;
-      setAnimating(true);
-      setCurrent(index);
-      setTimeout(() => setAnimating(false), 600);
-    },
-    [animating]
+  const goTo = useCallback((index: number) => {
+    setCurrent(index);
+  }, []);
+
+  const next = useCallback(
+    () => goTo((current + 1) % slides.length),
+    [current, goTo]
   );
-
-  const next = useCallback(() => goTo((current + 1) % slides.length), [current, goTo]);
   const prev = useCallback(
     () => goTo((current - 1 + slides.length) % slides.length),
     [current, goTo]
   );
 
+  // Auto-advance; pause on hover
   useEffect(() => {
-    const timer = setInterval(next, 6000);
-    return () => clearInterval(timer);
-  }, [next]);
-
-  const slide = slides[current];
+    if (isHovered) return;
+    timerRef.current = setInterval(next, 6000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [next, isHovered]);
 
   return (
-    <section className="relative overflow-hidden min-h-[480px] md:min-h-[520px] flex items-center">
-      {/* Background gradient (animates per slide) */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${slide.accent} transition-all duration-700`}
-      />
-      {/* Subtle pattern overlay */}
-      <div className="absolute inset-0 opacity-[0.04]"
-        style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "28px 28px" }}
-      />
-      {/* Decorative circles */}
-      <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-white/5" />
-      <div className="absolute -bottom-10 -left-10 w-60 h-60 rounded-full bg-white/5" />
+    <section
+      className="relative overflow-hidden"
+      style={{ minHeight: "clamp(540px, 60vw, 620px)" }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {/* ── All slides stacked, only current is visible ── */}
+      {slides.map((slide, i) => (
+        <div
+          key={slide.id}
+          aria-hidden={i !== current}
+          className={`absolute inset-0 flex transition-opacity duration-700 ease-in-out ${
+            i === current ? "opacity-100 z-10" : "opacity-0 z-0"
+          }`}
+        >
+          {/* ── Consistent dark purple background for ALL slides ── */}
+          <div className="absolute inset-0 bg-[#0F172A]" />
 
-      <div className="relative z-10 container mx-auto px-4 py-12 md:py-16">
-        <div className="max-w-3xl mx-auto text-center">
-          {/* Badge */}
-          <span className="inline-block bg-white/15 text-white text-[11px] font-semibold uppercase tracking-[0.15em] px-4 py-1.5 rounded-full mb-5 backdrop-blur-sm border border-white/20">
-            {slide.badge}
-          </span>
+          {/* Subtle dot-grid pattern overlay (same across all) */}
+          <div
+            className="absolute inset-0 opacity-[0.035]"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle, #ffffff 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
+            }}
+          />
 
-          {/* Headline */}
-          <h1 className="text-3xl md:text-5xl font-bold text-white mb-2 leading-tight">
-            {slide.headline}
-          </h1>
-          <h2 className="text-xl md:text-2xl font-semibold text-white/80 mb-5 leading-snug">
-            {slide.headlineAccent}
-          </h2>
+          {/* Soft ambient light in top-left */}
+          <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-[#8050C0]/20 blur-3xl pointer-events-none" />
 
-          {/* Subtext */}
-          <p className="text-white/75 text-sm md:text-base mb-7 max-w-xl mx-auto leading-relaxed">
-            {slide.subtext}
-          </p>
+          {/* ── Two-column layout ── */}
+          <div className="relative z-10 flex w-full h-full">
 
-          {/* Benefits */}
-          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 text-left max-w-2xl mx-auto mb-8">
-            {slide.benefits.map((b) => (
-              <li key={b} className="flex items-start gap-2 text-sm text-white/85">
-                <CheckCircle2 className="w-4 h-4 text-white/60 mt-0.5 shrink-0" />
-                <span>{b}</span>
-              </li>
-            ))}
-          </ul>
+            {/* LEFT COLUMN — 60% — Text content */}
+            <div className="w-full md:w-[60%] flex flex-col justify-center px-6 sm:px-10 lg:px-16 py-10 md:py-12">
+              {/* Badge */}
+              <span className="inline-flex w-fit items-center gap-1.5 bg-white/10 border border-white/20 text-white/90 text-[10px] font-bold uppercase tracking-[0.18em] px-3 py-1 rounded-full mb-5 backdrop-blur-sm">
+                {slide.badge}
+              </span>
 
-          {/* CTA */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href={slide.cta.href}
-              className="bg-white text-[#2D1B69] font-semibold px-8 py-3 rounded-full hover:bg-purple-50 transition-colors shadow-lg text-sm"
-            >
-              {slide.cta.label}
-            </Link>
-            <Link
-              href="/register"
-              className="border border-white/50 text-white font-semibold px-8 py-3 rounded-full hover:bg-white/10 transition-colors text-sm"
-            >
-              Create Free Account
-            </Link>
+              {/* Headline */}
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-1">
+                {slide.headline}
+              </h1>
+              <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-purple-300 mb-4 leading-snug">
+                {slide.subheadline}
+              </h2>
+
+              {/* Subtext */}
+              <p className="text-white/70 text-sm leading-relaxed mb-5 max-w-lg">
+                {slide.subtext}
+              </p>
+
+              {/* Benefits (2-col grid) */}
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
+                {slide.benefits.map((b) => (
+                  <li
+                    key={b}
+                    className="flex items-start gap-2 text-[13px] text-white/80"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#88C840] mt-0.5 shrink-0" />
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* ── Preparation System Strip ── */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-7">
+                {PREP_STEPS.map(({ icon: Icon, label, desc }) => (
+                  <div
+                    key={label}
+                    className="flex flex-col gap-1 bg-white/8 border border-white/12 rounded-xl p-2.5 backdrop-blur-sm"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <Icon className="w-3.5 h-3.5 text-purple-300 shrink-0" />
+                      <span className="text-[11px] font-bold text-white">
+                        {label}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-white/55 leading-snug">
+                      {desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTAs */}
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href={slide.primaryCta.href}
+                  className="bg-white text-[#1040A0] font-bold px-7 py-2.5 rounded-full hover:bg-purple-50 transition-colors shadow-lg text-sm whitespace-nowrap"
+                >
+                  {slide.primaryCta.label}
+                </Link>
+                <Link
+                  href="/register"
+                  className="border border-white/50 text-white font-semibold px-7 py-2.5 rounded-full hover:bg-white/10 transition-colors text-sm whitespace-nowrap"
+                >
+                  Create Free Account
+                </Link>
+              </div>
+            </div>
+
+            {/* RIGHT COLUMN — 40% — Contextual image (desktop only) */}
+            <div className="hidden md:block md:w-[40%] relative overflow-hidden">
+              {/* Gradient fade from left (blends image into dark bg) */}
+              <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-[#0F172A] to-transparent z-10 pointer-events-none" />
+              {/* Gradient vignette on edges */}
+              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0F172A] to-transparent z-10 pointer-events-none" />
+              <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#0F172A] to-transparent z-10 pointer-events-none" />
+
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={slide.image}
+                alt={slide.imageAlt}
+                className={`absolute inset-0 w-full h-full object-cover ${slide.imagePosition} opacity-75`}
+              />
+            </div>
           </div>
         </div>
+      ))}
+
+      {/* ── Mobile background image (very subtle, behind content) ── */}
+      <div className="absolute inset-0 md:hidden z-0 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={slides[current].image}
+          alt=""
+          aria-hidden
+          className={`w-full h-full object-cover ${slides[current].imagePosition} opacity-[0.12]`}
+        />
       </div>
 
-      {/* Prev / Next */}
+      {/* ── Prev / Next arrows ── */}
       <button
         onClick={prev}
         aria-label="Previous slide"
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 flex items-center justify-center text-white backdrop-blur-sm transition-colors z-20"
+        className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white backdrop-blur-sm transition-colors z-20"
       >
-        <ChevronLeft className="w-5 h-5" />
+        <ChevronLeft className="w-4 h-4" />
       </button>
       <button
         onClick={next}
         aria-label="Next slide"
-        className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/15 hover:bg-white/30 flex items-center justify-center text-white backdrop-blur-sm transition-colors z-20"
+        className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white backdrop-blur-sm transition-colors z-20"
       >
-        <ChevronRight className="w-5 h-5" />
+        <ChevronRight className="w-4 h-4" />
       </button>
 
-      {/* Dot indicators */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+      {/* ── Dot indicators ── */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
         {slides.map((s, i) => (
           <button
             key={s.id}
             onClick={() => goTo(i)}
             aria-label={`Go to slide ${i + 1}`}
             className={`h-1.5 rounded-full transition-all duration-300 ${
-              i === current ? "bg-white w-8" : "bg-white/40 w-2"
+              i === current ? "bg-white w-7" : "bg-white/35 w-2"
             }`}
           />
         ))}

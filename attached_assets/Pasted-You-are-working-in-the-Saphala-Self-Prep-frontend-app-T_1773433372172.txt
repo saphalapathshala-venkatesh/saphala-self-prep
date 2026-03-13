@@ -1,0 +1,573 @@
+You are working in the Saphala Self Prep frontend app.
+
+This is a correction task, not a fresh redesign.
+
+The current homepage hero slider is not acceptable because:
+
+banners use unrelated multi-color themes
+
+large empty spaces are not filled with relevant imagery
+
+the result does not match the approved premium visual direction
+
+it looks like generic marketing slides instead of a guided exam-prep platform
+
+Your job is to rebuild the homepage hero slider and related sections so they closely match the approved visual direction already discussed.
+
+Do not improvise.
+Do not invent a new style system.
+Follow the instructions exactly.
+
+1. Core visual direction to follow
+
+The approved direction is:
+
+soft premium purple-first visual language
+
+image-based banners with purple gradient overlay
+
+clean modern card-like hero
+
+right-side contextual imagery
+
+left-side structured content
+
+same visual system across all 5 banners
+
+not a generic coaching site
+
+not a multicolor carousel
+
+The homepage should feel like a guided exam preparation system, not a random course marketplace.
+
+2. Critical fixes required
+Remove these current problems
+
+remove different solid-color backgrounds per banner
+
+remove empty unused spaces in banners
+
+remove generic marketing-slide feel
+
+remove unrelated color switching between banners
+
+Replace with this
+
+all 5 banners must use a consistent purple/blue brand overlay system
+
+each banner must include a relevant image on the right side
+
+left side contains text, benefits, system strip, and CTAs
+
+overall layout must closely resemble the approved visual style
+
+3. Global hero slider design rules
+Layout
+
+Use a two-column layout for every banner:
+
+Left side (about 58–62%)
+
+headline
+
+subheadline
+
+subtext
+
+5 benefits
+
+preparation system strip
+
+CTA buttons
+
+optional trust line
+
+Right side (about 38–42%)
+
+relevant contextual image
+
+image should feel integrated into banner, not pasted awkwardly
+
+Banner height
+
+target height: about 540px to 620px
+
+do not make giant empty hero sections
+
+Spacing
+
+strong internal padding
+
+premium whitespace
+
+visually balanced
+
+not cramped
+
+4. Banner background rule (very important)
+
+All banners must use the same visual system:
+
+soft purple/blue gradient overlay
+
+contextual background image or image composition
+
+same texture/style language
+
+Use only subtle brand-aligned variation, not separate loud banner colors.
+
+Brand palette to stay within
+
+Primary Purple #8050C0
+
+Deep Blue #1040A0
+
+Accent Green #88C840 only as a minor accent if needed
+
+Neutral Dark #0F172A
+
+Neutral Light #F8FAFC
+
+Do NOT do this
+
+no full green banner
+
+no full red banner
+
+no full blue banner unrelated to Saphala style
+
+no random theme per slide
+
+Preferred banner background style
+
+Use something like:
+
+purple gradient overlay
+
+subtle pattern/noise
+
+right-side image
+
+soft circular light shapes if helpful
+
+premium modern feel
+
+5. Banner image rules
+
+Every banner must replace empty space with relevant imagery.
+
+Banner 1 — Saphala Pathshala
+
+Use:
+
+Dr. A.P.J. Abdul Kalam image
+
+subtle study/books/desk background
+
+quote integrated elegantly into the banner
+
+right side should feel premium and inspiring
+
+Banner 2 — Self Prep Courses
+
+Use:
+
+student studying with books + laptop/tablet
+
+ebook/self-study visual
+
+disciplined study environment
+
+not classroom stock photography
+
+Banner 3 — Video Courses
+
+Use:
+
+laptop/video lesson interface
+
+student watching class
+
+screen-based learning visual
+
+should communicate guided explanation clearly
+
+Banner 4 — Flash Cards
+
+Use:
+
+flashcard/mobile revision interface
+
+memory/revision visual
+
+active recall feel
+
+avoid generic icons as the main visual
+
+Banner 5 — Practice Tests
+
+Use:
+
+test dashboard / exam interface / timer visual
+
+mock exam environment
+
+online practice/test simulation feel
+
+Fallback image rule
+
+If exact production assets are not yet available:
+
+use clean local placeholder images with the correct theme
+
+structure code so production assets can be swapped later without redesign
+
+6. Exact content for all 5 banners
+Banner 1 — Saphala Pathshala
+
+Headline:
+Saphala Pathshala
+
+Subheadline:
+Your Success is Our Focus
+
+Subtext:
+A complete exam preparation platform that helps aspirants learn with clarity, revise with purpose, and practice with confidence.
+
+5 benefits:
+
+Built for serious competitive exam aspirants
+
+Combines learning, revision, and practice in one platform
+
+Reduces confusion with structured preparation paths
+
+Focuses on exam relevance, not unnecessary overload
+
+Designed to make quality preparation more accessible
+
+Primary CTA:
+Explore Courses
+
+Secondary CTA:
+Create Free Account
+
+Banner 2 — Self Prep Courses
+
+Headline:
+Self Prep Courses
+
+Subheadline:
+Learn, Revise, and Practice in One Flow
+
+Subtext:
+A complete self-learning system that combines ebooks, PDFs, tests, and flashcards for disciplined independent preparation.
+
+5 benefits:
+
+Best for students who prefer structured self-study
+
+Learn chapter by chapter without confusion
+
+Revise faster with integrated flashcards and PDFs
+
+Practice regularly without needing separate resources
+
+Ideal for flexible daily study at your own pace
+
+Primary CTA:
+Start Self Prep
+
+Secondary CTA:
+Create Free Account
+
+Banner 3 — Video Courses
+
+Headline:
+Video Courses
+
+Subheadline:
+Understand Difficult Topics with Clear Teaching
+
+Subtext:
+Topic-wise video learning for students who want guided explanation, concept clarity, and repeatable revision.
+
+5 benefits:
+
+Learn difficult topics with step-by-step explanation
+
+Replay important lessons anytime you need
+
+Useful for building concept clarity before practice
+
+Study at your own speed without missing classes
+
+Better for students who learn well through teaching
+
+Primary CTA:
+Watch Video Courses
+
+Secondary CTA:
+Create Free Account
+
+Banner 4 — Flash Cards
+
+Headline:
+Flash Cards
+
+Subheadline:
+Quick Revision for Better Memory
+
+Subtext:
+Smart active-recall revision designed to help you remember facts, formulas, definitions, and key concepts faster.
+
+5 benefits:
+
+Best for fast daily revision and last-minute review
+
+Improves memory through active recall practice
+
+Saves time compared to rereading full chapters
+
+Helps retain facts, formulas, and key points
+
+Makes revision lighter, faster, and more focused
+
+Primary CTA:
+Try Flash Cards
+
+Secondary CTA:
+Create Free Account
+
+Banner 5 — Practice Tests
+
+Headline:
+Practice Tests
+
+Subheadline:
+Improve Speed, Accuracy, and Confidence
+
+Subtext:
+Real exam-style practice that helps you measure readiness, find weak areas, and improve performance before the actual exam.
+
+5 benefits:
+
+Tests your real preparation level regularly
+
+Improves speed under time pressure
+
+Helps identify weak areas early
+
+Builds confidence through repeated exam practice
+
+Makes preparation more performance-oriented
+
+Primary CTA:
+Attempt a Test
+
+Secondary CTA:
+Create Free Account
+
+7. Add the “Preparation System Strip” inside banners
+
+This is required.
+
+Below the benefits and above the buttons, add a small visual strip that explains the Saphala learning cycle.
+
+Content
+
+Use 4 compact items:
+
+Learn
+
+Concept clarity through structured lessons
+
+Revise
+
+Quick recall with smart flashcards and notes
+
+Practice
+
+Topic tests, mock exams, and performance drills
+
+Improve
+
+Track progress, identify weak areas, and prepare better
+
+Design
+
+compact glassmorphism/light-overlay cards
+
+subtle, elegant, premium
+
+same design across banners
+
+mobile responsive
+
+not too large
+
+can use icons
+
+This strip must help students understand the platform immediately.
+
+8. Buttons styling
+
+Keep button styling premium and consistent.
+
+Primary CTA
+
+white background
+
+dark text
+
+pill shape
+
+strong contrast
+
+Secondary CTA
+
+transparent background
+
+white border
+
+white text
+
+pill shape
+
+No random button colors.
+
+9. Slider behavior
+
+smooth transitions
+
+arrow controls
+
+dot indicators
+
+auto-slide around every 6 seconds
+
+pause on hover if practical
+
+mobile-friendly swipe behavior if current slider supports it
+
+10. Quote integration
+
+The current homepage already has a quote system elsewhere, but for Banner 1, integrate the quote elegantly as part of the visual treatment if it helps match the approved mock.
+
+Do not make it feel like a separate awkward widget.
+
+If it looks cleaner without repeating the quote there, prioritize elegance.
+
+11. Below-hero sections: keep structure, light polish only
+
+Do not redesign the entire homepage again.
+
+Keep the approved overall homepage flow, with only light cleanup as needed:
+
+exam categories section
+
+product category / learning types section
+
+featured courses
+
+contact block
+
+footer
+
+Only ensure the hero area now matches the approved premium direction.
+
+12. Exam categories section reminder
+
+Keep this behavior intact:
+
+admin-driven / dynamic
+
+thumbnail-based cards
+
+horizontal scroll support
+
+fallback image if missing
+
+Do not hardcode production categories.
+
+13. Product category section reminder
+
+Keep the 8 categories and the clean card design.
+Do not let this section become visually noisy.
+
+14. Technical expectations
+
+keep components reusable
+
+isolate banner data in a clean structure
+
+isolate image mapping cleanly
+
+do not hardcode fragile logic
+
+use future-safe fallbacks where production assets are pending
+
+do not break guest browse vs login-gated access logic
+
+15. QA checklist
+
+After implementing, verify all of the following:
+
+Visual
+
+all 5 banners feel like one design family
+
+no random multicolor slides remain
+
+empty banner spaces are replaced with relevant images
+
+banner closely matches the approved premium visual direction
+
+typography hierarchy is clean
+
+mobile layout is good
+
+Functional
+
+slider arrows work
+
+dots work
+
+CTA buttons work
+
+no console errors
+
+no layout shifts
+
+Architecture
+
+banner data is maintainable
+
+image fallbacks are clean
+
+changes do not break other homepage sections
+
+16. Final reporting
+
+At the end, report:
+
+what exact hero/banner changes were made
+
+what image sources are currently used
+
+which parts are production-ready
+
+which parts are placeholder but safely replaceable later
+
+One important instruction
+
+Do not give me another generic banner interpretation.
+The result must be visibly close to the approved mock direction:
+
+premium purple gradient system
+
+right-side relevant imagery
+
+left-side structured text
+
+integrated, elegant, branded composition
