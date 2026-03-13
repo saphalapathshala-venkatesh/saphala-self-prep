@@ -157,6 +157,7 @@ export default function HeroSlider() {
   const [current, setCurrent] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const touchStartX = useRef<number | null>(null);
 
   const goTo = useCallback((index: number) => {
     setCurrent(index);
@@ -180,21 +181,39 @@ export default function HeroSlider() {
     };
   }, [next, isHovered]);
 
+  // Touch swipe support
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const diff = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 48) {
+      diff > 0 ? next() : prev();
+    }
+    touchStartX.current = null;
+  };
+
   return (
     <section
-      className="relative overflow-hidden"
-      style={{ minHeight: "clamp(540px, 60vw, 620px)" }}
+      className="relative overflow-hidden md:min-h-[620px]"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      {/* ── All slides stacked, only current is visible ── */}
+      {/* ── All slides — active is in flow on mobile, all absolute on desktop ── */}
       {slides.map((slide, i) => (
         <div
           key={slide.id}
           aria-hidden={i !== current}
-          className={`absolute inset-0 flex transition-opacity duration-700 ease-in-out ${
-            i === current ? "opacity-100 z-10" : "opacity-0 z-0"
-          }`}
+          className={
+            i === current
+              ? // Active: in normal flow on mobile; absolutely stacked on desktop
+                "relative md:absolute md:inset-0 flex md:opacity-100 md:z-10 md:transition-opacity md:duration-700 md:ease-in-out"
+              : // Inactive: hidden on mobile; absolutely stacked (invisible) on desktop
+                "hidden md:flex md:absolute md:inset-0 md:opacity-0 md:z-0 md:transition-opacity md:duration-700 md:ease-in-out"
+          }
         >
           {/* ── Consistent dark purple background for ALL slides ── */}
           <div className="absolute inset-0 bg-[#0F172A]" />
@@ -213,10 +232,10 @@ export default function HeroSlider() {
           <div className="absolute -top-32 -left-32 w-[500px] h-[500px] rounded-full bg-[#8050C0]/20 blur-3xl pointer-events-none" />
 
           {/* ── Two-column layout ── */}
-          <div className="relative z-10 flex w-full h-full">
+          <div className="relative z-10 flex w-full md:h-full">
 
-            {/* LEFT COLUMN — 60% — Text content */}
-            <div className="w-full md:w-[60%] flex flex-col justify-center px-6 sm:px-10 lg:px-16 py-10 md:py-12">
+            {/* LEFT COLUMN — full width on mobile, 60% on desktop */}
+            <div className="w-full md:w-[60%] flex flex-col justify-center px-5 sm:px-10 lg:px-16 pt-8 pb-20 md:py-12">
               {/* Badge */}
               <span className="inline-flex w-fit items-center gap-1.5 bg-white/10 border border-white/20 text-white/90 text-[10px] font-bold uppercase tracking-[0.18em] px-3 py-1 rounded-full mb-5 backdrop-blur-sm">
                 {slide.badge}
@@ -235,7 +254,7 @@ export default function HeroSlider() {
                 {slide.subtext}
               </p>
 
-              {/* Benefits (2-col grid) */}
+              {/* Benefits — single column on mobile, 2-col on sm+ */}
               <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 mb-6">
                 {slide.benefits.map((b) => (
                   <li
@@ -268,17 +287,17 @@ export default function HeroSlider() {
                 ))}
               </div>
 
-              {/* CTAs */}
-              <div className="flex flex-wrap gap-3">
+              {/* CTAs — stacked full-width on mobile, inline on sm+ */}
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Link
                   href={slide.primaryCta.href}
-                  className="bg-white text-[#1040A0] font-bold px-7 py-2.5 rounded-full hover:bg-purple-50 transition-colors shadow-lg text-sm whitespace-nowrap"
+                  className="bg-white text-[#1040A0] font-bold px-7 py-3 rounded-full hover:bg-purple-50 transition-colors shadow-lg text-sm text-center"
                 >
                   {slide.primaryCta.label}
                 </Link>
                 <Link
                   href="/register"
-                  className="border border-white/50 text-white font-semibold px-7 py-2.5 rounded-full hover:bg-white/10 transition-colors text-sm whitespace-nowrap"
+                  className="border border-white/50 text-white font-semibold px-7 py-3 rounded-full hover:bg-white/10 transition-colors text-sm text-center"
                 >
                   Create Free Account
                 </Link>
@@ -286,7 +305,7 @@ export default function HeroSlider() {
 
               {/* Mobile image — only for slides with showMobileImage, appears below buttons */}
               {"showMobileImage" in slide && slide.showMobileImage && (
-                <div className="md:hidden mt-6 flex justify-center">
+                <div className="md:hidden mt-7 flex justify-center">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={slide.image}
@@ -349,27 +368,27 @@ export default function HeroSlider() {
           src={slides[current].image}
           alt=""
           aria-hidden
-          className={`w-full h-full object-cover ${slides[current].imagePosition} opacity-[0.12]`}
+          className={`w-full h-full object-cover ${slides[current].imagePosition} opacity-[0.10]`}
         />
       </div>
 
-      {/* ── Prev / Next arrows ── */}
+      {/* ── Prev / Next arrows — hidden on mobile, visible on desktop ── */}
       <button
         onClick={prev}
         aria-label="Previous slide"
-        className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white backdrop-blur-sm transition-colors z-20"
+        className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 items-center justify-center text-white backdrop-blur-sm transition-colors z-20"
       >
         <ChevronLeft className="w-4 h-4" />
       </button>
       <button
         onClick={next}
         aria-label="Next slide"
-        className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white backdrop-blur-sm transition-colors z-20"
+        className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 items-center justify-center text-white backdrop-blur-sm transition-colors z-20"
       >
         <ChevronRight className="w-4 h-4" />
       </button>
 
-      {/* ── Dot indicators ── */}
+      {/* ── Dot indicators — bottom-4 on desktop; on mobile relative to section bottom ── */}
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
         {slides.map((s, i) => (
           <button

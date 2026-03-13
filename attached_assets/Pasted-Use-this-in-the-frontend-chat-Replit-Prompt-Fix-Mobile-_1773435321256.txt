@@ -1,0 +1,129 @@
+Use this in the frontend chat:
+
+Replit Prompt — Fix Mobile Hero Slider Layout
+
+You are working in the Saphala Self Prep frontend homepage hero slider.
+
+Desktop is acceptable, but mobile web optimization is currently broken.
+
+Critical problems:
+
+the left arrow overlaps banner text
+
+the CTA buttons are not properly visible on mobile
+
+mobile banner layout feels compressed and unsafe
+
+This is a mobile-only correction task.
+Do not redesign desktop hero.
+Do not change homepage sections outside the hero unless required for responsive stability.
+
+1. Fix mobile slider controls
+
+On mobile and small tablet widths:
+
+arrow controls must not overlap text or CTA buttons
+
+either:
+
+move arrows to safe outer edges with smaller size, or
+
+hide arrows on mobile and rely on swipe + dots
+
+Preferred solution:
+
+hide side arrows on mobile
+
+keep dot indicators visible
+
+ensure swipe works cleanly
+
+Do not let arrows obstruct text content.
+
+2. Fix mobile CTA buttons
+
+Buttons must be fully visible and usable on mobile.
+
+Required behavior:
+
+stack CTAs vertically on mobile
+
+full-width or near-full-width buttons
+
+adequate spacing between buttons
+
+keep them below text content
+
+no clipping, overflow, or hidden buttons
+
+Example mobile order:
+
+primary CTA
+
+secondary CTA
+
+3. Fix mobile banner layout
+
+For mobile widths, change hero slide layout from 2-column to stacked layout.
+
+Order:
+
+headline
+
+subheadline
+
+subtext
+
+benefits
+
+preparation system strip
+
+CTA buttons
+
+right-side image
+
+The banner image must move below the text block on mobile.
+
+Do not preserve desktop side-by-side layout on narrow screens.
+
+4. Mobile spacing and height
+
+hero slide height should be content-driven on mobile
+
+no fixed oversized desktop height
+
+add safe top/bottom padding
+
+ensure all text, benefits, buttons, and dots remain visible without overlap
+
+5. Keep desktop unchanged
+
+Do not disturb the current desktop hero design unless absolutely necessary.
+
+This task is specifically to make the hero fully usable and polished on mobile web.
+
+6. QA checklist
+
+After changes, verify on mobile viewport:
+
+no arrow overlaps text
+
+CTA buttons are fully visible
+
+buttons are tappable
+
+text is readable
+
+image appears below text
+
+dots remain visible
+
+no layout clipping
+
+no horizontal overflow
+
+At the end, report exactly what was changed for mobile behavior only.
+
+Answer to your question
+
+Yes — once this mobile hero issue is fixed properly, we should move to the next part. That is the right sequence.
