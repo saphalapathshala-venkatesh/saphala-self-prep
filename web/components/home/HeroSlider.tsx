@@ -98,11 +98,15 @@ const slides = [
       "Better for students who learn well through teaching",
     ],
     primaryCta: { label: "Watch Video Courses", href: "/courses?type=video" },
-    // Laptop screen / online learning
+    // Laptop / online video learning — swap `image` for production asset
+    // Production fallback path: /hero/video-learning.png
     image:
-      "https://images.unsplash.com/photo-1588702547923-7408a8f58bd9?auto=format&fit=crop&w=900&q=80",
-    imageAlt: "Student watching video lesson on laptop",
+      "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=700&q=80",
+    imageAlt: "Student watching a video lecture on laptop",
     imagePosition: "object-center",
+    // Contained style: shown as a framed card, not a full-bleed fill
+    imageStyle: "contained" as const,
+    showMobileImage: true,
   },
   {
     id: 4,
@@ -279,23 +283,61 @@ export default function HeroSlider() {
                   Create Free Account
                 </Link>
               </div>
+
+              {/* Mobile image — only for slides with showMobileImage, appears below buttons */}
+              {"showMobileImage" in slide && slide.showMobileImage && (
+                <div className="md:hidden mt-6 flex justify-center">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={slide.image}
+                    alt={slide.imageAlt}
+                    style={{
+                      maxWidth: "100%",
+                      height: "auto",
+                      objectFit: "contain",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             {/* RIGHT COLUMN — 40% — Contextual image (desktop only) */}
-            <div className="hidden md:block md:w-[40%] relative overflow-hidden">
-              {/* Gradient fade from left (blends image into dark bg) */}
-              <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-[#0F172A] to-transparent z-10 pointer-events-none" />
-              {/* Gradient vignette on edges */}
-              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0F172A] to-transparent z-10 pointer-events-none" />
-              <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#0F172A] to-transparent z-10 pointer-events-none" />
+            {"imageStyle" in slide && slide.imageStyle === "contained" ? (
+              // Contained image: framed card style (e.g. laptop/product screenshot)
+              <div className="hidden md:flex md:w-[40%] items-center justify-center px-8 py-10">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={slide.image}
+                  alt={slide.imageAlt}
+                  style={{
+                    maxWidth: "520px",
+                    width: "100%",
+                    height: "auto",
+                    objectFit: "contain",
+                    borderRadius: "12px",
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                  }}
+                />
+              </div>
+            ) : (
+              // Full-bleed cover image (all other banners)
+              <div className="hidden md:block md:w-[40%] relative overflow-hidden">
+                {/* Gradient fade from left (blends image into dark bg) */}
+                <div className="absolute inset-y-0 left-0 w-28 bg-gradient-to-r from-[#0F172A] to-transparent z-10 pointer-events-none" />
+                {/* Gradient vignette on edges */}
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#0F172A] to-transparent z-10 pointer-events-none" />
+                <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-[#0F172A] to-transparent z-10 pointer-events-none" />
 
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={slide.image}
-                alt={slide.imageAlt}
-                className={`absolute inset-0 w-full h-full object-cover ${slide.imagePosition} opacity-75`}
-              />
-            </div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={slide.image}
+                  alt={slide.imageAlt}
+                  className={`absolute inset-0 w-full h-full object-cover ${slide.imagePosition} opacity-75`}
+                />
+              </div>
+            )}
           </div>
         </div>
       ))}

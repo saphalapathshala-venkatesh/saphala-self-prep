@@ -1,0 +1,143 @@
+You are working in the Saphala Self Prep frontend homepage hero slider.
+
+Everything is working correctly, but the "Video Courses" banner currently has no image on the right side, leaving empty space. This must be fixed.
+
+Do not redesign the banner.
+Do not modify other banners.
+Only add the missing image to the Video Courses slide.
+
+1. Layout rule (must remain unchanged)
+
+The hero banner layout already follows a two-column structure.
+
+Left side (~60%)
+
+Headline
+
+Subheadline
+
+Subtext
+
+Benefits
+
+Learning system strip
+
+CTA buttons
+
+Right side (~40%)
+
+contextual image
+
+Currently the right column is empty for the Video Courses banner. Add an image there.
+
+2. Image style requirements
+
+The image must visually communicate:
+
+online learning / video lecture / guided explanation
+
+Acceptable visual examples:
+
+laptop showing a lecture video
+
+student watching an online class
+
+teacher explaining on screen
+
+video player UI with lesson content
+
+study desk with laptop playing a lecture
+
+Avoid:
+
+classroom stock photos
+
+unrelated education icons
+
+generic vector icons
+
+low-resolution images
+
+3. Placement
+
+The image must appear:
+
+Right side of the banner.
+
+Example structure:
+
+Hero Banner
+-----------------------------------------
+LEFT SIDE (text)      | RIGHT SIDE (image)
+-----------------------------------------
+Video Courses         |  Video learning
+Subheadline           |  illustration/photo
+Benefits              |
+Buttons               |
+4. Image styling
+
+Apply these styling rules.
+
+max-width: 520px
+height: auto
+object-fit: contain
+border-radius: 12px
+
+Add subtle elevation:
+
+box-shadow: 0 10px 30px rgba(0,0,0,0.15)
+
+Ensure the image does not overflow the banner height.
+
+5. Mobile behavior
+
+On mobile:
+
+Stack layout.
+
+Order:
+
+1️⃣ text
+2️⃣ image
+
+The image should appear below the buttons.
+
+6. Fallback behavior
+
+If the production image is not available yet:
+
+use a clean placeholder asset
+
+place it in /public/hero/video-learning.png
+
+structure code so the image can be replaced later without redesign
+
+7. Do not change
+
+Do NOT modify:
+
+banner colors
+
+slider behavior
+
+other banners
+
+system strip
+
+CTA buttons
+
+hero height
+
+Only fix the missing visual in Video Courses banner.
+
+8. After implementing
+
+Verify:
+
+the image renders correctly
+
+the layout stays balanced
+
+the image is visible on desktop and mobile
+
+the banner no longer has empty space
