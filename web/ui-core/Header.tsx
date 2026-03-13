@@ -12,10 +12,10 @@ export const Header = () => {
 
   const guestNav: { href: string; label: string; desktopOnly?: string }[] = [
     { href: '/', label: 'Home' },
+    { href: '/exams', label: 'Exams' },
     { href: '/courses', label: 'Courses' },
     { href: '/products', label: 'Products' },
     { href: '/about', label: 'About', desktopOnly: 'lg' },
-    { href: '/contact', label: 'Contact', desktopOnly: 'xl' },
   ];
 
   const studentNav: { href: string; label: string; desktopOnly?: string }[] = [

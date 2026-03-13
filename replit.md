@@ -42,10 +42,17 @@ Preferred communication style: Simple, everyday language.
 - Displays user-specific information and access to different platform sections.
 
 #### Homepage
-- Features a dynamic quote strip, hero banner, product discovery cards, exam categories fetched from the database, feature highlights, and a contact form.
+- 9-section layout: Header → Quote+Kalam Strip → Hero Slider (5 banners) → Exam Categories → Product Types (8) → Featured Courses → Features → Contact Form → Footer
+- **Hero Slider**: 5 auto-advancing slides (Saphala Pathshala, Self Prep, Video Courses, Flash Cards, Test Series), each with badge/headline/benefits/CTAs
+- **Quote + Kalam Strip**: 60/40 layout — daily quote left, Dr. Kalam photo (Wikipedia Commons) + dedication right; quote stable for the full calendar day
+- **Exam Categories**: 16:9 thumbnail cards in horizontal scroll; fetched from DB — auto-reflects admin changes; fallback to Saphala logo
+- **Product Types**: 8 hardcoded learning-approach cards (Free Demo, Complete Packs, Video, Self Prep, PDF, Test Series, Flashcards, Current Affairs)
+- **Featured Courses**: 4 exam-oriented placeholder cards with ₹ pricing; login-gated access note
+- **Footer**: 5-column dark navy — Brand/Contact, Explore (10 links), Student, Support (FAQ/Privacy/Terms/Refund), Community (social links)
+- Guest browsing allowed for all homepage sections; content access is login-gated
 
 ### APIs
-- **Public APIs**: For fetching daily quotes (`/api/public/quote-of-the-day`), exam categories (`/api/public/categories`), and handling contact form submissions (`/api/public/contact`).
+- **Public APIs**: `/api/public/quote-of-the-day` (daily Kalam quote, 12 rotating by day-of-year), `/api/public/categories` (live DB categories), `/api/public/contact` (validated contact form — logs submission)
 - **Authenticated APIs**: For TestHub operations (starting/resuming attempts, saving answers, submitting tests, generating/retrieving results, reviewing attempts, reporting questions, feedback).
 - **Admin APIs**: For managing users and roles.
 

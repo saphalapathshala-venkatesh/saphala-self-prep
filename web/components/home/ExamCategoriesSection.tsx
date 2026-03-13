@@ -2,37 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface Category {
   id: string;
   name: string;
-}
-
-const CATEGORY_COLORS: Record<string, string> = {
-  APPSC: "from-purple-500 to-indigo-600",
-  "AP Police": "from-blue-500 to-cyan-600",
-  Banking: "from-green-500 to-emerald-600",
-  SSC: "from-orange-500 to-amber-600",
-  Railway: "from-red-500 to-rose-600",
-  UPSC: "from-violet-500 to-purple-600",
-  TSPSC: "from-teal-500 to-cyan-600",
-  Defence: "from-slate-500 to-gray-600",
-};
-
-function getColor(name: string): string {
-  return (
-    CATEGORY_COLORS[name] ||
-    "from-[#6D4BCB] to-[#2D1B69]"
-  );
-}
-
-function getInitial(name: string): string {
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+  thumbnailUrl?: string | null;
 }
 
 const FALLBACK_CATEGORIES: Category[] = [
@@ -42,7 +17,54 @@ const FALLBACK_CATEGORIES: Category[] = [
   { id: "ssc", name: "SSC" },
   { id: "railway", name: "Railway" },
   { id: "upsc", name: "UPSC" },
+  { id: "tspsc", name: "TSPSC" },
+  { id: "defence", name: "Defence" },
 ];
+
+function CategoryCard({ cat }: { cat: Category }) {
+  return (
+    <Link
+      href={`/exams/${encodeURIComponent(cat.name.toLowerCase().replace(/\s+/g, "-"))}`}
+      className="group shrink-0 w-48 sm:w-52 flex flex-col rounded-2xl border border-gray-100 bg-white overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200"
+    >
+      {/* 16:9 Thumbnail */}
+      <div className="relative w-full aspect-video bg-gradient-to-br from-[#6D4BCB]/10 to-[#2D1B69]/20 overflow-hidden">
+        {cat.thumbnailUrl ? (
+          <Image
+            src={cat.thumbnailUrl}
+            alt={cat.name}
+            fill
+            className="object-cover"
+            unoptimized
+          />
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <Image
+              src="/images/saphala-logo.png"
+              alt="Saphala"
+              width={36}
+              height={36}
+              className="opacity-40"
+            />
+            <span className="text-xs font-bold text-[#6D4BCB]/60 tracking-wide">
+              {cat.name}
+            </span>
+          </div>
+        )}
+        {/* Overlay shimmer on hover */}
+        <div className="absolute inset-0 bg-[#2D1B69]/0 group-hover:bg-[#2D1B69]/10 transition-colors duration-200" />
+      </div>
+
+      {/* Title row */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <span className="text-sm font-semibold text-[#2D1B69] group-hover:text-[#6D4BCB] transition-colors truncate">
+          {cat.name}
+        </span>
+        <span className="text-[#6D4BCB] text-xs font-bold ml-2 shrink-0">→</span>
+      </div>
+    </Link>
+  );
+}
 
 export default function ExamCategoriesSection() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -51,9 +73,9 @@ export default function ExamCategoriesSection() {
   useEffect(() => {
     fetch("/api/public/categories")
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: unknown) => {
         if (Array.isArray(data) && data.length > 0) {
-          setCategories(data);
+          setCategories(data as Category[]);
         } else {
           setCategories(FALLBACK_CATEGORIES);
         }
@@ -67,42 +89,36 @@ export default function ExamCategoriesSection() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-10">
           <h2 className="text-3xl md:text-4xl font-bold text-[#2D1B69] mb-3">
-            Exam Categories
+            Choose Your Exam
           </h2>
           <p className="text-gray-500 max-w-xl mx-auto">
-            Browse courses and tests by your target exam. Focused preparation built around what matters most.
+            Browse preparation options based on your target exam and start with
+            the learning path that fits you best.
           </p>
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="flex gap-4 overflow-x-hidden pb-2">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="h-28 rounded-2xl bg-gray-100 animate-pulse"
+                className="shrink-0 w-48 rounded-2xl bg-gray-100 animate-pulse aspect-[4/3]"
               />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div className="flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-hide">
             {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/courses?category=${encodeURIComponent(cat.name)}`}
-                className="group flex flex-col items-center justify-center gap-3 rounded-2xl border border-gray-100 bg-white hover:shadow-lg hover:-translate-y-1 transition-all duration-200 p-5"
-              >
-                <div
-                  className={`w-12 h-12 rounded-xl bg-gradient-to-br ${getColor(cat.name)} flex items-center justify-center text-white font-bold text-sm shadow-sm`}
-                >
-                  {getInitial(cat.name)}
-                </div>
-                <span className="text-sm font-semibold text-[#2D1B69] text-center group-hover:text-[#6D4BCB] transition-colors">
-                  {cat.name}
-                </span>
-              </Link>
+              <div key={cat.id} className="snap-start">
+                <CategoryCard cat={cat} />
+              </div>
             ))}
           </div>
         )}
+
+        <p className="text-xs text-gray-400 text-center mt-4">
+          Scroll to see more exam categories →
+        </p>
       </div>
     </section>
   );

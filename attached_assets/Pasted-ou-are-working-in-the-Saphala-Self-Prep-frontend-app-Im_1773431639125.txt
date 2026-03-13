@@ -1,0 +1,472 @@
+ou are working in the Saphala Self Prep frontend app.
+
+Implement the homepage using the already approved visual direction and locked content below. Do not redesign the structure. Do not invent new sections. Keep admin/frontend consistency in mind at all times because the frontend app and admin app are separate applications sharing one database.
+
+Core rules
+
+Category already means exam category in admin and backend. Do not change that meaning.
+
+Homepage exam categories must be dynamic/admin-driven, not hardcoded.
+
+Guest users can browse homepage, categories, product descriptions, pricing, and benefits.
+
+Actual content access must remain login-gated.
+
+Keep the existing purple/white premium visual style from the approved mock.
+
+Navbar can remain functionally similar for now; only light cleanup if needed. Do not spend time on major navbar redesign.
+
+Homepage structure to implement
+1. Navbar
+
+Keep it clean and premium with:
+
+Home
+
+Exams
+
+Courses
+
+Products
+
+Log In
+
+Sign Up
+
+Future navbar refinement can be done later.
+
+2. Top strip below navbar
+
+Implement a premium top strip with:
+
+Left 60%
+
+Quote of the Day
+
+fetch from backend/public source if available
+
+if backend quote API is not ready, use a temporary local mock source wrapped in a reusable utility so it can later be replaced easily
+
+quote must remain the same for the full calendar day
+
+quote must auto-change at 12:00 AM each day
+
+do not randomize on page refresh
+
+show author if available
+
+fallback author: Anonymous
+
+Right 40%
+
+Dr. A.P.J. Abdul Kalam tribute card
+
+use an actual A.P.J. Abdul Kalam image, not monogram initials
+
+modern premium card style
+
+message should feel respectful and brand-aligned
+
+keep within Saphala purple/white palette
+
+Themes of quotes must stay suitable for:
+
+education
+
+focus
+
+planning
+
+discipline
+
+effort
+
+consistency
+
+personality development
+
+goal achievement
+
+aspirant motivation
+
+3. Hero slider with 5 banners
+
+Implement a 5-banner slider as the main hero section.
+
+Banner 1 — Saphala Pathshala
+
+Headline:
+Saphala Pathshala — Your Success is Our Focus
+
+Subtext:
+A complete exam preparation platform that helps aspirants learn with clarity, revise with purpose, and practice with confidence.
+
+5 benefits:
+
+Built for serious competitive exam aspirants
+
+Combines learning, revision, and practice in one platform
+
+Reduces confusion with structured preparation paths
+
+Focuses on exam relevance, not unnecessary overload
+
+Designed to make quality preparation more accessible
+
+CTA:
+Explore Courses
+
+Banner 2 — Self Prep System
+
+Headline:
+Self Prep Courses — Learn, Revise, and Practice in One Flow
+
+Subtext:
+A complete self-learning system that combines ebooks, PDFs, tests, and flashcards for disciplined independent preparation.
+
+5 benefits:
+
+Best for students who prefer structured self-study
+
+Learn chapter by chapter without confusion
+
+Revise faster with integrated flashcards and PDFs
+
+Practice regularly without needing separate resources
+
+Ideal for flexible daily study at your own pace
+
+CTA:
+Start Self Prep
+
+Banner 3 — Video Learning
+
+Headline:
+Video Courses — Understand Difficult Topics with Clear Teaching
+
+Subtext:
+Topic-wise video learning for students who want guided explanation, concept clarity, and repeatable revision.
+
+5 benefits:
+
+Learn difficult topics with step-by-step explanation
+
+Replay important lessons anytime you need
+
+Useful for building concept clarity before practice
+
+Study at your own speed without missing classes
+
+Better for students who learn well through teaching
+
+CTA:
+Watch Video Courses
+
+Banner 4 — Flash Cards
+
+Headline:
+Flash Cards — Quick Revision for Better Memory
+
+Subtext:
+Smart active-recall revision designed to help you remember facts, formulas, definitions, and key concepts faster.
+
+5 benefits:
+
+Best for fast daily revision and last-minute review
+
+Improves memory through active recall practice
+
+Saves time compared to rereading full chapters
+
+Helps retain facts, formulas, and key points
+
+Makes revision lighter, faster, and more focused
+
+CTA:
+Try Flash Cards
+
+Banner 5 — Test Hub
+
+Headline:
+Practice Tests — Improve Speed, Accuracy, and Confidence
+
+Subtext:
+Real exam-style practice that helps you measure readiness, find weak areas, and improve performance before the actual exam.
+
+5 benefits:
+
+Tests your real preparation level regularly
+
+Improves speed under time pressure
+
+Helps identify weak areas early
+
+Builds confidence through repeated exam practice
+
+Makes preparation more performance-oriented
+
+CTA:
+Attempt a Test
+
+Hero implementation rules
+
+Keep the approved premium mock style
+
+use soft purple gradients and white space
+
+keep banner 1 visually strongest
+
+embedding A.P.J. Abdul Kalam visual presence in banner 1 is allowed if done elegantly and aligned to the approved visual
+
+slider must be smooth, not flashy
+
+mobile responsive
+
+do not make hero overly tall; keep it visually balanced
+
+4. Exam Categories section
+Title
+
+Choose Your Exam
+
+Subtitle
+
+Browse preparation options based on your target exam and start with the learning path that fits you best.
+
+Behavior
+
+This section must be dynamic
+
+fetch exam categories from backend/public API
+
+no hardcoded production categories
+
+when a new exam category is added in admin and is eligible for display, it should automatically reflect here without frontend code changes
+
+Card style
+
+use thumbnail-based cards
+
+preferred thumbnail ratio: 16:9
+
+horizontal scroll for future categories
+
+clear category title
+
+fallback image: Saphala logo if no thumbnail exists
+
+Click behavior
+
+guest can browse category page and see description/pricing/benefits
+
+login required for actual content access
+
+5. Product category / learning types section
+
+Implement this as a clean discovery section with the locked 8 categories.
+
+Title
+
+Prepare Your Way: Find the Right Learning Approach for You
+
+8 categories with one-line descriptions
+
+Free (Demo) Courses and Tests
+Explore selected free content before you commit to a full preparation plan.
+
+Complete Prep Packs
+Get a combined preparation package with multiple learning tools in one place.
+
+Video Only Courses
+Learn through guided concept explanation with topic-wise recorded video lessons.
+
+Self Prep Courses
+Study independently with a structured mix of ebooks, PDFs, tests, and flashcards.
+
+PDF Courses
+Access focused exam-oriented study material for reading, revision, and offline use.
+
+Test Series
+Practice topic tests, subject tests, and full-length exams in real test format.
+
+Flash Cards
+Revise key concepts quickly with memory-friendly cards for daily recall practice.
+
+Current Affairs
+Prepare current affairs with targeted content, revision tools, and test practice.
+
+Design rule
+
+do not make this section overwhelming
+
+use premium compact cards
+
+keep the approved visual direction
+
+each card should clearly link to its product category page
+
+6. Featured courses section
+
+use real exam-oriented placeholder/demo content only if real data is unavailable
+
+do not use generic university/college subjects
+
+card should support:
+
+thumbnail
+
+course title
+
+exam category badge
+
+price with ₹
+
+CTA
+
+Guest can view details, but actual access remains login-gated.
+
+7. Contact form
+
+Place above footer.
+Fields:
+
+Name
+
+Email
+
+Phone optional
+
+Message
+
+Keep clean and premium.
+Use a safe submit flow. If backend endpoint is not ready, wire it in a way that can later connect easily without redesign.
+
+8. Footer
+
+Use all important links.
+
+Brand
+
+Saphala Pathshala
+
+Your Success is Our Focus
+
+Structured learning, smart revision, and exam practice for serious aspirants.
+
+Explore
+
+Home
+
+Exams
+
+Free Demo Content
+
+Complete Prep Packs
+
+Video Courses
+
+Self Prep Courses
+
+PDF Courses
+
+Test Series
+
+Flash Cards
+
+Current Affairs
+
+Student
+
+Login
+
+Sign Up
+
+My Learning
+
+Dashboard
+
+Purchased Courses
+
+Practice Tests
+
+Support
+
+Contact Us
+
+FAQs
+
+Privacy Policy
+
+Terms & Conditions
+
+Refund Policy
+
+Community
+
+Show only real links if available, otherwise hide:
+
+YouTube
+
+Telegram
+
+WhatsApp
+
+Instagram
+
+Facebook
+
+Contact
+
+support email
+
+support phone / WhatsApp
+
+operational address only if available
+
+9. Technical and architecture expectations
+
+Do not hardcode production exam categories
+
+Keep components reusable
+
+Keep data wiring clean and future-safe
+
+Respect guest-browse vs login-gated access rule
+
+Do not introduce assumptions that conflict with admin meanings
+
+Use stable fallbacks where backend/public APIs are not ready, but isolate that logic so it can be swapped cleanly later
+
+10. QA checklist
+
+After implementation, verify:
+
+homepage is responsive
+
+hero slider works cleanly
+
+quote-of-the-day remains stable for the day
+
+exam categories section supports dynamic data
+
+product category cards are clear and not overwhelming
+
+featured cards show ₹ correctly
+
+no college/unrelated placeholder course language remains
+
+footer links structure is complete
+
+no console errors
+
+no broken layout spacing
+
+At the end, explain:
+
+what was implemented
+
+what is currently using real backend data
+
+what is temporarily mocked but future-safe
+
+any backend/public API dependency still needed for full production behavior
