@@ -303,35 +303,50 @@ export default function HeroSlider() {
                 </Link>
               </div>
 
-              {/* Mobile image — only for slides with showMobileImage, appears below buttons */}
-              {"showMobileImage" in slide && slide.showMobileImage && (
-                <div className="md:hidden mt-7 flex justify-center">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={slide.image}
-                    alt={slide.imageAlt}
-                    style={{
-                      maxWidth: "100%",
-                      height: "auto",
-                      objectFit: "contain",
-                      borderRadius: "12px",
-                      boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
-                    }}
-                  />
-                </div>
-              )}
+              {/* Mobile image — visible on ALL slides, appears below buttons */}
+              <div className="md:hidden mt-7">
+                {"imageStyle" in slide && slide.imageStyle === "contained" ? (
+                  // Contained style (e.g. laptop screenshot) — shown as framed card
+                  <div className="flex justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={slide.image}
+                      alt={slide.imageAlt}
+                      style={{
+                        maxWidth: "100%",
+                        height: "auto",
+                        objectFit: "contain",
+                        borderRadius: "12px",
+                        boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+                      }}
+                    />
+                  </div>
+                ) : (
+                  // Full-bleed style — shown as a fixed-height photo strip
+                  <div
+                    className="rounded-xl overflow-hidden w-full"
+                    style={{ height: "200px" }}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={slide.image}
+                      alt={slide.imageAlt}
+                      className={`w-full h-full object-cover ${slide.imagePosition}`}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* RIGHT COLUMN — 40% — Contextual image (desktop only) */}
             {"imageStyle" in slide && slide.imageStyle === "contained" ? (
-              // Contained image: framed card style (e.g. laptop/product screenshot)
-              <div className="hidden md:flex md:w-[40%] items-center justify-center px-8 py-10">
+              // Contained image: framed card — fills the right 40% column
+              <div className="hidden md:flex md:w-[40%] items-center justify-center p-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={slide.image}
                   alt={slide.imageAlt}
                   style={{
-                    maxWidth: "520px",
                     width: "100%",
                     height: "auto",
                     objectFit: "contain",

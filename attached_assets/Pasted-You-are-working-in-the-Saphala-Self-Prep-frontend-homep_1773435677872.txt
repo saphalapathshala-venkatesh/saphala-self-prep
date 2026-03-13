@@ -1,0 +1,143 @@
+You are working in the Saphala Self Prep frontend homepage hero slider.
+
+The hero banners are mostly correct, but there are two issues related to banner images.
+
+Do not redesign the hero section.
+Do not change text or colors.
+Do not change banner structure.
+
+This task is only to fix image behavior.
+
+Issue 1 — Video Courses banner image is too small
+
+The Video Courses banner image on the right side is too small, leaving unused empty space.
+
+Fix
+
+Allow the image to expand properly inside the right-side container.
+
+Update styling so the image can scale and visually fill the space.
+
+Example rules:
+
+.hero-banner-image {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+If the container is restricting size, adjust the container.
+
+Example container:
+
+.hero-banner-image-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40%;
+}
+
+The image should appear balanced with the text column, similar to other banners.
+
+Do not stretch or distort the image.
+
+Issue 2 — Banner images are not visible on mobile
+
+Currently the right-side banner images disappear on mobile.
+
+This should not happen.
+
+Required behavior
+
+On mobile, the layout should stack vertically.
+
+Instead of:
+
+TEXT | IMAGE
+
+Mobile should become:
+
+TEXT
+IMAGE
+Mobile Layout Rules
+
+When screen width is small (mobile breakpoint):
+
+Convert the hero layout to a stacked layout.
+
+Example behavior:
+
+@media (max-width: 768px) {
+
+.hero-banner {
+  flex-direction: column;
+}
+
+.hero-banner-image-container {
+  width: 100%;
+  margin-top: 20px;
+}
+
+.hero-banner-image {
+  width: 100%;
+  max-width: 420px;
+  margin: auto;
+}
+
+}
+Mobile order
+
+The content order must be:
+
+1️⃣ headline
+2️⃣ subheadline
+3️⃣ subtext
+4️⃣ benefits
+5️⃣ preparation system strip
+6️⃣ CTA buttons
+7️⃣ banner image
+
+This ensures the image is visible after the text block.
+
+Important rules
+
+Do NOT hide banner images on mobile.
+
+Do NOT use display:none.
+
+Do NOT let arrows overlap content.
+
+Images should:
+
+scale naturally
+
+stay visible
+
+appear below text
+
+remain responsive
+
+Slider controls reminder
+
+If arrow controls overlap content on mobile, hide arrows at mobile breakpoints and rely on dots + swipe navigation.
+
+After implementing
+
+Verify on mobile viewport:
+
+✔ banner images are visible
+✔ image appears below text
+✔ no layout overflow
+✔ Video banner image fills right space on desktop
+✔ mobile layout feels balanced
+✔ CTA buttons remain visible
+
+Output
+
+After the fix, explain:
+
+what CSS/layout changes were applied
+
+how mobile stacking was implemented
+
+how image visibility was restored
