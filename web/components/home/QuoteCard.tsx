@@ -5,16 +5,18 @@ interface QuoteCardProps {
 }
 
 /**
- * QuoteCard — displays the daily quote in a premium white card.
- * Accepts `null` while the quote is loading (shows a skeleton).
- * Designed to be independent so it can later receive data from any source.
+ * QuoteCard — compact premium card with brand purple left-accent.
+ * Accepts `null` while loading (shows skeleton).
  */
 export default function QuoteCard({ quote }: QuoteCardProps) {
   return (
-    <div className="bg-white rounded-2xl p-6 md:p-7 shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-purple-50 flex flex-col justify-between h-full">
+    <div
+      className="bg-[#F6F2FF] rounded-xl shadow-sm flex flex-col justify-between h-full px-5 py-4"
+      style={{ border: "1px solid #E9E0FF", borderLeft: "4px solid #8050C0" }}
+    >
       {/* Label */}
-      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-[#6D4BCB] mb-4">
-        <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor" className="opacity-70">
+      <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.18em] text-[#8050C0] mb-2">
+        <svg width="6" height="6" viewBox="0 0 8 8" fill="currentColor" className="opacity-80">
           <path d="M4 0L5.09 2.91L8 4L5.09 5.09L4 8L2.91 5.09L0 4L2.91 2.91L4 0Z" />
         </svg>
         Quote of the Day
@@ -22,31 +24,22 @@ export default function QuoteCard({ quote }: QuoteCardProps) {
 
       {quote ? (
         <>
-          {/* Opening quotation mark */}
-          <div
-            className="text-[64px] leading-none text-[#6D4BCB] opacity-15 font-serif select-none -mb-4"
-            aria-hidden
-          >
-            &ldquo;
-          </div>
-
           {/* Quote text */}
-          <blockquote className="text-[15px] md:text-[17px] text-gray-700 italic leading-relaxed mb-4 flex-1">
-            {quote.text}
+          <blockquote className="text-[14px] md:text-[15px] text-[#0F172A] italic leading-relaxed mb-3 flex-1">
+            &ldquo;{quote.text}&rdquo;
           </blockquote>
 
           {/* Author */}
-          <p className="text-sm font-bold text-[#2D1B69] mt-2">
+          <p className="text-[12px] font-bold text-[#2D1B69]">
             — {quote.author || "Anonymous"}
           </p>
         </>
       ) : (
-        // Loading skeleton
-        <div className="space-y-3 flex-1">
-          <div className="h-4 bg-purple-100 rounded-full animate-pulse w-full" />
-          <div className="h-4 bg-purple-100 rounded-full animate-pulse w-11/12" />
-          <div className="h-4 bg-purple-100 rounded-full animate-pulse w-4/5" />
-          <div className="h-3 bg-purple-100 rounded-full animate-pulse w-1/3 mt-3" />
+        <div className="space-y-2 flex-1">
+          <div className="h-3 bg-purple-200/60 rounded-full animate-pulse w-full" />
+          <div className="h-3 bg-purple-200/60 rounded-full animate-pulse w-11/12" />
+          <div className="h-3 bg-purple-200/60 rounded-full animate-pulse w-4/5" />
+          <div className="h-2.5 bg-purple-200/60 rounded-full animate-pulse w-1/3 mt-2" />
         </div>
       )}
     </div>

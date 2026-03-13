@@ -6,7 +6,7 @@ import QuoteCard from "@/components/home/QuoteCard";
 import KalamTributeCard from "@/components/home/KalamTributeCard";
 
 /**
- * QuoteKalamStrip — section below the navbar.
+ * QuoteKalamStrip — compact section below the navbar.
  * - Fetches today's quote from the public API (deterministic, day-stable).
  * - Left 60%: QuoteCard with daily quote.
  * - Right 40%: KalamTributeCard (static dedication).
@@ -28,10 +28,10 @@ export default function QuoteKalamStrip() {
   }, []);
 
   return (
-    <section className="bg-gradient-to-br from-[#f5f0ff] via-[#faf8ff] to-[#ede8ff] border-b border-purple-100 py-6 md:py-8">
+    <section className="bg-white border-b border-gray-100 py-3 md:py-4">
       <div className="container mx-auto px-4">
         {/* 60 / 40 grid — stacks to single column on mobile */}
-        <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-3">
           {/* Left — Quote of the Day */}
           <QuoteCard quote={quote} />
 

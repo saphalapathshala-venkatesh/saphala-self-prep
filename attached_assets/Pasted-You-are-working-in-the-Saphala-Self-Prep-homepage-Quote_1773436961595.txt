@@ -1,0 +1,148 @@
+You are working in the Saphala Self Prep homepage Quote + Dr. A.P.J. Abdul Kalam strip.
+
+The structure is correct, but the cards are too large and visually heavy.
+
+We need to reduce their vertical space by approximately 50% while keeping the same layout and structure.
+
+Do not redesign the section.
+Do not change layout logic.
+Only refine size and color styling.
+
+1. Reduce Vertical Height
+
+Currently the cards occupy too much vertical space.
+
+Target
+
+Reduce height roughly by half.
+
+How to achieve this
+
+Reduce padding.
+
+Example adjustment:
+
+padding: 28px → 14px
+
+Reduce vertical margins.
+
+Example:
+
+margin-bottom: 32px → 14px
+
+Limit card height using compact spacing rather than forcing large blocks.
+
+Quote text should remain readable but not oversized.
+
+Example:
+
+quote font-size: 22px → 18px
+2. Compact Card Layout
+
+Cards should look clean and compact, similar to a premium info strip.
+
+Desired feel:
+
+Navbar
+Quote + Kalam strip (compact)
+Hero banners
+
+The strip should support the hero, not compete with it.
+
+3. Improve Card Colors (Very Important)
+
+Current colors may look flat or generic.
+
+Use the Saphala brand palette.
+
+Quote Card Background
+
+Use a very light purple tint.
+
+Example:
+
+background: #F6F2FF
+
+Text:
+
+color: #0F172A
+
+Accent:
+
+border-left: 4px solid #8050C0
+
+This makes the quote feel highlighted but not heavy.
+
+4. Kalam Tribute Card Color
+
+Use a clean white card with a subtle accent.
+
+Example:
+
+background: #FFFFFF
+border: 1px solid #E5E7EB
+border-top: 4px solid #8050C0
+
+This keeps the card elegant and respectful.
+
+5. Image Size Adjustment
+
+Reduce the Kalam image slightly.
+
+Example:
+
+height: 110px–130px
+
+The image should remain visible but not dominate the card.
+
+6. Mobile Layout Adjustment
+
+Mobile cards must remain compact.
+
+Spacing should be:
+
+margin-top: 12px
+padding: 14px
+
+Ensure cards do not push the hero section too far down.
+
+7. Do Not Change
+
+Do NOT modify:
+
+quote logic
+
+daily quote rotation
+
+card layout (60/40)
+
+component structure
+
+mobile stacking order
+
+Only adjust size and color styling.
+
+8. Visual Goal
+
+The strip should feel like:
+
+clean
+compact
+premium
+supportive
+
+Not:
+
+large
+dominant
+heavy
+9. QA Checklist
+
+After changes verify:
+
+✔ card height reduced roughly 50%
+✔ quote still readable
+✔ Kalam image scaled properly
+✔ hero section visible sooner
+✔ colors match brand palette
+✔ mobile spacing remains clean

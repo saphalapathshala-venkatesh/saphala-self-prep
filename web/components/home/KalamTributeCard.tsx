@@ -1,41 +1,41 @@
 import Image from "next/image";
 
 /**
- * KalamTributeCard — a respectful, premium card honouring Dr. A.P.J. Abdul Kalam.
- * Static content — no data fetching required.
+ * KalamTributeCard — compact horizontal layout: portrait left, text right.
+ * White card with brand purple top-accent border.
  */
 export default function KalamTributeCard() {
   return (
-    <div className="bg-white rounded-2xl p-6 md:p-7 shadow-[0_8px_24px_rgba(0,0,0,0.08)] border border-purple-50 flex flex-col items-center text-center h-full justify-center gap-5">
+    <div
+      className="bg-white rounded-xl shadow-sm flex flex-row items-center gap-4 h-full px-5 py-4"
+      style={{ border: "1px solid #E5E7EB", borderTop: "4px solid #8050C0" }}
+    >
       {/* Portrait */}
-      <div className="w-[88px] h-[88px] rounded-full overflow-hidden ring-4 ring-[#6D4BCB]/20 shadow-lg bg-purple-100 shrink-0">
+      <div className="shrink-0 w-[64px] h-[64px] rounded-full overflow-hidden ring-2 ring-[#8050C0]/25 shadow-md bg-purple-100">
         <Image
           src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/66/A_P_J_Abdul_Kalam.jpg/400px-A_P_J_Abdul_Kalam.jpg"
           alt="Dr. A.P.J. Abdul Kalam"
-          width={88}
-          height={88}
+          width={64}
+          height={64}
           className="w-full h-full object-cover object-top"
           unoptimized
         />
       </div>
 
       {/* Text */}
-      <div>
-        <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#6D4BCB] mb-2">
+      <div className="flex-1 min-w-0">
+        <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-[#8050C0] mb-0.5">
           Dedicated to
         </p>
-        <p className="text-base md:text-[17px] font-bold text-[#2D1B69] leading-snug mb-3">
+        <p className="text-[13px] font-bold text-[#2D1B69] leading-snug mb-1.5">
           Dr. A.P.J. Abdul Kalam
         </p>
-        <p className="text-[13px] text-gray-500 leading-relaxed max-w-[260px] mx-auto">
+        <p className="text-[11px] text-gray-500 leading-relaxed">
           All Saphala learning products are dedicated to his vision, values, and
           educational spirit — inspiring millions of students to dream, learn,
           and achieve.
         </p>
       </div>
-
-      {/* Subtle purple accent line */}
-      <div className="w-10 h-0.5 rounded-full bg-gradient-to-r from-[#6D4BCB] to-[#a78bfa]" />
     </div>
   );
 }
