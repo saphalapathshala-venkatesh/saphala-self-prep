@@ -1,0 +1,287 @@
+You are working in the Saphala Self Prep Student Frontend App.
+This is a separate application from the Admin app, but both share the same database.
+
+Do not modify database schema or admin APIs.
+Frontend must rely only on public endpoints.
+
+Your task: Implement the production-ready Homepage layout.
+
+1. Page Structure
+
+Create the homepage with the following structure:
+
+Navbar
+Quote + Kalam dedication strip
+Hero banner section
+Product discovery cards
+Exam categories section
+Features / benefits section
+Contact form
+Footer
+
+Ensure the layout is clean, modern, responsive, and mobile friendly.
+
+2. Quote + Dedication Strip (Top Banner)
+
+This strip must appear immediately below the Navbar and above the Hero banners.
+
+Height: 50% of hero banner height
+
+Layout:
+
+----------------------------------------
+| 60% Quote of the Day | 40% Kalam Card |
+----------------------------------------
+Left (60%) — Quote of the Day
+
+Fetch from:
+
+GET /api/public/quote-of-the-day
+
+Display:
+
+Quote text
+
+Author name
+
+If author missing → show Anonymous
+
+Example:
+
+“Dream is not that which you see while sleeping, it is something that does not let you sleep.”
+— Dr. A.P.J. Abdul Kalam
+
+Design guidelines:
+
+subtle background
+
+readable typography
+
+elegant quote styling
+
+small label: “Quote of the Day”
+
+Right (40%) — Dr. A.P.J. Abdul Kalam Card
+
+Display:
+
+Dr. A.P.J. Abdul Kalam image
+
+dedication message:
+
+All Saphala learning products are dedicated
+to the vision, values, and educational spirit
+of Dr. A.P.J. Abdul Kalam.
+
+Style as a clean inspirational card.
+
+3. Hero Banner Section
+
+Below the quote strip.
+
+Hero should communicate:
+
+“Smart Preparation for Competitive Exams”
+
+Include:
+
+headline
+
+short description
+
+primary CTA
+
+secondary CTA
+
+Example CTAs:
+
+Explore Courses
+
+Start Learning
+
+4. Product Discovery Cards
+
+Display major product types:
+
+Video Courses
+
+HTML Courses
+
+PDF Courses
+
+Test Series
+
+Flashcards
+
+Each card must show:
+
+icon/illustration
+
+product name
+
+short purpose explanation
+
+CTA button
+
+Example:
+
+Video Courses
+Learn concepts through structured video lessons with expert explanations.
+
+5. Exam Categories Section
+
+Fetch dynamically from:
+
+GET /api/public/categories
+
+Display categories as cards.
+
+Each card shows:
+
+category name
+
+optional icon/color
+
+link to category course page
+
+Example categories:
+
+APPSC
+
+AP Police
+
+Banking
+
+SSC
+
+Important:
+
+This must auto-reflect categories created in Admin app.
+
+6. Features Section
+
+Explain benefits of Saphala Self Prep.
+
+Example features:
+
+Structured Learning Paths
+
+Practice Tests with Analysis
+
+Smart Flashcards for Revision
+
+Performance Tracking
+
+Focused Preparation Strategy
+
+Use clean icons + short explanations.
+
+7. Contact Form (Above Footer)
+
+Add a simple contact form section before the footer.
+
+Fields:
+
+Name
+
+Email
+
+Phone (optional)
+
+Message
+
+Submit to:
+
+POST /api/public/contact
+
+For now, simply:
+
+validate fields
+
+show success message
+
+store request in backend or log safely
+
+Design:
+
+clean card layout
+
+responsive
+
+student-friendly
+
+8. Footer
+
+Footer must include links to:
+
+About
+
+Courses
+
+Contact
+
+FAQ
+
+Privacy Policy
+
+Terms
+
+Refund Policy
+
+Also show:
+
+Saphala brand name
+
+copyright
+
+support email
+
+9. Design Rules
+
+Mobile-first responsive layout
+
+Clean modern typography
+
+Consistent spacing
+
+Avoid clutter
+
+Use subtle animation if appropriate
+
+Ensure accessibility (contrast, readable fonts)
+
+10. Future Backlog (Do NOT implement now)
+
+Add a placeholder hook for future chatbot assistant.
+
+Purpose of chatbot:
+
+Guide students on how to use platform
+
+Explain product types
+
+Help with navigation
+
+Provide quick support
+
+Add comment in code:
+
+Future Feature: AI Student Guidance Chatbot
+
+This will later integrate with an AI assistant.
+
+11. QA Requirements
+
+After implementation verify:
+
+Page loads correctly
+
+Quote API works
+
+Category API auto-reflects admin changes
+
+Mobile responsiveness
+
+Contact form validation
+
+No console errors
