@@ -1,0 +1,102 @@
+Saphala Self Prep — Homepage category card UI improvement + Admin → Frontend data reflection verification
+
+Context:
+The frontend and Admin apps are now connected to the same Neon database.
+The homepage exam categories are correctly fetching from /api/public/categories and the Admin-created category is visible.
+
+However two improvements and one verification are needed.
+
+-------------------------------------
+PART 1 — Improve homepage exam category card layout
+-------------------------------------
+
+Problem:
+Longer category names like "APPSC Group 2" are truncated inside the card.
+
+Goal:
+Allow category names to display properly without breaking card alignment.
+
+Required UI improvements:
+
+1. Increase card height slightly.
+2. Allow the category title to wrap to a maximum of 2 lines.
+3. Use CSS line clamp (line-clamp: 2) to prevent overflow.
+4. Ensure all cards remain equal height.
+5. Keep the Explore button aligned consistently across cards.
+6. Avoid ellipsis truncation unless the title exceeds 2 lines.
+7. Maintain responsive layout for mobile.
+
+Implementation guidance:
+
+Title area:
+- Allow max 2 lines
+- Provide fixed height container (~48–56px)
+
+Card:
+- Slightly increase card width/height if required
+- Maintain identical card dimensions across the carousel
+
+Important:
+This is purely a UI layout improvement. Do not change API logic.
+
+-------------------------------------
+PART 2 — Verify Admin → Frontend reflection for Test Series and Tests
+-------------------------------------
+
+Goal:
+Confirm that content created in the Admin app appears correctly in the student frontend.
+
+Please audit the following:
+
+1. Test Series reflection
+Verify that Test Series created in Admin are fetched correctly by the frontend.
+
+Check:
+- API routes used by the student app to load Test Series
+- Whether they filter by isPublished
+- Whether unpublished series are hidden
+
+2. Tests reflection
+Verify that Tests created in Admin appear in the student TestHub / tests listing.
+
+Confirm:
+
+TestHub data source
+Test → TestSeries relationship
+Published status filtering
+Category mapping
+
+3. Data flow confirmation
+
+Admin creates:
+Category
+Test Series
+Test
+
+Frontend should immediately reflect:
+
+Category → Homepage
+Test Series → TestHub listings
+Tests → inside series / available tests
+
+4. Confirm the following are working correctly:
+
+Category created in Admin → appears on homepage
+Test Series created and published → appears in TestHub
+Tests created and published → visible to students
+
+5. If any part of this reflection chain is broken, report:
+
+- exact API route involved
+- filtering logic
+- DB fields used (categoryId, seriesId, isPublished)
+
+-------------------------------------
+Expected Output
+-------------------------------------
+
+1. Confirmation that Admin-created Test Series reflect in frontend
+2. Confirmation that Admin-created Tests reflect in frontend
+3. Identification of any filtering conditions affecting visibility
+4. Files changed for the homepage UI improvement
+5. Assurance that no data logic was modified during the UI fix
