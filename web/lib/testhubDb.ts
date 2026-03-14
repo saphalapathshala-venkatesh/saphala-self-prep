@@ -68,7 +68,7 @@ export async function getDbTestById(testId: string): Promise<DbTest | null> {
   const test = await prisma.test.findUnique({
     where: { id: testId },
     include: {
-      series: { select: { title: true, categoryId: true } },
+      series: { select: { title: true, categoryId: true, isPublished: true } },
       questions: {
         include: { question: { select: { difficulty: true } } },
       },
@@ -84,7 +84,7 @@ export async function getDbTestById(testId: string): Promise<DbTest | null> {
     id: test.id,
     title: test.title,
     code: test.code,
-    category: test.series?.categoryId || "NEET",
+    category: test.series?.categoryId || null,
     series: test.series?.title || null,
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
     totalQuestions: test.questions.length,
@@ -105,7 +105,7 @@ export async function getDbTestByCode(code: string): Promise<DbTest | null> {
   const test = await prisma.test.findUnique({
     where: { code },
     include: {
-      series: { select: { title: true, categoryId: true } },
+      series: { select: { title: true, categoryId: true, isPublished: true } },
       questions: {
         include: { question: { select: { difficulty: true } } },
       },
@@ -121,7 +121,7 @@ export async function getDbTestByCode(code: string): Promise<DbTest | null> {
     id: test.id,
     title: test.title,
     code: test.code,
-    category: test.series?.categoryId || "NEET",
+    category: test.series?.categoryId || null,
     series: test.series?.title || null,
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
     totalQuestions: test.questions.length,
@@ -237,9 +237,17 @@ export async function getPublishedTestsForStudent(userId?: string): Promise<Stud
 
 export async function getAllPublishedTests(): Promise<DbTest[]> {
   const tests = await prisma.test.findMany({
-    where: { isPublished: true },
+    where: {
+      isPublished: true,
+      // If the test belongs to a series, that series must also be published.
+      // Tests with no series (seriesId = null) are always eligible.
+      OR: [
+        { seriesId: null },
+        { series: { isPublished: true } },
+      ],
+    },
     include: {
-      series: { select: { title: true, categoryId: true } },
+      series: { select: { title: true, categoryId: true, isPublished: true } },
       questions: {
         include: { question: { select: { difficulty: true } } },
       },
@@ -255,7 +263,7 @@ export async function getAllPublishedTests(): Promise<DbTest[]> {
       id: test.id,
       title: test.title,
       code: test.code,
-      category: test.series?.categoryId || "NEET",
+      category: test.series?.categoryId || null,
       series: test.series?.title || null,
       durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
       totalQuestions: test.questions.length,
