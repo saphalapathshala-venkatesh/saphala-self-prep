@@ -1,4 +1,5 @@
 import { getPublishedTestsForStudent } from "@/lib/testhubDb";
+import { getCurrentUser } from "@/lib/auth";
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
 import TestHubClient from "@/components/testhub/TestHubClient";
@@ -6,7 +7,8 @@ import TestHubClient from "@/components/testhub/TestHubClient";
 export const dynamic = "force-dynamic";
 
 export default async function TestHubPage() {
-  const tests = await getPublishedTestsForStudent();
+  const user = await getCurrentUser();
+  const tests = await getPublishedTestsForStudent(user?.id);
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50">

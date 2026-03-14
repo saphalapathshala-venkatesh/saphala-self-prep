@@ -1,0 +1,51 @@
+Saphala Self Prep — Fix incorrect CTA label for second attempt
+
+Problem:
+For a learner who has already completed Attempt 1, the system correctly counts the next entry as Attempt 2 for XP/result logic, but the UI button still shows "Start Test" instead of "Reattempt".
+
+This means:
+- attempt history / counting logic is working
+- CTA label logic is still wrong or incomplete
+
+Required fix:
+Update the test CTA derivation logic so it uses actual learner attempt state from DB, not just generic entry eligibility.
+
+Correct expected behavior:
+1. No prior attempts and no in-progress attempt -> "Start Test"
+2. In-progress attempt exists -> "Resume Test"
+3. One or more completed attempts exist and another attempt is allowed -> "Reattempt"
+4. Max attempts reached -> "Attempts Exhausted"
+5. Scheduled future availability -> "Starts on <date/time>"
+6. Unavailable/expired -> proper unavailable state
+
+Important:
+In the current bug case:
+- learner has already completed Attempt 1
+- second entry is being treated as Attempt 2 internally
+- therefore CTA MUST show "Reattempt", not "Start Test"
+
+Implementation instructions:
+1. Audit the exact CTA state derivation in:
+   - TestHub card/grid view
+   - Test brief page
+   - any shared helper used for CTA labels
+2. Find where the label currently falls back to "Start Test"
+3. Base the CTA label on real attempt state from DB:
+   - latest in-progress attempt
+   - completed attempts count
+   - attempts allowed
+4. Ensure completedAttempts > 0 and attemptsRemaining > 0 results in "Reattempt"
+5. Keep "Resume Test" higher priority than "Reattempt" if an in-progress attempt exists
+6. Do not change XP logic, attempt creation logic, or unrelated UI
+
+Acceptance test:
+- Fresh learner -> Start Test
+- Learner with one completed attempt and no active attempt -> Reattempt
+- Learner with in-progress attempt -> Resume Test
+- Learner with attempts exhausted -> Attempts Exhausted
+
+Output required:
+1. Root cause of why "Start Test" was still showing
+2. Exact files changed
+3. Whether fix was applied to both card view and brief page
+4. Confirmation that Attempt 2 now shows "Reattempt"

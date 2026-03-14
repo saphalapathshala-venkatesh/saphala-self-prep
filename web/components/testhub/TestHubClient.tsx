@@ -113,10 +113,23 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
                   <div className="flex-grow" />
 
                   <button
-                    onClick={() => handleAttempt(test)}
-                    className="btn-glossy-primary w-full text-sm py-2.5 mt-4"
+                    onClick={() => !test.attemptsExhausted && handleAttempt(test)}
+                    disabled={!isLocked && test.attemptsExhausted}
+                    className={`w-full text-sm py-2.5 mt-4 btn-glossy-primary ${
+                      !isLocked && test.attemptsExhausted
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
                   >
-                    {isLocked ? "View Access" : "Start Test"}
+                    {isLocked
+                      ? "View Access"
+                      : test.attemptsExhausted
+                      ? "Attempts Exhausted"
+                      : test.hasActiveAttempt
+                      ? "Resume Test"
+                      : test.completedAttempts > 0
+                      ? "Reattempt"
+                      : "Start Test"}
                   </button>
                 </div>
               </div>

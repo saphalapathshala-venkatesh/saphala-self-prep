@@ -185,22 +185,54 @@ export interface StudentTestItem {
   difficulty: string;
   accessType: "FREE" | "LOCKED";
   languageAvailable: "EN" | "TE" | "BOTH";
+  attemptsAllowed: number;
+  completedAttempts: number;
+  hasActiveAttempt: boolean;
+  attemptsExhausted: boolean;
 }
 
-export async function getPublishedTestsForStudent(): Promise<StudentTestItem[]> {
+export async function getPublishedTestsForStudent(userId?: string): Promise<StudentTestItem[]> {
   const all = await getAllPublishedTests();
-  return all.map((t) => ({
-    id: t.id,
-    title: t.title,
-    code: t.code,
-    category: t.category,
-    series: t.series,
-    durationMinutes: t.durationMinutes,
-    totalQuestions: t.totalQuestions,
-    difficulty: t.difficulty,
-    accessType: t.accessType,
-    languageAvailable: t.languageAvailable,
-  }));
+
+  // Build per-test attempt state maps if user is logged in
+  const completedMap = new Map<string, number>();
+  const activeSet = new Set<string>();
+
+  if (userId) {
+    const now = new Date();
+    const userAttempts = await prisma.attempt.findMany({
+      where: { userId, testId: { in: all.map((t) => t.id) } },
+      select: { testId: true, status: true, endsAt: true },
+    });
+    for (const a of userAttempts) {
+      if (a.status === "SUBMITTED") {
+        completedMap.set(a.testId, (completedMap.get(a.testId) ?? 0) + 1);
+      } else if (a.status === "IN_PROGRESS" && (!a.endsAt || a.endsAt > now)) {
+        activeSet.add(a.testId);
+      }
+    }
+  }
+
+  return all.map((t) => {
+    const completed = completedMap.get(t.id) ?? 0;
+    const hasActive = activeSet.has(t.id);
+    return {
+      id: t.id,
+      title: t.title,
+      code: t.code,
+      category: t.category,
+      series: t.series,
+      durationMinutes: t.durationMinutes,
+      totalQuestions: t.totalQuestions,
+      difficulty: t.difficulty,
+      accessType: t.accessType,
+      languageAvailable: t.languageAvailable,
+      attemptsAllowed: t.attemptsAllowed,
+      completedAttempts: completed,
+      hasActiveAttempt: hasActive,
+      attemptsExhausted: !hasActive && completed >= t.attemptsAllowed,
+    };
+  });
 }
 
 export async function getAllPublishedTests(): Promise<DbTest[]> {
