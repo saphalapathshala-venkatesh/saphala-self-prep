@@ -91,16 +91,20 @@ export const Footer = () => {
               Community
             </h4>
             <ul className="space-y-2.5">
-              {footerConfig.communityLinks.map((link) => (
-                <li key={link.label}>
-                  <Link
-                    href={link.href}
-                    className="text-sm text-gray-400 hover:text-purple-300 transition-colors"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
+              {footerConfig.communityLinks.map((link) => {
+                const Icon = link.icon;
+                return (
+                  <li key={link.label}>
+                    <Link
+                      href={link.href}
+                      className="flex items-center gap-3 text-sm text-gray-400 hover:text-purple-300 transition-colors"
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {link.label}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         </div>

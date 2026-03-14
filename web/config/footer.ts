@@ -1,3 +1,8 @@
+import { Youtube, Send, MessageCircle, Instagram, Facebook } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+
+export type CommunityLink = { label: string; icon: LucideIcon; href: string };
+
 export const footerConfig = {
   brand: {
     name: "Saphala Pathshala",
@@ -35,10 +40,11 @@ export const footerConfig = {
     { label: "Refund Policy", href: "/refund-policy" },
   ],
   communityLinks: [
-    { label: "YouTube", href: "#" },
-    { label: "Telegram", href: "#" },
-    { label: "WhatsApp", href: "#" },
-    { label: "Instagram", href: "#" },
-    { label: "Facebook", href: "#" },
-  ],
+    { label: "YouTube (English + Telugu)", icon: Youtube, href: "#" },
+    { label: "YouTube (English + Kannada)", icon: Youtube, href: "#" },
+    { label: "Telegram", icon: Send, href: "#" },
+    { label: "WhatsApp", icon: MessageCircle, href: "#" },
+    { label: "Instagram", icon: Instagram, href: "#" },
+    { label: "Facebook", icon: Facebook, href: "#" },
+  ] satisfies CommunityLink[],
 };
