@@ -130,7 +130,7 @@ export default function ProductTypesSection() {
 
                 {/* CTA button */}
                 <div className="px-4 pb-4">
-                  <span className="block w-full text-center bg-[#8050C0] group-hover:bg-[#6D3DB0] text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150">
+                  <span className="block w-full text-center bg-white border-2 border-[#8050C0] text-[#8050C0] group-hover:bg-[#F6F2FF] group-hover:text-[#6D3DB0] text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150">
                     {item.cta}
                   </span>
                 </div>
