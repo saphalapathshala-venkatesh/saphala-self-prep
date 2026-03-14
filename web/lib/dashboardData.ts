@@ -142,6 +142,7 @@ export interface AllAttemptsRow {
   testId: string;
   testTitle: string;
   category: string | null;
+  accessType: "FREE" | "LOCKED";
   status: "IN_PROGRESS" | "SUBMITTED";
   attemptNumber: number;
   language: string;
@@ -161,7 +162,11 @@ export async function getAllAttemptsForStudent(userId: string): Promise<AllAttem
     orderBy: [{ startedAt: "desc" }],
     include: {
       test: {
-        select: { title: true, categoryId: true },
+        select: {
+          title: true,
+          accessType: true,
+          category: { select: { name: true } },
+        },
       },
     },
   });
@@ -170,7 +175,8 @@ export async function getAllAttemptsForStudent(userId: string): Promise<AllAttem
     id: a.id,
     testId: a.testId,
     testTitle: a.test.title,
-    category: a.test.categoryId ?? null,
+    category: a.test.category?.name ?? null,
+    accessType: a.test.accessType as "FREE" | "LOCKED",
     status: a.status as "IN_PROGRESS" | "SUBMITTED",
     attemptNumber: a.attemptNumber,
     language: a.language,

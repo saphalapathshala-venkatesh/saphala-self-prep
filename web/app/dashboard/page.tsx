@@ -216,9 +216,9 @@ export default async function DashboardPage() {
                 {hasAttempts && (
                   <Link
                     href="/dashboard/attempts"
-                    className="text-xs text-[#6D4BCB] hover:underline font-medium"
+                    className="text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
                   >
-                    View all →
+                    View All
                   </Link>
                 )}
               </div>
@@ -350,9 +350,9 @@ export default async function DashboardPage() {
               </div>
               <Link
                 href="/dashboard/profile"
-                className="mt-4 block text-center text-xs font-semibold text-[#6D4BCB] hover:underline"
+                className="mt-4 block text-center text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
               >
-                View full profile →
+                View Full Profile
               </Link>
             </div>
 
@@ -387,9 +387,9 @@ export default async function DashboardPage() {
               <h2 className="text-base font-bold text-[#2D1B69]">Recommended Free Tests</h2>
               <Link
                 href="/testhub"
-                className="text-xs text-[#6D4BCB] hover:underline font-medium"
+                className="text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
               >
-                View all →
+                View All
               </Link>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

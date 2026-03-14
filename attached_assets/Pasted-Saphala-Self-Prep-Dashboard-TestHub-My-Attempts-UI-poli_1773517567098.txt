@@ -1,0 +1,247 @@
+Saphala Self Prep — Dashboard / TestHub / My Attempts UI polish batch
+
+Goal:
+Implement the following UI improvements in one batch to avoid repeated file audits.
+
+Improvements included:
+1. Fix TestHub card button alignment
+2. Convert dashboard "View all →" links to buttons
+3. Convert "View full profile →" to button
+4. Improve My Attempts page with scalable filtering:
+   - Exam Category
+   - Free / Paid tests
+   - Attempt Status
+   - Date Range
+
+Important rules:
+- Do NOT change typography, colors, spacing, or theme except where required
+- Maintain current Saphala purple UI system
+- Do NOT modify business logic
+- Keep mobile layout clean
+- Avoid unnecessary refactoring
+
+------------------------------------
+
+1) Fix TestHub card button alignment
+
+Problem:
+Buttons become vertically misaligned when card titles wrap to multiple lines.
+
+Goal:
+Ensure all Start Test / Resume / Reattempt buttons align across cards.
+
+Implementation:
+
+Card container:
+
+className="flex flex-col h-full"
+
+Title element:
+
+className="line-clamp-2 min-h-[48px]"
+
+Add spacer before button:
+
+<div className="flex-grow"></div>
+
+Button:
+
+<button className="mt-4 w-full">
+
+Ensure grid allows equal-height cards.
+
+Do not change card design.
+
+------------------------------------
+
+2) Replace "View all →" links
+
+Affected areas:
+- Recent Attempts
+- Recommended Free Tests
+- Any similar dashboard sections
+
+Replace:
+
+View all →
+
+With button:
+
+View All
+
+Remove arrow symbol.
+
+Style:
+Use existing small secondary button style or ghost button.
+
+Maintain right alignment in section header.
+
+------------------------------------
+
+3) Convert "View full profile →" to button
+
+Location:
+Student profile card on dashboard.
+
+Replace:
+
+View full profile →
+
+With button:
+
+View Full Profile
+
+Remove arrow.
+
+Use same small secondary button style used for "View All".
+
+Keep layout unchanged.
+
+------------------------------------
+
+4) My Attempts page filter improvements
+
+Problem:
+As attempt volume grows the page will become difficult to navigate.
+
+Add filter controls under the page title:
+
+"My Attempts"
+
+Filters required:
+
+------------------------------------
+
+A) Exam Category Dropdown
+
+Label:
+Category
+
+Options:
+All Categories (default)
+
+Populate dynamically from test categories.
+
+------------------------------------
+
+B) Test Type Filter
+
+Label:
+Test Type
+
+Options:
+All
+Free Tests
+Paid Tests
+
+Use existing test metadata if available.
+
+------------------------------------
+
+C) Attempt Status Filter
+
+Label:
+Status
+
+Options:
+All
+Completed
+In Progress
+
+This should map to attempt status stored in the Attempt model.
+
+------------------------------------
+
+D) Date Range Filter
+
+Label:
+Date Range
+
+Options:
+
+All Time
+Last 7 Days
+Last 30 Days
+Last 90 Days
+Custom Range
+
+If Custom Range selected:
+show date picker fields:
+
+Start Date
+End Date
+
+------------------------------------
+
+Filter behavior
+
+Filters should update the attempt list dynamically.
+
+Client-side filtering is acceptable if dataset is small.
+
+Server-side filtering is acceptable if already structured.
+
+Filters should work together (combined filtering).
+
+Example:
+
+Category = AP Police
+Status = Completed
+Date Range = Last 30 Days
+
+------------------------------------
+
+UI expectations
+
+Filters should appear as a horizontal filter bar under the page heading.
+
+Example layout:
+
+Category [dropdown]
+Test Type [dropdown]
+Status [dropdown]
+Date Range [dropdown]
+
+Spacing must remain clean and mobile responsive.
+
+On mobile:
+filters can stack vertically.
+
+------------------------------------
+
+Acceptance criteria
+
+TestHub Cards:
+Buttons align perfectly across cards.
+
+Dashboard Sections:
+"View all →" replaced with button "View All".
+
+Profile Card:
+"View full profile →" replaced with button "View Full Profile".
+
+My Attempts page:
+
+Filters visible:
+Category
+Test Type
+Status
+Date Range
+
+Filtering works correctly.
+
+Mobile layout remains clean.
+
+------------------------------------
+
+Output required after implementation
+
+Report:
+
+1. Files changed
+2. TestHub card alignment changes
+3. "View All" button updates
+4. "View Full Profile" button update
+5. My Attempts filter implementation details
+6. Any assumptions made about test metadata
+7. Confirmation mobile layout still works
