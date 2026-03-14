@@ -1,0 +1,109 @@
+Saphala Platform — Pre-Launch Architecture Decision Audit
+
+Context:
+We currently have two separate Replit codebases:
+1. Saphala Admin app
+2. Saphala Self Prep / Student Frontend app
+
+Both connect to the same Neon database.
+
+Problem:
+Because these are separate codebases, there is risk of future mismatch in:
+- auth / email-mobile normalization
+- duplicate checks
+- taxonomy usage
+- content visibility / publish logic
+- test and analytics assumptions
+- shared DB contract drift
+
+Idea under consideration:
+Move toward one shared codebase / monorepo structure while still keeping 2 separate apps and 2 separate login experiences:
+- admin app remains separate UI/app
+- student app remains separate UI/app
+- but shared DB logic / validation / types / schema / helpers are centralized
+
+Important:
+The platform needs to launch in 2 days.
+So I do NOT want an ideal theoretical answer only.
+I want a realistic, code-grounded, launch-safe recommendation.
+
+Task:
+Please do a pure architecture audit and recommendation.
+
+Questions to answer:
+
+1. Is merging the two Replit codebases into one shared monorepo with two apps a better long-term solution for this platform?
+2. Is it safe to attempt before launch in 2 days?
+3. What are the risks of doing it now?
+4. What are the risks of NOT doing it now?
+5. What is the best launch-safe approach?
+
+Please compare these options:
+
+Option A — Keep both codebases separate for launch
+- but lock a strict shared DB contract and QA checklist
+
+Option B — Partial consolidation before launch
+- share only critical logic such as schema/auth/validation/helpers
+- keep apps otherwise separate
+
+Option C — Full monorepo consolidation before launch
+- apps/admin
+- apps/student
+- shared packages
+
+For each option, evaluate:
+- launch risk
+- implementation effort
+- regression risk
+- auth risk
+- deployment risk
+- future maintainability
+- Replit suitability
+- whether it can be completed safely in time
+
+Also answer this very practically:
+
+6. If we DO move toward shared monorepo, how should it be structured in Replit?
+Example:
+- apps/admin
+- apps/student
+- packages/db
+- packages/auth
+- packages/validation
+- packages/shared-types
+
+7. In Replit specifically, what is the safest way to implement this without breaking:
+- current env vars
+- Neon DB connectivity
+- existing deploys
+- separate domains/subdomains
+- build scripts
+- Prisma usage
+
+8. What should absolutely NOT be migrated before launch?
+
+9. What should be migrated first after launch if we postpone consolidation?
+
+10. Final recommendation:
+Choose one option:
+- A
+- B
+- or C
+
+and justify it clearly for a product launching in 2 days.
+
+Output format required:
+
+Part 1 — Recommendation summary
+Part 2 — Option A vs B vs C comparison table
+Part 3 — Replit-specific implementation guidance
+Part 4 — What to do before launch
+Part 5 — What to do after launch
+
+Important constraints:
+- This is audit/recommendation only
+- Do not start migrating code
+- Do not give generic textbook advice
+- Base the answer on realistic launch safety
+- Prefer the least risky path that avoids future headaches
