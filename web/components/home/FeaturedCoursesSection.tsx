@@ -78,9 +78,9 @@ export default function FeaturedCoursesSection() {
           </div>
           <Link
             href="/courses"
-            className="text-sm font-semibold text-[#6D4BCB] hover:underline shrink-0 ml-4"
+            className="shrink-0 ml-4 bg-white border-2 border-[#8050C0] text-[#8050C0] hover:bg-[#F6F2FF] hover:text-[#6D3DB0] text-sm font-semibold px-4 py-2 rounded-xl transition-colors duration-150"
           >
-            View all →
+            View All Courses
           </Link>
         </div>
 
@@ -129,7 +129,7 @@ export default function FeaturedCoursesSection() {
                     href={course.href}
                     className="text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors"
                   >
-                    View
+                    {course.price > 0 ? "Buy Now" : "Start Free"}
                   </Link>
                 </div>
               </div>
