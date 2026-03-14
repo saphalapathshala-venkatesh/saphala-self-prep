@@ -1,0 +1,129 @@
+Pure audit — no code changes. Let me read the admin routes, schema, and APIs in parallel:
+
+I have everything I need for a complete audit. Here is the full report:
+
+Saphala Pathshala — Analytics & Diagnostic Feature Audit
+First: Data Availability (the foundation for everything)
+Before feature-level findings, here is the exact state of the stored data, because it determines what is genuinely feasible vs what needs schema work:
+
+Data Point	Where Stored	Notes
+Attempt-level totals (score %, correct, wrong, unanswered, time)	Attempt table	Persisted after generate-result is called
+Attempt number per learner-test pair	Attempt.attemptNumber	Stored
+Per-question: was it answered, was it correct, time spent	AttemptAnswer	Stored for every answer saved
+Per-question: which options were selected	AttemptAnswer.selectedOptionIds	Stored
+Question taxonomy: subjectId, topicId, subtopicId, difficulty, type	Question	Stored; full Category→Subject→Topic→Subtopic hierarchy exists
+Section assignment of each question	TestQuestion.sectionId	Stored (links question to test section)
+XP per attempt including multiplier, base, bonus	XpLedgerEntry.meta	Stored after generate-result
+Subject-wise breakdown per attempt	Not persisted	Computed in-memory only (resultStore.ts) — lost on server restart
+Section-wise scores per attempt	Not stored anywhere	generate-result does not compute this at all
+Topic/subtopic-wise scores per attempt	Not stored anywhere	generate-result computes subject-level only
+Rank and percentile	Not persisted	In-memory only; lost on server restart
+Key implication: The atom of analysis (AttemptAnswer) is fully in the DB. Every topic/section/mistake report can be built from AttemptAnswer → Question → taxonomy join at query time, even without pre-aggregated columns. Pre-aggregating at result-generation time would improve query speed but is not required to get started.
+
+Feature 1 — Reports
+Learner-wise reports
+Status: Partially Exists
+
+What exists: /admin/users/[id]/attempts — a read-only table showing every attempt for one user, with columns: test name, attempt #, status, score%, correct, wrong, unanswered, time used, XP. Both an admin page (server-rendered) and an API (GET /api/admin/users/[id]/attempts) exist.
+What is missing: No subject breakdown per attempt in this view. No filters (date range, test type, status). No topic or question drill-down. No aggregate summary stats across attempts (e.g., avg score, improvement trend). No export.
+Schema sufficient: Yes, for significant enrichment of this view.
+Test-wise reports
+Status: Not Present
+
+What exists: getAllResultsForTest(testId) in resultStore.ts, but this is in-memory and used only for leaderboard computation — not exposed in admin, not persisted.
+What is missing: No admin page or API that shows "all learners who attempted Test X" with their scores, timing, ranks.
+Schema sufficient: Yes — Attempt table filtered by testId gives all needed data.
+Section-wise reports
+Status: Not Present
+
+What exists: TestSection model and TestQuestion.sectionId exist in the schema.
+What is missing: generate-result ignores sections entirely — only subject-wise breakdown is computed. No section score breakdown anywhere (admin or student).
+Schema sufficient: Computable at query time by joining AttemptAnswer → TestQuestion.sectionId.
+Topic/subtopic-wise reports
+Status: Data Exists but UI Missing
+
+What exists: Question.topicId and Question.subtopicId are in the schema. AttemptAnswer.questionId can be joined to Question.
+What is missing: No compute path groups AttemptAnswers by topicId. No admin or student view shows topic-level accuracy.
+Schema sufficient: Yes — multi-join query can produce this at query time.
+Time-based reports (trends over time)
+Status: Data Exists but UI Missing
+
+What exists: Attempt.startedAt, Attempt.submittedAt, AttemptAnswer.timeSpentMs per question are all stored. The admin attempts table shows totalTimeUsedMs as a column.
+What is missing: No trend charts, no time-series aggregation, no "attempts per month" or "avg time vs score" view.
+Schema sufficient: Yes.
+Downloadable/exportable reports
+Status: Not Present
+
+No CSV export, no PDF generation, no data export endpoint anywhere in the codebase.
+Feature 2 — Heat Maps
+Status: Not Present (across all heat map types)
+
+No heat map UI or data computation exists anywhere — admin or student side.
+Data sufficiency by heat map type:
+Heat Map	Data Sufficient?
+Question difficulty vs accuracy	Yes — Question.difficulty + AttemptAnswer.isCorrect aggregate
+Topic weakness	Yes — Question.topicId + AttemptAnswer.isCorrect aggregate
+Accuracy heat map by topic×difficulty	Yes
+Time-spent heat map per question	Yes — AttemptAnswer.timeSpentMs
+Section performance	Yes — via TestQuestion.sectionId join
+Feature 3 — Compare Last 3 Tests
+Status: Not Present
+
+The per-test attempts page (/testhub/tests/[testId]/attempts) shows multiple attempts for one test in a list — but this is same-test only, not cross-test comparison.
+The admin attempts table lists all attempts chronologically — no side-by-side, no delta, no visual trend.
+Data sufficient? Yes — Attempt records for the same user across different tests all have scorePct, correctCount, totalTimeUsedMs, submittedAt. Comparing the last 3 is a straightforward query. Subject breakdown would require re-computing from AttemptAnswer per attempt (or storing it as persisted columns).
+Feature 4 — Improvement / Deterioration Insights
+Status: Not Present
+
+No delta computation between attempts anywhere.
+No alerts, no badge, no text like "Score improved by 12% from last attempt."
+Data sufficient? Yes for overall score trend — Attempt.scorePct by attemptNumber or submittedAt is all that's needed. For subject-level improvement, the subject breakdown would need to be re-derived from AttemptAnswer (doable at query time, slightly expensive).
+Feature 5 — Mistake Tracking
+Status: Not Present
+
+What exists: AttemptAnswer stores isCorrect = false and questionId for every wrong answer.
+What is missing: No query groups repeated wrong answers by questionId across multiple attempts. No "mistake log" page in admin or student app. No "repeatedly wrong questions" detection. No weak-question-type analysis.
+Data sufficient? Yes — a group-by query on AttemptAnswer WHERE isCorrect=false GROUP BY questionId gives a full mistake frequency table per learner. Joining to Question.topicId, Question.difficulty, Question.type gives weak-topic and weak-type patterns.
+Feature 6 — Recommendation Engine / Guidance
+Status: Not Present
+
+No recommendation logic exists anywhere — admin or student side.
+No "what to study next," no "try this test," no "revise this topic" feature.
+Data sufficient for rule-based recommendations? Partially. The mistake tracking and weakness data can be derived from AttemptAnswer. Linking weakness topics to available ContentPage, FlashcardDeck, or future tests would require additional mapping (e.g., a topic → resource index). The taxonomy models (Subject/Topic/Subtopic) exist and ContentPage.subtopicId + FlashcardCard.subtopicId are stored, so a simple "you got these topics wrong → here are resources for those topics" rule is feasible with existing data. A proper ML-based recommendation engine is out of scope given current data volume.
+Summary Table
+Feature	Classification	Admin App	Student App
+Learner-wise report	Partially Exists	Basic attempt list (score, time, XP)	/dashboard/attempts + /testhub/tests/[testId]/attempts
+Test-wise report	Not Present	None	None
+Section-wise report	Not Present	None	None
+Topic/subtopic-wise report	Data Exists, UI Missing	None	Subject-level only in result page
+Time-based reports / trends	Data Exists, UI Missing	Time column in attempt list only	None
+Downloadable reports	Not Present	None	None
+Heat maps (any type)	Not Present	None	None
+Compare last 3 tests	Not Present	None	None
+Improvement/deterioration	Not Present	None	None
+Mistake tracking	Not Present	None	None
+Recommendation engine	Not Present	None	None
+Effort Classification
+Feature	Effort	Why
+Subject breakdown per attempt in admin	Low	Data already computed in generate-result; needs persistence + display
+Test-wise report (learner list, aggregates)	Low	Single DB query on Attempt filtered by testId
+Cross-attempt score trend for a learner	Low	Attempt.scorePct ordered by submittedAt — straight chart
+Mistake log (repeated wrong questions)	Low-Medium	Group-by query on AttemptAnswer; join to question for topic
+Section-wise breakdown	Medium	Needs AttemptAnswer → TestQuestion.sectionId join; generate-result update
+Topic/subtopic-wise breakdown	Medium	Multi-table join; worth persisting as a result column
+Compare last 3 tests with delta	Medium	Data exists; needs comparison logic + UI
+Heat maps (topic weakness, accuracy)	Medium	Aggregation query + chart UI component
+Improvement/deterioration alerts	Medium	Delta computation between consecutive attempts
+Downloadable reports (CSV)	Medium	API returns JSON; add CSV serializer + download endpoint
+Rule-based recommendations	High	Requires topic→resource index + ranking logic
+ML-based recommendations	Very High	Requires training data volume and model
+Recommended Implementation Order
+Persist subject breakdown at result-generation time — write subjectBreakdown JSON to the Attempt row. This is a one-migration change that unlocks all downstream features without re-deriving from AttemptAnswer on every report query.
+Admin: test-wise report — all learners who attempted a test, with aggregate stats (avg score, completion rate, difficulty distribution).
+Admin: learner subject+topic drill-down — enrich /admin/users/[id]/attempts with subject breakdown per attempt (low join complexity).
+Admin: cross-attempt score trend — simple chart showing score trend across a learner's attempts.
+Mistake log per learner — "Questions this learner repeatedly gets wrong," grouped by topic.
+Section-wise and topic-wise breakdown — in both admin and student result pages.
+Heat maps — topic weakness and accuracy heat map for admin aggregate view.
+CSV export — downloadable version of the learner or test report.
+Recommendations — last, after the above data pipeline is solid.
