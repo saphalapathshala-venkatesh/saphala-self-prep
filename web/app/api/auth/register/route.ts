@@ -80,24 +80,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicates
-    const existing = await prisma.user.findFirst({
-      where: { OR: [{ email }, { mobile }] },
-      select: { email: true, mobile: true },
+    // Check for duplicates — two separate findUnique calls, each hitting the
+    // unique index directly, so the result is always unambiguous.
+    const emailConflict = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
     });
-
-    if (existing?.email === email) {
+    if (emailConflict) {
       return NextResponse.json(
         { error: "An account with this email already exists. Please log in instead." },
         { status: 409 }
       );
     }
-    if (existing?.mobile === mobile) {
+
+    const mobileConflict = await prisma.user.findUnique({
+      where: { mobile },
+      select: { id: true },
+    });
+    if (mobileConflict) {
       return NextResponse.json(
-        {
-          error:
-            "An account with this mobile number already exists. Please log in instead.",
-        },
+        { error: "An account with this mobile number already exists. Please log in instead." },
         { status: 409 }
       );
     }
