@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type User = {
   id: string;
@@ -10,16 +10,51 @@ type User = {
   createdAt: string;
 };
 
+type ResetState = {
+  userId: string;
+  email: string;
+  newPassword: string;
+  confirmPassword: string;
+  showNew: boolean;
+  showConfirm: boolean;
+  saving: boolean;
+  error: string;
+  success: string;
+};
+
+function generatePassword(): string {
+  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+  const lower = "abcdefghjkmnpqrstuvwxyz";
+  const digits = "23456789";
+  const special = "!@#$%";
+  const pick = (set: string) => set[Math.floor(Math.random() * set.length)];
+  const all = upper + lower + digits + special;
+  const parts = [pick(upper), pick(upper), pick(lower), pick(lower), pick(digits), pick(digits), pick(special)];
+  for (let i = 0; i < 5; i++) parts.push(pick(all));
+  return parts.sort(() => Math.random() - 0.5).join("");
+}
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState<Record<string, { msg: string; ok: boolean }>>({});
   const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
+  const [reset, setReset] = useState<ResetState | null>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (!reset) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setReset(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [reset]);
 
   async function fetchUsers() {
     setLoading(true);
@@ -42,9 +77,7 @@ export default function AdminUsersPage() {
   async function saveRole(userId: string) {
     const newRole = pendingRoles[userId];
     if (!newRole) return;
-
     setFeedback((prev) => ({ ...prev, [userId]: { msg: "Saving…", ok: true } }));
-
     try {
       const res = await fetch(`/api/admin/users/${userId}/role`, {
         method: "PATCH",
@@ -53,7 +86,6 @@ export default function AdminUsersPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-
       setUsers((prev) =>
         prev.map((u) => (u.id === userId ? { ...u, role: newRole } : u))
       );
@@ -68,6 +100,46 @@ export default function AdminUsersPage() {
         ...prev,
         [userId]: { msg: err instanceof Error ? err.message : "Failed", ok: false },
       }));
+    }
+  }
+
+  function openResetModal(user: User) {
+    setReset({
+      userId: user.id,
+      email: user.email || user.mobile,
+      newPassword: "",
+      confirmPassword: "",
+      showNew: false,
+      showConfirm: false,
+      saving: false,
+      error: "",
+      success: "",
+    });
+  }
+
+  async function submitReset() {
+    if (!reset) return;
+    setReset((r) => r && { ...r, saving: true, error: "", success: "" });
+    try {
+      const res = await fetch(`/api/admin/users/${reset.userId}/reset-password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newPassword: reset.newPassword,
+          confirmPassword: reset.confirmPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setReset((r) => r && { ...r, saving: false, success: "Password reset successfully. The user's sessions have been invalidated.", newPassword: "", confirmPassword: "" });
+    } catch (err: unknown) {
+      setReset((r) => r && { ...r, saving: false, error: err instanceof Error ? err.message : "Reset failed." });
+    }
+  }
+
+  function handleOverlayClick(e: React.MouseEvent) {
+    if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+      setReset(null);
     }
   }
 
@@ -86,7 +158,7 @@ export default function AdminUsersPage() {
               <th style={{ padding: "8px 4px" }}>Mobile</th>
               <th style={{ padding: "8px 4px" }}>Role</th>
               <th style={{ padding: "8px 4px" }}>Joined</th>
-              <th style={{ padding: "8px 4px" }}>Action</th>
+              <th style={{ padding: "8px 4px" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -110,7 +182,7 @@ export default function AdminUsersPage() {
                 <td style={{ padding: "8px 4px" }}>
                   {new Date(u.createdAt).toLocaleDateString()}
                 </td>
-                <td style={{ padding: "8px 4px" }}>
+                <td style={{ padding: "8px 4px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <button
                     onClick={() => saveRole(u.id)}
                     disabled={!pendingRoles[u.id] || pendingRoles[u.id] === u.role}
@@ -126,10 +198,23 @@ export default function AdminUsersPage() {
                   >
                     Save
                   </button>
+                  <button
+                    onClick={() => openResetModal(u)}
+                    style={{
+                      padding: "4px 12px",
+                      cursor: "pointer",
+                      background: "#fef3c7",
+                      border: "1px solid #d97706",
+                      borderRadius: 4,
+                      color: "#92400e",
+                      fontSize: 13,
+                    }}
+                  >
+                    Reset Pwd
+                  </button>
                   {feedback[u.id] && (
                     <span
                       style={{
-                        marginLeft: 8,
                         color: feedback[u.id].ok ? "green" : "red",
                         fontSize: 13,
                       }}
@@ -145,6 +230,219 @@ export default function AdminUsersPage() {
       )}
 
       {!loading && !error && users.length === 0 && <p>No users found.</p>}
+
+      {/* Reset Password Modal */}
+      {reset && (
+        <div
+          onClick={handleOverlayClick}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+        >
+          <div
+            ref={modalRef}
+            style={{
+              background: "#fff",
+              borderRadius: 10,
+              padding: "32px 28px",
+              width: "100%",
+              maxWidth: 420,
+              boxShadow: "0 8px 40px rgba(0,0,0,0.18)",
+              position: "relative",
+            }}
+          >
+            {/* Close button */}
+            <button
+              onClick={() => setReset(null)}
+              style={{
+                position: "absolute",
+                top: 14,
+                right: 16,
+                background: "none",
+                border: "none",
+                fontSize: 20,
+                cursor: "pointer",
+                color: "#666",
+                lineHeight: 1,
+              }}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Reset Password</h2>
+            <p style={{ margin: "0 0 20px", fontSize: 13, color: "#555" }}>
+              User: <strong>{reset.email}</strong>
+            </p>
+
+            {/* New Password */}
+            <label style={{ display: "block", marginBottom: 4, fontSize: 13, fontWeight: 600 }}>
+              New Password
+            </label>
+            <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+              <div style={{ position: "relative", flex: 1 }}>
+                <input
+                  type={reset.showNew ? "text" : "password"}
+                  value={reset.newPassword}
+                  onChange={(e) => setReset((r) => r && { ...r, newPassword: e.target.value, error: "", success: "" })}
+                  placeholder="Min 8 chars, letter + number"
+                  style={{
+                    width: "100%",
+                    padding: "8px 36px 8px 10px",
+                    border: "1px solid #ccc",
+                    borderRadius: 6,
+                    fontSize: 14,
+                    boxSizing: "border-box",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setReset((r) => r && { ...r, showNew: !r.showNew })}
+                  style={{
+                    position: "absolute",
+                    right: 8,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "#888",
+                    fontSize: 13,
+                    padding: 0,
+                  }}
+                >
+                  {reset.showNew ? "Hide" : "Show"}
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const pwd = generatePassword();
+                  setReset((r) => r && { ...r, newPassword: pwd, confirmPassword: pwd, showNew: true, showConfirm: true, error: "", success: "" });
+                }}
+                style={{
+                  padding: "8px 12px",
+                  background: "#f1f5f9",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  color: "#475569",
+                  whiteSpace: "nowrap",
+                }}
+                title="Auto-generate a strong temporary password"
+              >
+                Generate
+              </button>
+            </div>
+
+            {/* Confirm Password */}
+            <label style={{ display: "block", marginBottom: 4, fontSize: 13, fontWeight: 600 }}>
+              Confirm Password
+            </label>
+            <div style={{ position: "relative", marginBottom: 20 }}>
+              <input
+                type={reset.showConfirm ? "text" : "password"}
+                value={reset.confirmPassword}
+                onChange={(e) => setReset((r) => r && { ...r, confirmPassword: e.target.value, error: "", success: "" })}
+                placeholder="Re-enter new password"
+                style={{
+                  width: "100%",
+                  padding: "8px 36px 8px 10px",
+                  border: "1px solid #ccc",
+                  borderRadius: 6,
+                  fontSize: 14,
+                  boxSizing: "border-box",
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setReset((r) => r && { ...r, showConfirm: !r.showConfirm })}
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#888",
+                  fontSize: 13,
+                  padding: 0,
+                }}
+              >
+                {reset.showConfirm ? "Hide" : "Show"}
+              </button>
+            </div>
+
+            {/* Password match indicator */}
+            {reset.newPassword && reset.confirmPassword && (
+              <p style={{
+                fontSize: 12,
+                marginBottom: 12,
+                marginTop: -12,
+                color: reset.newPassword === reset.confirmPassword ? "#16a34a" : "#dc2626",
+              }}>
+                {reset.newPassword === reset.confirmPassword ? "✓ Passwords match" : "✗ Passwords do not match"}
+              </p>
+            )}
+
+            {/* Error / Success feedback */}
+            {reset.error && (
+              <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12, background: "#fef2f2", padding: "8px 12px", borderRadius: 6, border: "1px solid #fecaca" }}>
+                {reset.error}
+              </p>
+            )}
+            {reset.success && (
+              <p style={{ color: "#16a34a", fontSize: 13, marginBottom: 12, background: "#f0fdf4", padding: "8px 12px", borderRadius: 6, border: "1px solid #bbf7d0" }}>
+                {reset.success}
+              </p>
+            )}
+
+            {/* Action buttons */}
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setReset(null)}
+                style={{
+                  padding: "8px 20px",
+                  background: "#f1f5f9",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  color: "#334155",
+                }}
+              >
+                {reset.success ? "Close" : "Cancel"}
+              </button>
+              {!reset.success && (
+                <button
+                  onClick={submitReset}
+                  disabled={reset.saving || !reset.newPassword || !reset.confirmPassword}
+                  style={{
+                    padding: "8px 20px",
+                    background: reset.saving || !reset.newPassword || !reset.confirmPassword ? "#94a3b8" : "#2D1B69",
+                    border: "none",
+                    borderRadius: 6,
+                    cursor: reset.saving || !reset.newPassword || !reset.confirmPassword ? "not-allowed" : "pointer",
+                    fontSize: 14,
+                    color: "#fff",
+                    fontWeight: 600,
+                  }}
+                >
+                  {reset.saving ? "Resetting…" : "Reset Password"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
