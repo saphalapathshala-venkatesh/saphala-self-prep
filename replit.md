@@ -29,9 +29,18 @@ Preferred communication style: Simple, everyday language.
 - **`normalizeIdentifier`** in `web/lib/validation.ts` strips `+91` prefix: 12-digit numbers starting with "91" are trimmed to the last 10 digits before DB lookup.
 - **XP by attempt number**: `generate-result` applies `xpMultiplier` — 1st attempt=1.0×, 2nd=0.5×, 3rd+=0× of base XP. Multiplier and attemptNumber stored in `XpLedgerEntry.meta`.
 
-### Admin APIs (new)
+### Admin APIs
 - `DELETE /api/admin/users/[id]/sessions` — clears all sessions for a user
 - `PATCH /api/admin/users/[id]/allow-multi-device` — toggles multi-device access
+- `GET /api/admin/users/[id]/attempts` — returns attempt-wise records with XP for a user
+
+### Concurrent Test Protection
+- `Attempt` model has `lockedSessionToken String?` field; stored in DB after Prisma generate + db push
+- `attempt-data` GET: checks lock, blocks if another active session holds it (409 + `code: "ATTEMPT_LOCKED"`), acquires lock on access
+- `save-answer` POST and `submit` POST: verify session lock; return 409 `ATTEMPT_LOCKED` if different active session holds lock
+- `submit` clears `lockedSessionToken` on success
+- `getCurrentUserAndSession()` helper in `auth.ts` returns `{ user, sessionToken }` for lock checks
+- `TestAttemptClient` shows a user-friendly message on 409 `ATTEMPT_LOCKED`
 
 ### Core Features
 

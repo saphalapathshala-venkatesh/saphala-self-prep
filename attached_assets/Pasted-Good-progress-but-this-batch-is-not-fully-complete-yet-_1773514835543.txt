@@ -1,0 +1,52 @@
+Good progress, but this batch is not fully complete yet. Please do a second focused verification/fix pass ONLY for the remaining gaps below, without touching unrelated modules.
+
+Remaining required items to verify/fix:
+
+1. Admin password reset — must be proven end-to-end
+- Identify the exact root cause of why existing users could not login after admin reset
+- Test with a real existing learner record
+- Confirm:
+  - new password works immediately
+  - old password fails
+  - identifier/email/mobile login still works
+  - if needed, invalidate old sessions after reset
+- Report exact files changed and root cause found
+
+2. Concurrent test protection
+- Enforce that the same learner cannot effectively access the same in-progress test attempt from two devices/sessions in parallel
+- Add server-side guard at test start / test resume / attempt fetch level, not only at login
+- If second device/session tries to open the same active attempt, block it with a clear error
+- This must be a backend-enforced rule, not UI-only
+
+3. Full CTA states
+Verify/fix all expected states, not just Start/Resume/Reattempt:
+- Start Test
+- Resume Test
+- Reattempt
+- Attempts Exhausted
+- Starts on <date/time>
+- Expired / Unavailable
+
+4. Attempt-wise result visibility
+Ensure admin can clearly see attempt-wise records for a learner/test:
+- attempt number
+- marks/score
+- percentage
+- XP awarded
+- submitted time/status
+Do not keep this only inside XP ledger metadata if admin UI cannot inspect it clearly.
+
+5. Acceptance-test proof
+After fixing, provide explicit pass/fail evidence for:
+- admin password reset on existing learner
+- second-device login blocked by default
+- same active test attempt blocked on second device
+- attempt 1 XP = 100%, attempt 2 = 50%, attempt 3+ = 0
+- completed first attempt shows Reattempt
+- in-progress attempt shows Resume
+- exhausted/scheduled/expired states behave correctly
+
+Important:
+- Keep this as a narrow stabilization follow-up
+- No unrelated refactors
+- No homepage/course/content changes

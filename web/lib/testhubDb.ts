@@ -16,6 +16,8 @@ export interface DbTest {
   languageAvailable: "EN" | "TE" | "BOTH";
   instructions: string | null;
   subjectIds: string[];
+  publishedAt: Date | null;
+  isPublished: boolean;
 }
 
 export interface DbQuestion {
@@ -94,6 +96,8 @@ export async function getDbTestById(testId: string): Promise<DbTest | null> {
     languageAvailable: test.languageAvailable,
     instructions: test.instructions,
     subjectIds: test.subjectIds,
+    publishedAt: test.publishedAt,
+    isPublished: test.isPublished,
   };
 }
 
@@ -129,6 +133,8 @@ export async function getDbTestByCode(code: string): Promise<DbTest | null> {
     languageAvailable: test.languageAvailable,
     instructions: test.instructions,
     subjectIds: test.subjectIds,
+    publishedAt: test.publishedAt,
+    isPublished: test.isPublished,
   };
 }
 
@@ -229,6 +235,8 @@ export async function getAllPublishedTests(): Promise<DbTest[]> {
       languageAvailable: test.languageAvailable,
       instructions: test.instructions,
       subjectIds: test.subjectIds,
+      publishedAt: test.publishedAt,
+      isPublished: test.isPublished,
     };
   });
 }
@@ -278,7 +286,15 @@ export async function submitAttempt(attemptId: string) {
     data: {
       status: "SUBMITTED",
       submittedAt: new Date(),
+      lockedSessionToken: null,
     },
+  });
+}
+
+export async function lockAttemptSession(attemptId: string, sessionToken: string): Promise<void> {
+  await prisma.attempt.update({
+    where: { id: attemptId },
+    data: { lockedSessionToken: sessionToken },
   });
 }
 

@@ -28,6 +28,11 @@ export default function BriefClient({ test }: BriefClientProps) {
 
   const attemptsExhausted = attemptsUsed >= test.attemptsAllowed && !activeAttempt;
   const isReattempt = attemptsUsed > 0 && !activeAttempt && !attemptsExhausted;
+  const startsOn =
+    !activeAttempt &&
+    !attemptsExhausted &&
+    test.publishedAt != null &&
+    new Date(test.publishedAt) > new Date();
 
   useEffect(() => {
     async function checkActiveAttempt() {
@@ -84,6 +89,33 @@ export default function BriefClient({ test }: BriefClientProps) {
         <div className="flex items-center justify-center py-16">
           <div className="animate-pulse text-gray-400 text-sm">Loading test details...</div>
         </div>
+      </div>
+    );
+  }
+
+  if (startsOn) {
+    const startDate = new Date(test.publishedAt!);
+    const formatted = startDate.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    return (
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 max-w-lg w-full p-8 text-center">
+        <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-blue-50 flex items-center justify-center">
+          <svg className="w-8 h-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+          </svg>
+        </div>
+        <h2 className="text-xl font-bold text-[#2D1B69] mb-3">Test Not Yet Available</h2>
+        <p className="text-gray-500 text-sm mb-2">{test.title}</p>
+        <p className="text-gray-400 text-sm mb-2">This test opens on</p>
+        <p className="text-[#6D4BCB] font-semibold text-base mb-8">{formatted}</p>
+        <Link href="/testhub" className="btn-glossy-primary px-8 py-3">
+          Back to Tests
+        </Link>
       </div>
     );
   }

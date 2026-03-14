@@ -15,6 +15,7 @@ export interface MockTest {
   negativeMarks: number;
   attemptsAllowed: number;
   languageAvailable: LanguageAvailable;
+  publishedAt?: string | null;
 }
 
 export const mockTests: MockTest[] = [

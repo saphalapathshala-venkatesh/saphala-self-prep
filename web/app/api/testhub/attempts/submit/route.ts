@@ -1,4 +1,5 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUserAndSession } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import {
   getAttemptById,
   submitAttempt,
@@ -9,10 +10,11 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const user = await getCurrentUser();
-  if (!user) {
+  const auth = await getCurrentUserAndSession();
+  if (!auth) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const { user, sessionToken } = auth;
 
   const body = await request.json();
   const { attemptId, finalAnswers } = body;
@@ -32,6 +34,20 @@ export async function POST(request: Request) {
 
   if (attempt.status !== "IN_PROGRESS") {
     return Response.json({ error: "Attempt already submitted" }, { status: 400 });
+  }
+
+  // Concurrent access protection: block submission from a different active session
+  if (attempt.lockedSessionToken && attempt.lockedSessionToken !== sessionToken) {
+    const lockingSession = await prisma.session.findFirst({
+      where: { id: attempt.lockedSessionToken, expiresAt: { gt: new Date() } },
+      select: { id: true },
+    });
+    if (lockingSession) {
+      return Response.json(
+        { error: "This test is being accessed from another device.", code: "ATTEMPT_LOCKED" },
+        { status: 409 }
+      );
+    }
   }
 
   if (finalAnswers && Array.isArray(finalAnswers) && finalAnswers.length > 0) {

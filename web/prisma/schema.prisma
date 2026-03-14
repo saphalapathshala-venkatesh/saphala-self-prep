@@ -353,7 +353,8 @@ model Attempt {
   wrongCount   Int     @default(0)
   unansweredCount Int  @default(0)
   totalTimeUsedMs Int  @default(0)
-  rrGenerated Boolean  @default(false)
+  rrGenerated        Boolean  @default(false)
+  lockedSessionToken String?
   answers     AttemptAnswer[]
   createdAt   DateTime @default(now())
   @@index([userId, startedAt])

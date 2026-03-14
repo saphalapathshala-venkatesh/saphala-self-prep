@@ -44,6 +44,7 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
     negativeMarks: test.negativeMarks,
     attemptsAllowed: test.attemptsAllowed,
     languageAvailable: test.languageAvailable,
+    publishedAt: test.publishedAt ? test.publishedAt.toISOString() : null,
   };
 
   return (

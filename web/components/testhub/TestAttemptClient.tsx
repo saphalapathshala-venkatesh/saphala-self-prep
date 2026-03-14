@@ -90,8 +90,21 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           setLoading(false);
           return;
         }
+        if (res.status === 409) {
+          const data = await res.json().catch(() => ({}));
+          if (data.code === "ATTEMPT_LOCKED") {
+            setError(
+              data.error ||
+              "This test is already open on another device. Close it there first, then reload this page."
+            );
+          } else {
+            setError(data.error || "Failed to load test data");
+          }
+          setLoading(false);
+          return;
+        }
         if (!res.ok) {
-          const data = await res.json();
+          const data = await res.json().catch(() => ({}));
           setError(data.error || "Failed to load test data");
           setLoading(false);
           return;

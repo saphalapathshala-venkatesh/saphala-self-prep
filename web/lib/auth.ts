@@ -29,6 +29,26 @@ export async function getCurrentUser() {
   return user;
 }
 
+export async function getCurrentUserAndSession(): Promise<{
+  user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
+  sessionToken: string;
+} | null> {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+  if (!sessionCookie?.value) return null;
+
+  const session = await getSession(sessionCookie.value);
+  if (!session) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { id: true, email: true, mobile: true, role: true, fullName: true, gender: true, state: true, createdAt: true },
+  });
+  if (!user) return null;
+
+  return { user, sessionToken: sessionCookie.value };
+}
+
 export async function createSessionCookie(userId: string) {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + IDLE_TIMEOUT_MS);

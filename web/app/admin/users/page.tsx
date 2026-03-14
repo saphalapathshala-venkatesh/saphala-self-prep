@@ -295,6 +295,21 @@ export default function AdminUsersPage() {
                     >
                       {u.allowMultiDevice ? "Multi-Device ✓" : "1-Device"}
                     </button>
+                    <a
+                      href={`/admin/users/${u.id}/attempts`}
+                      style={{
+                        padding: "3px 10px",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        background: "#f0fdf4",
+                        border: "1px solid #86efac",
+                        borderRadius: 4,
+                        color: "#166534",
+                        textDecoration: "none",
+                      }}
+                    >
+                      View Attempts
+                    </a>
                     {feedback[u.id] && (
                       <span style={{ color: feedback[u.id].ok ? "green" : "red", fontSize: 12 }}>
                         {feedback[u.id].msg}
