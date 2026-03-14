@@ -1,0 +1,125 @@
+You are working on the Saphala Self Prep STUDENT FRONTEND APP.
+
+Critical context:
+- The student frontend app and admin app are separate applications sharing one database.
+- Legal acceptance must be enforced both in frontend UX and backend validation.
+- The frontend must not assume acceptance is enough unless backend also validates it.
+- Keep the implementation clean, conversion-friendly, and future-safe.
+- Do not disturb unrelated parts of the app.
+
+Task batch:
+Wire legal acceptance UX for signup and checkout.
+
+==================================================
+1. SIGNUP PAGE — LEGAL ACCEPTANCE
+==================================================
+
+We need a mandatory checkbox on the student signup page.
+
+Checkbox text:
+"I agree to the Terms & Conditions and Refund Policy"
+
+Requirements:
+- checkbox must be unchecked by default
+- signup button must remain disabled or submission must be blocked until checked
+- Terms & Conditions and Refund Policy text must be linkable
+- link to:
+  - /terms-and-conditions
+  - /refund-policy
+- validation message should be clean and student-friendly
+
+UX requirements:
+- keep the signup page visually clean
+- do not make the legal section bulky
+- checkbox area should look professional and readable
+- links should open correctly and clearly indicate they are clickable
+
+Important:
+- frontend must send the required legal acceptance flag/version to backend signup flow
+- do not assume frontend-only enforcement is sufficient
+
+==================================================
+2. CHECKOUT PAGE — LEGAL ACCEPTANCE BEFORE PAYMENT
+==================================================
+
+We also need a mandatory checkbox on the course/product checkout page before payment.
+
+Checkbox text:
+"I have read and agree to the Terms & Conditions and Refund Policy applicable to this purchase"
+
+Requirements:
+- payment / proceed button must remain disabled or blocked until checked
+- Terms & Conditions and Refund Policy must be linkable
+- link to:
+  - /terms-and-conditions
+  - /refund-policy
+- frontend must pass the required acceptance fields to backend checkout/order/payment initiation flow
+
+Important:
+- this is separate from signup acceptance
+- this is purchase-level acceptance, not just account-level acceptance
+- do not reuse login flow for this
+
+==================================================
+3. LEGAL VERSION SUPPORT
+==================================================
+
+If backend expects a legal version string, wire the frontend cleanly to send it.
+
+Examples:
+- legalVersion
+- legalAccepted
+- legalAcceptedAt handled by backend
+
+Do not hardcode brittle logic in many places.
+Use a clean shared constant/config if appropriate.
+
+==================================================
+4. POLICY PAGE LINKING
+==================================================
+
+Audit whether the student frontend already has public pages for:
+- /terms-and-conditions
+- /refund-policy
+
+If not, create clean route placeholders/pages so links from signup and checkout work properly.
+Use the approved policy draft text later, but ensure page routing and layout are ready now.
+
+==================================================
+5. UX / DESIGN REQUIREMENTS
+==================================================
+
+- Keep the legal consent area compact and professional
+- Maintain Saphala branding
+- Ensure checkbox + text + links are readable on mobile
+- Keep button disabled state visually clear
+- Do not create friction on login page
+- Do not add legal acceptance checkbox to login
+
+==================================================
+6. DO NOT DISTURB
+==================================================
+
+Do not disturb:
+- unrelated auth logic
+- unrelated checkout UI
+- homepage or dashboard sections
+- admin-only logic
+
+==================================================
+7. FINAL OUTPUT
+==================================================
+
+Please do this in order:
+1. audit current signup and checkout flows
+2. identify what frontend fields/backend payload support already exist
+3. add signup legal acceptance UI
+4. add checkout legal acceptance UI
+5. ensure policy page links work
+6. run build/type checks
+7. summarize:
+   - what was added to signup
+   - what was added to checkout
+   - what payload is sent to backend
+   - whether policy pages are wired
+   - any remaining backend dependency if present

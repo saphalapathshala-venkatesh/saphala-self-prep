@@ -24,6 +24,7 @@ Preferred communication style: Simple, everyday language.
 - bcrypt is used for password hashing.
 - User roles include STUDENT (default), ADMIN, and SUPER_ADMIN.
 - Registration collects `fullName`, `email`, `mobile`, `state`, `gender`, and `password`.
+- Registration requires legal acceptance (`legalAccepted: true`, `legalVersion`) — enforced on both frontend (disabled button) and backend (API validation). Legal version string managed in `web/config/legal.ts`.
 
 ### Core Features
 
@@ -55,6 +56,10 @@ Preferred communication style: Simple, everyday language.
 - **Public APIs**: `/api/public/quote-of-the-day` (daily Kalam quote, 12 rotating by day-of-year), `/api/public/categories` (live DB categories), `/api/public/contact` (validated contact form — logs submission)
 - **Authenticated APIs**: For TestHub operations (starting/resuming attempts, saving answers, submitting tests, generating/retrieving results, reviewing attempts, reporting questions, feedback).
 - **Admin APIs**: For managing users and roles.
+
+### Legal Config
+- `web/config/legal.ts` — shared `LEGAL_VERSION`, `LEGAL_TERMS_URL` (`/terms-and-conditions`), `LEGAL_REFUND_URL` (`/refund-policy`) constants used by signup and future checkout flows.
+- Policy pages exist at `/terms-and-conditions` and `/refund-policy` (placeholder content, full text to be added pre-launch).
 
 ### Route Protection
 - `proxy.ts` redirects unauthenticated users from protected routes (e.g., `/dashboard`, `/admin`) to the login page.

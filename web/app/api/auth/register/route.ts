@@ -12,7 +12,15 @@ import {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { password, confirmPassword, fullName, state, gender } = body;
+    const { password, confirmPassword, fullName, state, gender, legalAccepted } = body;
+
+    // Backend enforcement — frontend disabling alone is not sufficient
+    if (legalAccepted !== true) {
+      return NextResponse.json(
+        { error: "You must accept the Terms & Conditions and Refund Policy to register." },
+        { status: 400 }
+      );
+    }
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : body.email;
     const mobile = typeof body.mobile === "string" ? body.mobile.trim().replace(/\D/g, "") : body.mobile;
 

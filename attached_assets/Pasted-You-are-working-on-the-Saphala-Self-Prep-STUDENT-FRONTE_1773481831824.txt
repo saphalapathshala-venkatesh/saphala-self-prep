@@ -1,0 +1,210 @@
+You are working on the Saphala Self Prep STUDENT FRONTEND APP.
+
+Critical context:
+- The student frontend app and the admin app are two separate applications.
+- Both share one common database.
+- Any audit must evaluate not only UI presence, but also whether the frontend is correctly wired to backend/public APIs and admin-managed data.
+- Do not make changes yet unless absolutely required for inspection.
+- First produce a thorough audit so we can design the student dashboard and menu structure properly.
+
+Goal:
+Audit all existing features, pages, flows, and frontend-backend wiring in the Saphala Self Prep student frontend app so that we can confidently plan:
+1. student dashboard
+2. student-side menu structure
+3. feature completion order
+4. product testing readiness
+
+==================================================
+1. AUDIT SCOPE
+==================================================
+
+Please audit the entire student frontend app for the following areas:
+
+A. PUBLIC / PRE-LOGIN EXPERIENCE
+- homepage
+- hero / homepage sections
+- exam categories section
+- product categories section
+- featured courses section
+- footer
+- contact section
+- public navigation
+- public listing pages if present (/courses, /exams, /products, etc.)
+- course detail pages if present
+- legal pages if present
+
+B. AUTH EXPERIENCE
+- signup page
+- login page
+- forgot password / reset flow if present
+- post-login redirect behavior
+- role/session handling on frontend
+- auth guards / route protection
+
+C. STUDENT EXPERIENCE (POST-LOGIN)
+- dashboard page
+- purchased courses area
+- learning progress display
+- achievements/xp display if present
+- profile/account pages
+- course access pages
+- video lesson pages
+- PDF reading pages
+- flashcard pages
+- test series / testhub integration
+- current affairs / ebook / other product pages if present
+
+D. PURCHASE / ACCESS FLOW
+- course CTA buttons
+- checkout page
+- payment initiation
+- success/failure states
+- purchase confirmation flow
+- entitlement/access checks
+- validity / expiry handling on frontend
+
+E. DATA WIRING / ADMIN SYNC
+- exam categories source
+- featured courses source
+- public courses source
+- course details source
+- student dashboard data source
+- purchased course source
+- progress metrics source
+- whether frontend uses hardcoded data anywhere that should instead be admin/backend driven
+
+==================================================
+2. FOR EACH FEATURE / PAGE, REPORT
+==================================================
+
+For every important page/feature found, classify it as:
+
+- COMPLETE
+- PARTIAL
+- PLACEHOLDER
+- MISSING
+- PRESENT BUT NOT CORRECTLY WIRED
+- WIRED BUT NEEDS UX IMPROVEMENT
+
+For each item, explain:
+- what currently exists
+- what data it uses
+- whether it is hardcoded or dynamic
+- whether it is synced with admin/backend safely
+- whether it is ready for real student testing
+- what gap remains
+
+==================================================
+3. DASHBOARD-SPECIFIC AUDIT
+==================================================
+
+We are planning the student dashboard next, so do a special focused audit for dashboard readiness.
+
+Check whether the frontend already has support or partial support for showing:
+
+- purchased courses
+- course validity / expiry
+- videos watched
+- tests attempted
+- flashcard decks completed
+- purchased-content completion %
+- achievements / XP / badges / level progress
+- recently accessed content
+- quick resume learning
+- payment / order history
+- profile / account shortcuts
+
+For each one, clearly say:
+- already exists
+- partially exists
+- missing
+- blocked by backend/data source gap
+- blocked by UI gap only
+
+==================================================
+4. MENU / NAVIGATION AUDIT
+==================================================
+
+Audit current student-side navigation and menu structure.
+
+Identify:
+- what menus/pages currently exist
+- what menu items are missing for a complete student product
+- whether current navigation matches actual available features
+- whether there are dead-end routes, placeholders, or disconnected items
+- whether menu structure is future-safe for:
+  - videos
+  - PDFs
+  - flashcards
+  - tests
+  - current affairs
+  - ebooks
+  - achievements
+  - account/profile
+  - purchased courses
+
+==================================================
+5. PRODUCT TESTING READINESS AUDIT
+==================================================
+
+Audit whether the current student frontend is ready for meaningful end-to-end testing.
+
+Specifically evaluate whether the app currently supports this journey:
+
+1. discover a course
+2. open course detail page
+3. initiate purchase
+4. complete purchase
+5. receive access
+6. see purchased course in dashboard
+7. consume content
+8. track progress
+9. view validity / expiry
+10. attempt test / use flashcards / view PDFs / watch videos
+
+For each stage, say:
+- READY
+- PARTIAL
+- NOT READY
+
+Explain exactly what blocks testing if not ready.
+
+==================================================
+6. FRONTEND ↔ BACKEND / ADMIN RISK CHECK
+==================================================
+
+Please identify:
+- where frontend is still using static/mock data
+- where admin-driven data is not yet reflected safely
+- where public APIs are missing or incomplete
+- where session/auth behavior may break real student usage
+- where entitlements/validity/access logic is not yet trustworthy
+
+==================================================
+7. OUTPUT FORMAT
+==================================================
+
+Please structure the output in these sections:
+
+1. Executive Summary
+2. Existing Pages / Features Inventory
+3. Dashboard Readiness Audit
+4. Student Menu / Navigation Audit
+5. Product Testing Readiness
+6. Frontend ↔ Backend / Admin Sync Risks
+7. Recommended Next Feature Order
+
+In the final section, recommend the next feature order specifically for:
+- dashboard design readiness
+- menu finalization
+- testable product readiness
+
+==================================================
+8. IMPORTANT RULES
+==================================================
+
+- Audit first; do not start broad implementation.
+- Small inspection-only code reads are fine, but do not disturb unrelated modules.
+- Be honest about weak areas and placeholders.
+- Focus on real production readiness, not cosmetic presence alone.
+- Highlight whether features are truly usable by students, not just visible in UI.

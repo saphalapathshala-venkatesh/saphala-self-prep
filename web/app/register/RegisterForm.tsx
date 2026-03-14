@@ -3,6 +3,7 @@
 import { useState, type FormEvent, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { LEGAL_VERSION, LEGAL_TERMS_URL, LEGAL_REFUND_URL } from "@/config/legal";
 
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -26,6 +27,7 @@ interface FormErrors {
   gender?: string;
   password?: string;
   confirmPassword?: string;
+  legalAccepted?: string;
   general?: string;
 }
 
@@ -34,6 +36,7 @@ export default function RegisterForm() {
   const searchParams = useSearchParams();
   const from = searchParams?.get("from") || "/dashboard";
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -92,6 +95,11 @@ export default function RegisterForm() {
       newErrors.confirmPassword = "Passwords do not match.";
     }
 
+    if (!legalAccepted) {
+      newErrors.legalAccepted =
+        "Please accept the Terms & Conditions and Refund Policy to continue.";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -110,7 +118,11 @@ export default function RegisterForm() {
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          legalAccepted: true,
+          legalVersion: LEGAL_VERSION,
+        }),
       });
 
       const data = await response.json();
@@ -284,10 +296,50 @@ export default function RegisterForm() {
           )}
         </div>
 
+        {/* Legal acceptance */}
+        <div>
+          <label className="flex items-start gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={legalAccepted}
+              onChange={(e) => {
+                setLegalAccepted(e.target.checked);
+                if (errors.legalAccepted) {
+                  setErrors((prev) => ({ ...prev, legalAccepted: undefined }));
+                }
+              }}
+              className="mt-0.5 w-4 h-4 shrink-0 accent-purple-600 cursor-pointer"
+            />
+            <span className="text-sm text-gray-600 leading-relaxed">
+              I agree to the{" "}
+              <Link
+                href={LEGAL_TERMS_URL}
+                target="_blank"
+                className="text-[#6D4BCB] font-medium hover:underline"
+              >
+                Terms &amp; Conditions
+              </Link>{" "}
+              and{" "}
+              <Link
+                href={LEGAL_REFUND_URL}
+                target="_blank"
+                className="text-[#6D4BCB] font-medium hover:underline"
+              >
+                Refund Policy
+              </Link>
+            </span>
+          </label>
+          {errors.legalAccepted && (
+            <p className="text-red-500 text-xs mt-1.5 ml-7">
+              {errors.legalAccepted}
+            </p>
+          )}
+        </div>
+
         <button
           type="submit"
-          disabled={isSubmitting}
-          className="btn-glossy-primary w-full py-4 mt-2 disabled:opacity-50"
+          disabled={isSubmitting || !legalAccepted}
+          className="btn-glossy-primary w-full py-4 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? "Creating Account..." : "Create Account"}
         </button>
