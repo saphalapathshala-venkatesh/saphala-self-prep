@@ -1,0 +1,152 @@
+You are working on the Saphala Self Prep STUDENT FRONTEND APP.
+
+Critical context:
+- The student frontend app and the admin app are two separate applications.
+- Both share one common database.
+- All changes must preserve clean long-term separation between admin and frontend while keeping both fully in sync.
+- Before making UI changes, audit the current frontend data wiring, API usage, and DB-facing assumptions so no FE/BE mismatch is introduced.
+- Do not hardcode values that should come from admin-managed data.
+
+Task batch: Homepage exam section improvements + mobile slider visibility + dropdown selector + typography polish.
+
+==================================================
+1. FIX HOMEPAGE MOBILE EXAM SLIDER VISIBILITY
+==================================================
+
+Current issue:
+- On mobile the horizontal exam category slider is not visually obvious.
+- The scrollbar/indicator appears weak and users may not realize it is scrollable.
+
+Required changes:
+- Keep the **existing exam cards UI exactly as it is**.
+- Improve slider visibility on mobile so horizontal scrolling is clearly understood.
+- Add a visible scrollbar/progress indicator using **dark Saphala purple**.
+- Ensure the slider looks elegant and premium.
+- Ensure the improvement does not affect the desktop layout.
+
+The slider must:
+- be clearly visible on first render
+- communicate horizontal browsing
+- remain touch-friendly
+- maintain the current design aesthetic
+
+==================================================
+2. ADD EXAM CATEGORY DROPDOWN (WITHOUT REMOVING CARDS)
+==================================================
+
+Important requirement:
+The **existing exam category cards must remain unchanged**.
+
+We only add an **additional dropdown selector above the cards**.
+
+Dropdown behavior:
+- Place a dropdown above the exam cards.
+- Default placeholder text:
+
+"Choose Your Exam"
+or
+"Choose Your Target Exam"
+
+- When clicked/tapped it must show exam categories.
+
+Critical data rule:
+These categories must come from **ADMIN EXAM CATEGORY taxonomy**, not product categories.
+
+Admin currently has two different concepts:
+
+Exam Category → APPSC, AP Police, Banking, SSC etc  
+Product Category → types of courses/products offered
+
+Do NOT mix these.
+
+Homepage dropdown must use:
+→ EXAM CATEGORY data only.
+
+Data sync requirements:
+- Audit current homepage implementation.
+- If exam categories are hardcoded, replace with admin-synced data.
+- Ensure homepage automatically reflects categories created/edited in admin.
+- Only show categories that are active/published.
+
+UX behaviour:
+- Dropdown acts as a **quick selector**.
+- Exam cards remain the **primary visual browsing UI**.
+- Selecting a dropdown item should navigate or filter appropriately.
+
+==================================================
+3. HOMEPAGE TYPOGRAPHY POLISH
+==================================================
+
+Update headings:
+
+"Choose Your Exam"  
+"Prepare Your Way"
+
+Changes required:
+
+Headings:
+- Use **dark Saphala purple**
+- Stronger visual hierarchy
+
+Supporting text:
+- Use a **soft purple tinted tone**
+- Maintain high readability
+- Avoid washed-out text
+
+Ensure consistency with Saphala branding.
+
+==================================================
+4. IMPROVE PREMIUM FEEL OF THE 8 PRODUCT CARDS
+==================================================
+
+The "Prepare Your Way" section contains 8 product cards.
+
+Improve their UX:
+
+Goals:
+- stronger visual hierarchy
+- better spacing
+- improved icon placement
+- clearer purpose for each card
+- improved hover/tap feedback
+- more premium surface treatment
+
+Keep the design minimal and professional.
+
+If microcopy is generic:
+- improve clarity of benefit
+- maintain existing product meaning
+
+Do NOT introduce backend changes here.
+
+==================================================
+5. FRONTEND ↔ BACKEND / ADMIN SYNC VALIDATION
+==================================================
+
+Before finalizing changes:
+
+Audit:
+- how exam categories are currently sourced
+- whether they are hardcoded or admin-driven
+- ensure admin changes propagate safely to frontend
+
+Ensure:
+- exam taxonomy and product types remain separate
+- frontend does not tightly couple with admin UI structures
+- data mapping is stable
+
+==================================================
+6. FINAL OUTPUT
+==================================================
+
+After implementing:
+
+1. run build/type checks
+2. confirm no FE/BE mismatch
+3. summarize:
+
+- what homepage changes were made
+- how dropdown fetches exam categories
+- confirmation that cards remain unchanged
+- whether admin/frontend are fully synced
+- any potential risks

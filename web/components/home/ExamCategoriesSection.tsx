@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { ChevronDown } from "lucide-react";
 
 interface Category {
   id: string;
@@ -21,10 +23,14 @@ const FALLBACK_CATEGORIES: Category[] = [
   { id: "defence", name: "Defence" },
 ];
 
+function toSlug(name: string) {
+  return encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"));
+}
+
 function CategoryCard({ cat }: { cat: Category }) {
   return (
     <Link
-      href={`/exams/${encodeURIComponent(cat.name.toLowerCase().replace(/\s+/g, "-"))}`}
+      href={`/exams/${toSlug(cat.name)}`}
       className="group shrink-0 w-48 sm:w-52 flex flex-col rounded-2xl border border-gray-100 bg-white overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200"
     >
       {/* 16:9 Thumbnail */}
@@ -51,7 +57,6 @@ function CategoryCard({ cat }: { cat: Category }) {
             </span>
           </div>
         )}
-        {/* Overlay shimmer on hover */}
         <div className="absolute inset-0 bg-[#2D1B69]/0 group-hover:bg-[#2D1B69]/10 transition-colors duration-200" />
       </div>
 
@@ -67,10 +72,10 @@ function CategoryCard({ cat }: { cat: Category }) {
 }
 
 export default function ExamCategoriesSection() {
+  const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Custom scroll indicator state
   const scrollRef = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState({ left: 0, width: 30 });
 
@@ -93,7 +98,6 @@ export default function ExamCategoriesSection() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Attach scroll listener once categories are loaded and DOM is ready
   useEffect(() => {
     if (loading) return;
 
@@ -107,16 +111,12 @@ export default function ExamCategoriesSection() {
         setThumb({ left: 0, width: 100 });
         return;
       }
-      // Thumb width = visible fraction of total content
       const w = Math.max((el.clientWidth / el.scrollWidth) * 100, 12);
-      // Thumb left = scroll progress mapped to remaining track space
       const l = (el.scrollLeft / scrollable) * (100 - w);
       setThumb({ left: l, width: w });
     }
 
-    // Small delay to ensure layout is painted before measuring
     const raf = requestAnimationFrame(update);
-
     el.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
 
@@ -130,7 +130,8 @@ export default function ExamCategoriesSection() {
   return (
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
-        <div className="text-center mb-10">
+        {/* Section header */}
+        <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold text-[#8050C0] mb-3">
             Choose Your Exam
           </h2>
@@ -140,6 +141,32 @@ export default function ExamCategoriesSection() {
           </p>
         </div>
 
+        {/* Quick-select dropdown — populated from same admin-managed categories */}
+        {!loading && categories.length > 0 && (
+          <div className="relative max-w-xs mx-auto mb-8">
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) router.push(`/exams/${e.target.value}`);
+              }}
+              className="w-full appearance-none bg-white border border-[#8050C0]/30 text-[#2D1B69] rounded-xl px-4 py-3 pr-10 text-sm font-medium shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#8050C0]/40 focus:border-[#8050C0]/60 transition-colors"
+            >
+              <option value="" disabled>
+                Choose Your Target Exam
+              </option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={toSlug(cat.name)}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#8050C0]">
+              <ChevronDown className="w-4 h-4" />
+            </div>
+          </div>
+        )}
+
+        {/* Card slider */}
         {loading ? (
           <div className="flex gap-4 overflow-x-hidden pb-2">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -162,16 +189,20 @@ export default function ExamCategoriesSection() {
               </svg>
             </button>
 
-            {/* Scroll container */}
-            <div
-              ref={scrollRef}
-              className="exam-scroll flex-1 flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory"
-            >
-              {categories.map((cat) => (
-                <div key={cat.id} className="snap-start">
-                  <CategoryCard cat={cat} />
-                </div>
-              ))}
+            {/* Scroll container with right-edge fade hint on mobile */}
+            <div className="relative flex-1 min-w-0">
+              <div
+                ref={scrollRef}
+                className="exam-scroll flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory"
+              >
+                {categories.map((cat) => (
+                  <div key={cat.id} className="snap-start">
+                    <CategoryCard cat={cat} />
+                  </div>
+                ))}
+              </div>
+              {/* Right-edge fade — mobile only, hints more content to the right */}
+              <div className="pointer-events-none absolute right-0 top-0 bottom-3 w-16 bg-gradient-to-l from-white to-transparent md:hidden" />
             </div>
 
             {/* Right arrow — desktop only */}
@@ -187,9 +218,12 @@ export default function ExamCategoriesSection() {
           </div>
         )}
 
-        {/* Custom always-visible scroll indicator (track + thumb) */}
+        {/* Progress indicator — always visible, brand purple */}
         {!loading && (
-          <div className="relative h-2 rounded-full mt-3 overflow-hidden" style={{ background: "#E9E0FF" }}>
+          <div
+            className="relative rounded-full mt-4 overflow-hidden"
+            style={{ height: "10px", background: "#E9E0FF" }}
+          >
             <div
               className="absolute top-0 h-full rounded-full"
               style={{
@@ -202,8 +236,8 @@ export default function ExamCategoriesSection() {
           </div>
         )}
 
-        <p className="text-xs text-gray-400 text-center mt-3">
-          Scroll to see more exam categories →
+        <p className="text-xs text-[#8050C0]/60 font-medium text-center mt-3">
+          Swipe or use arrows to explore all exam categories
         </p>
       </div>
     </section>
