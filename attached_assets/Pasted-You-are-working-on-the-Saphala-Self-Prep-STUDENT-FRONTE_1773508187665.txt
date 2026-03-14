@@ -1,0 +1,173 @@
+You are working on the Saphala Self Prep STUDENT FRONTEND APP.
+
+Current issue:
+Login is failing and showing the UI message:
+"An unexpected error occurred."
+
+We must first diagnose the root cause and then implement small UX improvements for signup/login success confirmation and faster perceived performance.
+
+Critical context:
+- Student frontend app and admin app are separate applications.
+- Both share the same database.
+- Admin-side auth previously had a bcrypt vs bcryptjs issue which must be verified here as well.
+- We must avoid schema drift or breaking existing session/auth logic.
+
+Goal:
+1) Diagnose and fix the login failure
+2) Ensure FE ↔ BE database/auth alignment
+3) Improve signup/login success messaging
+4) Improve perceived login speed and clarity
+
+==================================================
+1. DIAGNOSE LOGIN FAILURE FIRST
+==================================================
+
+Audit the login flow end-to-end:
+
+Frontend:
+- login page form submission
+- API request
+- error handling
+- redirect logic
+
+Backend/API:
+- login API route
+- user lookup
+- email/mobile normalization
+- password verification
+- session creation
+- cookie writing
+
+Also verify:
+
+- Prisma connection works
+- DATABASE_URL is correct
+- deployed schema matches login logic
+- bcrypt vs bcryptjs mismatch
+- session write to DB works
+- student frontend uses the same DB as admin app
+
+Identify the exact exception that causes:
+"An unexpected error occurred"
+
+Fix only the confirmed root cause.
+
+==================================================
+2. SIGNUP SUCCESS MESSAGE (NEW FEATURE)
+==================================================
+
+When a user creates an account successfully:
+
+Display a clear success banner:
+
+"Account created successfully."
+
+Behavior requirements:
+
+- show success message for 5 seconds
+- message should appear on the signup page
+- after signup, redirect user to login page
+- the message should still remain visible during redirect
+
+Example UX:
+
+Signup success →
+Redirect to /login →
+Banner shows:
+"Account created successfully. Please log in."
+
+The banner should auto-hide after 5 seconds.
+
+Purpose:
+This allows users and testers to clearly confirm account creation succeeded.
+
+==================================================
+3. LOGIN SUCCESS MESSAGE (NEW FEATURE)
+==================================================
+
+When login succeeds:
+
+Show a clear success message:
+
+"Successfully logged in. Redirecting to dashboard..."
+
+Behavior requirements:
+
+- show the message immediately after login success
+- keep it visible during redirect
+- message visible for approx 2–3 seconds
+- then redirect automatically to /dashboard
+
+Important:
+The message should not slow down authentication or block session creation.
+
+Use a toast/banner that appears instantly after successful API response.
+
+==================================================
+4. PERFORMANCE IMPROVEMENT REQUIREMENT
+==================================================
+
+Login must feel fast and responsive.
+
+Check:
+
+- unnecessary awaits
+- heavy client-side state updates
+- blocking redirects
+- slow session validation
+- inefficient Prisma queries
+
+Ensure:
+
+- login API response is minimal
+- redirect to dashboard is immediate after success
+- UI message shows without delaying redirect logic
+
+Goal:
+Fast login + visible success confirmation.
+
+==================================================
+5. ERROR HANDLING IMPROVEMENT
+==================================================
+
+Replace generic errors with clearer responses where safe.
+
+Examples:
+
+Invalid credentials →
+"Incorrect email/mobile or password."
+
+Server failure →
+"Login failed. Please try again."
+
+But never expose sensitive internal errors.
+
+==================================================
+6. SAFETY RULES
+==================================================
+
+Do not break:
+
+- existing auth/session logic
+- Prisma schema alignment
+- admin app authentication
+- database structure
+
+Only apply minimal safe changes.
+
+==================================================
+7. FINAL OUTPUT REQUIRED
+==================================================
+
+After completing the task:
+
+Report:
+
+1. root cause of login failure
+2. what was fixed
+3. whether bcrypt/bcryptjs or DB mismatch was involved
+4. whether FE and BE are now aligned
+5. signup success message implementation
+6. login success message implementation
+7. login performance improvements
+8. any remaining risks
