@@ -1,0 +1,99 @@
+Saphala Self Prep — Learner Attempt-wise Results + XP Visibility
+
+Goal:
+Add learner-side visibility for attempt-wise results and XP for each test, without disturbing unrelated modules.
+
+Context:
+- Admin attempt-wise result visibility already exists
+- XP rules are already locked:
+  - Attempt 1 = 100% XP
+  - Attempt 2 = 50% XP
+  - Attempt 3+ = 0 XP
+- Learner must also be able to see their own attempt history clearly for each test
+
+Scope of this batch only:
+1. Add learner-facing attempt history for each test
+2. Show attempt-wise result details
+3. Show attempt-wise XP earned and rule applied
+4. Add compact summary on test brief/result pages
+5. Do not touch unrelated homepage/admin/product/content flows
+
+Required learner-facing behavior
+
+A. On each test brief page
+Add a compact learner summary block showing:
+- Total attempts
+- Best score
+- Latest score
+- Last XP earned
+- Button/link: View Attempt History
+
+B. Attempt History section/page/modal
+For the currently logged-in learner and current test, show all attempts separately.
+
+For each attempt show:
+- Attempt number
+- Date/time
+- Status
+- Marks / score
+- Percentage
+- Correct / Wrong / Unanswered counts if available
+- Time taken
+- XP earned
+- XP rule applied / reason:
+  - Attempt 1: Full XP
+  - Attempt 2: 50% XP
+  - Attempt 3+: No XP
+
+C. Result page after submission
+Show clearly:
+- Attempt number
+- Base XP
+- Awarded XP
+- Why that XP was awarded based on attempt number
+
+Example:
+- Attempt 1 → You earned full XP
+- Attempt 2 → You earned 50% XP for this reattempt
+- Attempt 3 → No XP awarded from the third attempt onward
+
+D. Access control
+- Learner can only see their own attempts
+- Never expose other learner data
+- Use server-side auth checks
+
+E. Data source
+Reuse existing attempt records and XP ledger/result data if already available.
+Do not duplicate data unnecessarily.
+
+F. UX
+Keep learner UI simple and premium:
+- clean table or cards
+- easy to read on mobile
+- clear labels
+- no confusing internal terms
+
+Preferred labels:
+- Attempt History
+- Best Score
+- Latest Score
+- XP Earned
+- Attempt Rule
+- View Result
+
+Acceptance tests
+1. Learner with one completed attempt sees Attempt 1 with marks and XP
+2. Learner with two attempts sees both separately
+3. Attempt 1 shows full XP
+4. Attempt 2 shows half XP
+5. Attempt 3+ shows 0 XP
+6. Learner can only see their own attempts
+7. Result page clearly shows attempt-wise XP reasoning
+8. Mobile layout remains readable
+
+Output after implementation:
+- files changed
+- routes/components added
+- what learner can now see
+- confirmation of access control
+- screenshots or clear QA notes if possible

@@ -25,6 +25,7 @@ export default function BriefClient({ test }: BriefClientProps) {
   const [activeAttempt, setActiveAttempt] = useState<ActiveAttemptInfo | null>(null);
   const [attemptsUsed, setAttemptsUsed] = useState(0);
   const [checkingAttempt, setCheckingAttempt] = useState(true);
+  const [summary, setSummary] = useState<{ bestScore: number | null; latestScore: number | null; lastXp: number | null } | null>(null);
 
   const attemptsExhausted = attemptsUsed >= test.attemptsAllowed && !activeAttempt;
   const isReattempt = attemptsUsed > 0 && !activeAttempt && !attemptsExhausted;
@@ -43,6 +44,7 @@ export default function BriefClient({ test }: BriefClientProps) {
         if (res.ok) {
           const data = await res.json();
           setAttemptsUsed(data.attemptsUsed);
+          if (data.summary) setSummary(data.summary);
           if (data.activeAttempt) {
             setActiveAttempt(data.activeAttempt);
             setLanguage(data.activeAttempt.language);
@@ -160,6 +162,44 @@ export default function BriefClient({ test }: BriefClientProps) {
             <p className="text-xs text-amber-600 mt-1">
               Attempt #{activeAttempt.attemptNumber} &middot; Language: {activeAttempt.language === "EN" ? "English" : "Telugu"}
             </p>
+          </div>
+        </div>
+      )}
+
+      {!startsOn && attemptsUsed > 0 && summary && (
+        <div className="bg-purple-50 rounded-xl border border-purple-100 p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-purple-700">Your Progress</span>
+            <Link
+              href={`/testhub/tests/${test.id}/attempts`}
+              className="text-xs text-purple-600 font-medium hover:underline"
+            >
+              View Attempt History →
+            </Link>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <div>
+              <div className="text-base font-bold text-[#2D1B69]">{attemptsUsed}/{test.attemptsAllowed}</div>
+              <div className="text-[10px] text-gray-500">Attempts</div>
+            </div>
+            <div>
+              <div className="text-base font-bold text-green-700">
+                {summary.bestScore !== null ? `${summary.bestScore.toFixed(1)}%` : "—"}
+              </div>
+              <div className="text-[10px] text-gray-500">Best Score</div>
+            </div>
+            <div>
+              <div className="text-base font-bold text-blue-700">
+                {summary.latestScore !== null ? `${summary.latestScore.toFixed(1)}%` : "—"}
+              </div>
+              <div className="text-[10px] text-gray-500">Latest Score</div>
+            </div>
+            <div>
+              <div className="text-base font-bold text-purple-600">
+                {summary.lastXp !== null ? `+${summary.lastXp}` : "—"}
+              </div>
+              <div className="text-[10px] text-gray-500">Last XP</div>
+            </div>
           </div>
         </div>
       )}

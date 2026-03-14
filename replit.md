@@ -34,6 +34,11 @@ Preferred communication style: Simple, everyday language.
 - `PATCH /api/admin/users/[id]/allow-multi-device` — toggles multi-device access
 - `GET /api/admin/users/[id]/attempts` — returns attempt-wise records with XP for a user
 
+### Learner Attempt Visibility APIs
+- `GET /api/testhub/attempts/active?testId=X` — extended to return `summary: { bestScore, latestScore, lastXp }` from completed attempts + XP ledger
+- `GET /api/testhub/attempts/result?attemptId=X` — extended to return `xpBreakdown: { attemptNumber, baseXP, bonusXP, xpMultiplier }` from XP ledger meta
+- `GET /api/testhub/tests/[testId]/my-attempts` — returns all attempts for current user for a specific test with XP data
+
 ### Concurrent Test Protection
 - `Attempt` model has `lockedSessionToken String?` field; stored in DB after Prisma generate + db push
 - `attempt-data` GET: checks lock, blocks if another active session holds it (409 + `code: "ATTEMPT_LOCKED"`), acquires lock on access
@@ -58,6 +63,7 @@ Preferred communication style: Simple, everyday language.
 - Located at `/dashboard` with a collapsible sidebar (desktop: icon-only collapsed mode, localStorage-persisted; mobile: hamburger drawer).
 - **Dashboard V1**: Hero gradient with contextual CTAs (Resume Exam / Browse Tests), 4 metric cards (Tests Attempted=real DB, XP=XpLedgerEntry, Accuracy=correctCount/wrongCount aggregate, Streak=placeholder), resume-in-progress amber banner, recent attempts list, profile summary card, coming-soon teaser strip, recommended free tests grid.
 - **My Attempts page** at `/dashboard/attempts`: full attempt history split into In Progress / Completed / Expired sections with score badges and Review/Result/Resume links.
+- **Per-test Attempt History page** at `/testhub/tests/[testId]/attempts`: shows all submitted attempts for that test with score, correct/wrong/skipped, time used, XP earned and multiplier; links to Result and Review per attempt; summary stats (attempts used, best score, total XP).
 - **Profile page V1** at `/dashboard/profile`: read-only student profile (name, email, mobile masked, state, gender, joined date) with stats row (tests completed, XP, streak).
 - **Result score persistence**: `generate-result` API now writes `scorePct`, `correctCount`, `wrongCount`, `unansweredCount`, `totalTimeUsedMs` back to the `Attempt` DB record and creates an idempotent `XpLedgerEntry` (guarded by `refType:"Attempt"` + `refId` uniqueness check).
 - `getCurrentUser()` now selects `state` field in addition to existing fields.

@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { getAttemptById, getDbTestById } from "@/lib/testhubDb";
 import {
   getResultByAttemptId,
@@ -37,6 +38,21 @@ export async function GET(request: Request) {
 
   const test = await getDbTestById(attempt.testId);
   const maxMarks = test ? test.totalQuestions * test.marksPerQuestion : 0;
+
+  // Load XP breakdown from ledger meta
+  const xpEntry = await prisma.xpLedgerEntry.findFirst({
+    where: { userId: user.id, refType: "Attempt", refId: attemptId },
+    select: { delta: true, meta: true },
+  });
+  type XpMeta = { baseXP?: number; bonusXP?: number; xpMultiplier?: number };
+  const meta = xpEntry?.meta as XpMeta | null;
+  const xpBreakdown = {
+    attemptNumber: attempt.attemptNumber,
+    baseXP: meta?.baseXP ?? 0,
+    bonusXP: meta?.bonusXP ?? 0,
+    xpMultiplier: meta?.xpMultiplier ??
+      (attempt.attemptNumber === 1 ? 1.0 : attempt.attemptNumber === 2 ? 0.5 : 0),
+  };
 
   const allResults = getAllResultsForTest(attempt.testId);
   const showLeaderboard = allResults.length >= 30;
@@ -85,6 +101,7 @@ export async function GET(request: Request) {
     rank,
     percentile,
     xpEarned: result.xpEarned,
+    xpBreakdown,
     totalXp,
     top10: showLeaderboard ? top10 : [],
   });

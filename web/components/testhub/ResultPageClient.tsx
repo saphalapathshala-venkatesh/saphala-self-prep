@@ -23,6 +23,13 @@ interface Top10Entry {
   timeUsedMs: number;
 }
 
+interface XpBreakdown {
+  attemptNumber: number;
+  baseXP: number;
+  bonusXP: number;
+  xpMultiplier: number;
+}
+
 interface ResultData {
   resultId: string;
   testTitle: string;
@@ -42,6 +49,7 @@ interface ResultData {
   rank: number | null;
   percentile: number | null;
   xpEarned: number;
+  xpBreakdown?: XpBreakdown;
   totalXp: number;
   top10: Top10Entry[];
 }
@@ -169,14 +177,19 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
             <X size={20} />
           </button>
 
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 mx-auto mb-4 flex items-center justify-center">
               <Star size={32} className="text-white" fill="white" />
             </div>
             <h2 className="text-xl font-bold text-[#2D1B69] mb-1">XP Earned!</h2>
+            {data.xpBreakdown && (
+              <span className="inline-block text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
+                Attempt #{data.xpBreakdown.attemptNumber}
+              </span>
+            )}
           </div>
 
-          <div className="flex gap-4 mb-8">
+          <div className="flex gap-4 mb-4">
             <div className="flex-1 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 text-center border border-purple-200">
               <div className="text-xs text-purple-600 font-medium mb-2 uppercase tracking-wide">This Test</div>
               <div className="text-3xl font-bold text-[#2D1B69]">+{data.xpEarned}</div>
@@ -189,8 +202,27 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
             </div>
           </div>
 
+          {data.xpBreakdown && (
+            <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 mb-5 text-center">
+              <div className="text-sm font-medium text-[#2D1B69]">
+                {data.xpBreakdown.xpMultiplier === 1 && "First attempt — you earned full XP!"}
+                {data.xpBreakdown.xpMultiplier === 0.5 && "Reattempt — you earned 50% of the base XP."}
+                {data.xpBreakdown.xpMultiplier === 0 && "XP is not awarded from the third attempt onward."}
+              </div>
+              {data.xpBreakdown.xpMultiplier > 0 && (data.xpBreakdown.baseXP > 0 || data.xpBreakdown.bonusXP > 0) && (
+                <div className="text-xs text-purple-500 mt-1">
+                  {data.xpBreakdown.baseXP} base
+                  {data.xpBreakdown.bonusXP > 0 ? ` + ${data.xpBreakdown.bonusXP} accuracy bonus` : ""}
+                  {data.xpBreakdown.xpMultiplier === 0.5 ? " × 50%" : ""}
+                </div>
+              )}
+            </div>
+          )}
+
           <p className="text-center text-sm text-gray-500 mb-6">
-            Well done — your effort is building real exam confidence.
+            {data.xpBreakdown?.xpMultiplier === 0
+              ? "Keep practising — accuracy and consistency are what matter most."
+              : "Well done — your effort is building real exam confidence."}
           </p>
 
           <button
@@ -259,6 +291,35 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
             </div>
           </div>
         </div>
+
+        {data.xpBreakdown && (
+          <div className="bg-purple-50 rounded-xl border border-purple-100 p-5 mb-6">
+            <h2 className="text-sm font-semibold text-[#2D1B69] mb-3 flex items-center gap-2">
+              <Star size={16} className="text-purple-500" /> XP Summary
+            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <div className="text-xs text-gray-500 mb-0.5">Attempt #{data.xpBreakdown.attemptNumber}</div>
+                <div className="text-xs text-purple-700 bg-white border border-purple-100 rounded-lg px-3 py-1.5">
+                  {data.xpBreakdown.xpMultiplier === 1 && "1st attempt — full XP awarded"}
+                  {data.xpBreakdown.xpMultiplier === 0.5 && "2nd attempt — 50% XP awarded"}
+                  {data.xpBreakdown.xpMultiplier === 0 && "3rd+ attempt — no XP awarded"}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-[#2D1B69]">+{data.xpEarned}</div>
+                <div className="text-xs text-purple-500">XP</div>
+              </div>
+            </div>
+            {data.xpBreakdown.xpMultiplier > 0 && (data.xpBreakdown.baseXP > 0 || data.xpBreakdown.bonusXP > 0) && (
+              <div className="text-xs text-gray-500">
+                {data.xpBreakdown.baseXP} base XP
+                {data.xpBreakdown.bonusXP > 0 && ` + ${data.xpBreakdown.bonusXP} accuracy bonus`}
+                {data.xpBreakdown.xpMultiplier === 0.5 && " × 50%"}
+              </div>
+            )}
+          </div>
+        )}
 
         {subjectBreakdown.length > 1 && (
           <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6 shadow-sm">
@@ -397,7 +458,7 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
           )}
         </div>
 
-        <div className="flex gap-3 mb-8">
+        <div className="flex gap-3 mb-3">
           <Link
             href={`/testhub/tests/${testId}/review?attemptId=${attemptId}`}
             className="flex-1 text-center py-3 border-2 border-[#6D4BCB] text-[#6D4BCB] rounded-xl font-semibold text-sm hover:bg-purple-50 transition-colors"
@@ -411,6 +472,12 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
             Back to Series
           </Link>
         </div>
+        <Link
+          href={`/testhub/tests/${testId}/attempts`}
+          className="block text-center text-sm text-purple-600 font-medium hover:underline mb-8"
+        >
+          View Attempt History →
+        </Link>
       </div>
     </div>
   );
