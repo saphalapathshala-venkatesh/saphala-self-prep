@@ -1,0 +1,89 @@
+You are working on the Saphala Self Prep STUDENT FRONTEND APP and need to diagnose a confirmed login failure.
+
+Important new evidence:
+- The student password was reset successfully from the ADMIN APP using the new reset-password flow.
+- Despite that, student login still fails with:
+  "Login failed. Please try again in a moment."
+- This strongly suggests the issue is NOT the password itself.
+
+Goal:
+Determine whether the failure is caused by:
+1. frontend/admin DB mismatch
+2. session creation failure
+3. deployment env misconfiguration
+4. Prisma/runtime DB alignment issue
+
+Do not make blind changes. Diagnose first and prove the root cause.
+
+==================================================
+1. VERIFY DB ALIGNMENT BETWEEN ADMIN AND STUDENT APP
+==================================================
+
+Check whether the student frontend app and admin app are truly using the same database in deployment.
+
+Specifically verify:
+- DATABASE_URL / Prisma connection target in both apps
+- whether a user created in student signup appears in admin users
+- whether a password reset in admin affects the same user row the student login route reads
+- whether the deployed frontend may be pointing at a different DB / branch / environment
+
+==================================================
+2. TRACE THE LOGIN ROUTE STEP BY STEP
+==================================================
+
+Instrument or inspect the deployed student login flow and determine exactly where it fails:
+
+A. user lookup success/failure
+B. password verification success/failure
+C. session creation success/failure
+D. cookie write success/failure
+
+We already know wrong credentials is not the likely cause now.
+
+Find the exact failing step and log it clearly.
+
+==================================================
+3. SESSION TABLE / SESSION WRITE CHECK
+==================================================
+
+Explicitly verify whether the student frontend app can create session records in the database.
+
+Check:
+- Session table accessible from deployed student app
+- session insert actually succeeds
+- no constraint issue
+- no runtime timeout on session write
+- no Prisma/schema mismatch affecting Session writes
+
+==================================================
+4. DEPLOYMENT / ENVIRONMENT CHECK
+==================================================
+
+Verify whether the deployed student frontend has:
+- correct DATABASE_URL
+- correct Prisma client behavior
+- correct auth/session env settings
+- no stale deployment using outdated environment variables
+
+If needed, identify whether a redeploy or env sync is required.
+
+==================================================
+5. ROOT CAUSE FIRST, THEN FIX
+==================================================
+
+Only after proving the exact failing step:
+- apply the smallest safe fix
+- do not refactor unrelated auth logic
+- do not change schema unless absolutely required
+
+==================================================
+6. OUTPUT REQUIRED
+==================================================
+
+Please report:
+1. whether admin and student apps are truly using the same deployed DB
+2. whether login fails at user lookup, password compare, session creation, or cookie write
+3. exact root cause
+4. exact fix required
+5. whether a redeploy/env correction is needed
+6. whether student login should work immediately after the fix

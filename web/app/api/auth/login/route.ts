@@ -4,6 +4,14 @@ import { createSessionCookie } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { normalizeIdentifier } from "@/lib/validation";
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function lookupUser(normalized: { type: "email" | "mobile"; value: string }) {
+  return normalized.type === "email"
+    ? prisma.user.findUnique({ where: { email: normalized.value } })
+    : prisma.user.findUnique({ where: { mobile: normalized.value } });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => null);
@@ -26,18 +34,23 @@ export async function POST(request: NextRequest) {
 
     const normalized = normalizeIdentifier(identifier);
 
+    // User lookup — retry once on transient connection failure
     let user;
     try {
-      user =
-        normalized.type === "email"
-          ? await prisma.user.findUnique({ where: { email: normalized.value } })
-          : await prisma.user.findUnique({ where: { mobile: normalized.value } });
+      user = await lookupUser(normalized);
     } catch (dbErr) {
-      console.error("[login] DB lookup failed:", dbErr);
-      return NextResponse.json(
-        { error: "Login failed. Please try again in a moment." },
-        { status: 503 }
-      );
+      console.error("[login] DB lookup failed (attempt 1):", dbErr);
+      try {
+        await sleep(700);
+        user = await lookupUser(normalized);
+        console.log("[login] DB lookup succeeded on retry");
+      } catch (retryErr) {
+        console.error("[login] DB lookup failed (attempt 2):", retryErr);
+        return NextResponse.json(
+          { error: "Login failed. Please try again in a moment." },
+          { status: 503 }
+        );
+      }
     }
 
     if (!user) {
@@ -94,15 +107,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Session creation — retry once on transient failure
     let cookie;
     try {
       cookie = await createSessionCookie(user.id);
     } catch (sessionErr) {
-      console.error("[login] Session creation failed:", sessionErr);
-      return NextResponse.json(
-        { error: "Login failed. Please try again in a moment." },
-        { status: 503 }
-      );
+      console.error("[login] Session creation failed (attempt 1):", sessionErr);
+      try {
+        await sleep(700);
+        cookie = await createSessionCookie(user.id);
+        console.log("[login] Session creation succeeded on retry");
+      } catch (retryErr) {
+        console.error("[login] Session creation failed (attempt 2):", retryErr);
+        return NextResponse.json(
+          { error: "Login failed. Please try again in a moment." },
+          { status: 503 }
+        );
+      }
     }
 
     const res = NextResponse.json({ success: true, redirectTo: "/dashboard" });
