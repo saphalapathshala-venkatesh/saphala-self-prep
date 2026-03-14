@@ -1,0 +1,70 @@
+Saphala Self Prep — Audit and fix frontend signup duplicate-check mismatch
+
+Problem:
+In admin app, after updating a user's email and mobile, I can now create a new account using the old email/mobile. That suggests admin-side update/create flow is working correctly.
+
+But in the student/frontend app, when trying to register using those same old details, the app still says email/mobile already exists.
+
+Goal:
+Find and fix the mismatch so frontend signup uses the same correct uniqueness/normalization logic as admin.
+
+Important:
+This is not just a UI issue. Audit the actual backend/API validation path used by frontend signup.
+
+Please inspect and compare all relevant flows:
+
+1. Admin user update route
+- when email/mobile is edited
+- which fields are updated
+- whether normalized fields are also updated
+
+2. Admin create-user route
+- duplicate-check logic
+- normalization logic
+- which fields are checked for uniqueness
+
+3. Frontend signup/register route
+- duplicate-check logic
+- normalization logic
+- which fields are checked
+- whether it is still checking stale fields or old identifiers
+
+Check specifically for mismatches between:
+- email
+- mobile
+- normalized email
+- normalized mobile
+- identifier
+- username if applicable
+- any cached or derived auth fields
+
+Possible root causes to verify:
+- frontend route still checks outdated fields
+- admin update does not update all normalized/derived fields
+- frontend and admin use different DB fields for duplicate detection
+- frontend app is deployed against a different DB/env
+- stale validation helper reused only in frontend
+
+Required fix:
+Make frontend signup and admin create/update all follow the same uniqueness and normalization rules.
+
+Expected behavior:
+- If a user's email/mobile is changed to new values,
+- the old email/mobile should become available again for new registration,
+- both from admin app and frontend signup flow,
+- unless blocked by an actual existing user record.
+
+Acceptance tests:
+1. Update existing user's email/mobile in admin
+2. Confirm old values are freed
+3. Create new account in admin with old values -> succeeds
+4. Register new account in frontend with same old values -> also succeeds
+5. New values remain reserved by the updated original user
+6. No duplicate users are created with same normalized email/mobile
+
+Output required:
+1. Root cause found
+2. Exact files changed
+3. Whether normalized fields were out of sync
+4. Whether frontend and admin were using different duplicate checks
+5. Confirmation that frontend signup now behaves correctly

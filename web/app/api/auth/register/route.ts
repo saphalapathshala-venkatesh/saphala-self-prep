@@ -6,6 +6,7 @@ import {
   validateMobile,
   validatePassword,
   validateConfirmPassword,
+  normalizeIdentifier,
 } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
@@ -28,10 +29,12 @@ export async function POST(request: NextRequest) {
 
     const email =
       typeof body.email === "string" ? body.email.trim().toLowerCase() : body.email;
+    const mobileRaw = typeof body.mobile === "string" ? body.mobile : "";
+    const mobileDigits = mobileRaw.trim().replace(/\D/g, "");
     const mobile =
-      typeof body.mobile === "string"
-        ? body.mobile.trim().replace(/\D/g, "")
-        : body.mobile;
+      mobileDigits.length === 12 && mobileDigits.startsWith("91")
+        ? mobileDigits.slice(2)
+        : mobileDigits;
 
     const emailResult = validateEmail(email);
     if (!emailResult.valid)

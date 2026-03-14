@@ -26,6 +26,27 @@ type ResetState = {
   success: string;
 };
 
+type CreateUserState = {
+  fullName: string;
+  email: string;
+  mobile: string;
+  password: string;
+  showPassword: boolean;
+  saving: boolean;
+  error: string;
+  success: string;
+};
+
+type EditContactState = {
+  userId: string;
+  displayName: string;
+  email: string;
+  mobile: string;
+  saving: boolean;
+  error: string;
+  success: string;
+};
+
 function generatePassword(): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghjkmnpqrstuvwxyz";
@@ -45,7 +66,11 @@ export default function AdminUsersPage() {
   const [feedback, setFeedback] = useState<Record<string, { msg: string; ok: boolean }>>({});
   const [pendingRoles, setPendingRoles] = useState<Record<string, string>>({});
   const [reset, setReset] = useState<ResetState | null>(null);
+  const [createUser, setCreateUser] = useState<CreateUserState | null>(null);
+  const [editContact, setEditContact] = useState<EditContactState | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const createModalRef = useRef<HTMLDivElement>(null);
+  const editContactModalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -59,6 +84,24 @@ export default function AdminUsersPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [reset]);
+
+  useEffect(() => {
+    if (!createUser) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setCreateUser(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [createUser]);
+
+  useEffect(() => {
+    if (!editContact) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setEditContact(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [editContact]);
 
   async function fetchUsers() {
     setLoading(true);
@@ -177,9 +220,107 @@ export default function AdminUsersPage() {
     }
   }
 
+  function handleCreateOverlayClick(e: React.MouseEvent) {
+    if (createModalRef.current && !createModalRef.current.contains(e.target as Node)) {
+      setCreateUser(null);
+    }
+  }
+
+  function handleEditContactOverlayClick(e: React.MouseEvent) {
+    if (editContactModalRef.current && !editContactModalRef.current.contains(e.target as Node)) {
+      setEditContact(null);
+    }
+  }
+
+  function openCreateUser() {
+    setCreateUser({
+      fullName: "",
+      email: "",
+      mobile: "",
+      password: generatePassword(),
+      showPassword: true,
+      saving: false,
+      error: "",
+      success: "",
+    });
+  }
+
+  async function submitCreateUser() {
+    if (!createUser) return;
+    setCreateUser((s) => s && { ...s, saving: true, error: "", success: "" });
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: createUser.fullName,
+          email: createUser.email,
+          mobile: createUser.mobile,
+          password: createUser.password,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setCreateUser((s) => s && { ...s, saving: false, success: "User created successfully." });
+      await fetchUsers();
+    } catch (err: unknown) {
+      setCreateUser((s) => s && { ...s, saving: false, error: err instanceof Error ? err.message : "Failed to create user." });
+    }
+  }
+
+  function openEditContact(user: User) {
+    setEditContact({
+      userId: user.id,
+      displayName: user.fullName || user.email || user.mobile || user.id,
+      email: user.email || "",
+      mobile: user.mobile || "",
+      saving: false,
+      error: "",
+      success: "",
+    });
+  }
+
+  async function submitEditContact() {
+    if (!editContact) return;
+    setEditContact((s) => s && { ...s, saving: true, error: "", success: "" });
+    try {
+      const res = await fetch(`/api/admin/users/${editContact.userId}/contact`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: editContact.email,
+          mobile: editContact.mobile,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setEditContact((s) => s && { ...s, saving: false, success: "Contact details updated." });
+      await fetchUsers();
+    } catch (err: unknown) {
+      setEditContact((s) => s && { ...s, saving: false, error: err instanceof Error ? err.message : "Update failed." });
+    }
+  }
+
   return (
     <div style={{ maxWidth: 900, margin: "40px auto", padding: "0 20px", fontFamily: "sans-serif" }}>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>Admin — Users</h1>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Admin — Users</h1>
+        <button
+          onClick={openCreateUser}
+          style={{
+            padding: "7px 16px",
+            background: "#2D1B69",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            fontSize: 13,
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          + Create User
+        </button>
+      </div>
 
       {loading && <p>Loading users…</p>}
       {error && <p style={{ color: "red" }}>{error}</p>}
@@ -310,6 +451,20 @@ export default function AdminUsersPage() {
                     >
                       View Attempts
                     </a>
+                    <button
+                      onClick={() => openEditContact(u)}
+                      style={{
+                        padding: "3px 10px",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        background: "#eff6ff",
+                        border: "1px solid #93c5fd",
+                        borderRadius: 4,
+                        color: "#1d4ed8",
+                      }}
+                    >
+                      Edit Contact
+                    </button>
                     {feedback[u.id] && (
                       <span style={{ color: feedback[u.id].ok ? "green" : "red", fontSize: 12 }}>
                         {feedback[u.id].msg}
@@ -531,6 +686,136 @@ export default function AdminUsersPage() {
                   }}
                 >
                   {reset.saving ? "Resetting…" : "Reset Password"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create User Modal */}
+      {createUser && (
+        <div
+          onClick={handleCreateOverlayClick}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+        >
+          <div
+            ref={createModalRef}
+            style={{ background: "#fff", borderRadius: 10, padding: "32px 28px", width: "100%", maxWidth: 420, boxShadow: "0 8px 40px rgba(0,0,0,0.18)", position: "relative" }}
+          >
+            <button onClick={() => setCreateUser(null)} style={{ position: "absolute", top: 14, right: 16, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>×</button>
+            <h2 style={{ margin: "0 0 20px", fontSize: 18, fontWeight: 700 }}>Create User</h2>
+
+            {(["fullName", "email", "mobile"] as const).map((field) => (
+              <div key={field} style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", marginBottom: 4, fontSize: 13, fontWeight: 600 }}>
+                  {field === "fullName" ? "Full Name" : field === "email" ? "Email" : "Mobile (10 digits)"}
+                </label>
+                <input
+                  type={field === "email" ? "email" : "text"}
+                  value={createUser[field]}
+                  onChange={(e) => setCreateUser((s) => s && { ...s, [field]: e.target.value, error: "", success: "" })}
+                  placeholder={field === "fullName" ? "Full name" : field === "email" ? "email@example.com" : "10-digit mobile"}
+                  style={{ width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 6, fontSize: 14, boxSizing: "border-box" }}
+                />
+              </div>
+            ))}
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", marginBottom: 4, fontSize: 13, fontWeight: 600 }}>Password</label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <div style={{ position: "relative", flex: 1 }}>
+                  <input
+                    type={createUser.showPassword ? "text" : "password"}
+                    value={createUser.password}
+                    onChange={(e) => setCreateUser((s) => s && { ...s, password: e.target.value, error: "", success: "" })}
+                    style={{ width: "100%", padding: "8px 36px 8px 10px", border: "1px solid #ccc", borderRadius: 6, fontSize: 14, boxSizing: "border-box" }}
+                  />
+                  <button type="button" onClick={() => setCreateUser((s) => s && { ...s, showPassword: !s.showPassword })} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "#888", fontSize: 13 }}>
+                    {createUser.showPassword ? "Hide" : "Show"}
+                  </button>
+                </div>
+                <button type="button" onClick={() => setCreateUser((s) => s && { ...s, password: generatePassword(), showPassword: true })} style={{ padding: "8px 10px", fontSize: 12, background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 6, cursor: "pointer", whiteSpace: "nowrap" }}>
+                  Generate
+                </button>
+              </div>
+            </div>
+
+            {createUser.error && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12, background: "#fef2f2", padding: "8px 12px", borderRadius: 6, border: "1px solid #fecaca" }}>{createUser.error}</p>}
+            {createUser.success && <p style={{ color: "#16a34a", fontSize: 13, marginBottom: 12, background: "#f0fdf4", padding: "8px 12px", borderRadius: 6, border: "1px solid #bbf7d0" }}>{createUser.success}</p>}
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setCreateUser(null)} style={{ padding: "8px 20px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 6, cursor: "pointer", fontSize: 14, color: "#334155" }}>
+                {createUser.success ? "Close" : "Cancel"}
+              </button>
+              {!createUser.success && (
+                <button
+                  onClick={submitCreateUser}
+                  disabled={createUser.saving || !createUser.fullName || !createUser.email || !createUser.mobile || !createUser.password}
+                  style={{ padding: "8px 20px", background: createUser.saving || !createUser.fullName || !createUser.email || !createUser.mobile || !createUser.password ? "#94a3b8" : "#2D1B69", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 14, color: "#fff", fontWeight: 600 }}
+                >
+                  {createUser.saving ? "Creating…" : "Create User"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Contact Modal */}
+      {editContact && (
+        <div
+          onClick={handleEditContactOverlayClick}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}
+        >
+          <div
+            ref={editContactModalRef}
+            style={{ background: "#fff", borderRadius: 10, padding: "32px 28px", width: "100%", maxWidth: 420, boxShadow: "0 8px 40px rgba(0,0,0,0.18)", position: "relative" }}
+          >
+            <button onClick={() => setEditContact(null)} style={{ position: "absolute", top: 14, right: 16, background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#666" }}>×</button>
+            <h2 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 700 }}>Edit Contact</h2>
+            <p style={{ margin: "0 0 20px", fontSize: 13, color: "#555" }}>User: <strong>{editContact.displayName}</strong></p>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", marginBottom: 4, fontSize: 13, fontWeight: 600 }}>Email</label>
+              <input
+                type="email"
+                value={editContact.email}
+                onChange={(e) => setEditContact((s) => s && { ...s, email: e.target.value, error: "", success: "" })}
+                placeholder="email@example.com"
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 6, fontSize: 14, boxSizing: "border-box" }}
+              />
+            </div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: "block", marginBottom: 4, fontSize: 13, fontWeight: 600 }}>Mobile (10 digits)</label>
+              <input
+                type="text"
+                value={editContact.mobile}
+                onChange={(e) => setEditContact((s) => s && { ...s, mobile: e.target.value, error: "", success: "" })}
+                placeholder="10-digit mobile"
+                style={{ width: "100%", padding: "8px 10px", border: "1px solid #ccc", borderRadius: 6, fontSize: 14, boxSizing: "border-box" }}
+              />
+            </div>
+
+            <p style={{ fontSize: 12, color: "#64748b", marginBottom: 16 }}>
+              Freeing old email/mobile makes them immediately available for new registrations.
+            </p>
+
+            {editContact.error && <p style={{ color: "#dc2626", fontSize: 13, marginBottom: 12, background: "#fef2f2", padding: "8px 12px", borderRadius: 6, border: "1px solid #fecaca" }}>{editContact.error}</p>}
+            {editContact.success && <p style={{ color: "#16a34a", fontSize: 13, marginBottom: 12, background: "#f0fdf4", padding: "8px 12px", borderRadius: 6, border: "1px solid #bbf7d0" }}>{editContact.success}</p>}
+
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setEditContact(null)} style={{ padding: "8px 20px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: 6, cursor: "pointer", fontSize: 14, color: "#334155" }}>
+                {editContact.success ? "Close" : "Cancel"}
+              </button>
+              {!editContact.success && (
+                <button
+                  onClick={submitEditContact}
+                  disabled={editContact.saving}
+                  style={{ padding: "8px 20px", background: editContact.saving ? "#94a3b8" : "#2D1B69", border: "none", borderRadius: 6, cursor: editContact.saving ? "not-allowed" : "pointer", fontSize: 14, color: "#fff", fontWeight: 600 }}
+                >
+                  {editContact.saving ? "Saving…" : "Save Changes"}
                 </button>
               )}
             </div>
