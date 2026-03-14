@@ -48,8 +48,8 @@ function CategoryCard({ cat }: { cat: Category }) {
         <div className="absolute inset-0 bg-[#2D1B69]/0 group-hover:bg-[#2D1B69]/10 transition-colors duration-200" />
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3 gap-2">
-        <span className="text-sm font-semibold text-[#2D1B69] group-hover:text-[#6D4BCB] transition-colors truncate">
+      <div className="flex items-center justify-between px-4 gap-3 h-[4.5rem]">
+        <span className="min-w-0 text-sm font-semibold text-[#2D1B69] group-hover:text-[#6D4BCB] transition-colors line-clamp-2 leading-snug">
           {cat.name}
         </span>
         <span className="shrink-0 bg-[#8050C0] group-hover:bg-[#6D3DB0] text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors duration-150">
