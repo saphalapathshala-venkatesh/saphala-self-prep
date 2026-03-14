@@ -66,11 +66,11 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
             return (
               <div
                 key={test.id}
-                className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden ${
+                className={`bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col ${
                   isLocked ? "opacity-90" : ""
                 }`}
               >
-                <div className="p-5">
+                <div className="p-5 flex flex-col h-full">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
@@ -102,17 +102,19 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
                     </span>
                   </div>
 
-                  <h3 className="text-base font-bold text-[#2D1B69] mb-2 leading-snug">{test.title}</h3>
+                  <h3 className="text-base font-bold text-[#2D1B69] mb-2 leading-snug line-clamp-2 min-h-[48px]">{test.title}</h3>
                   <p className="text-gray-400 text-xs mb-4">{test.series || ""}</p>
 
-                  <div className="flex items-center gap-4 text-sm text-gray-500 mb-5">
+                  <div className="flex items-center gap-4 text-sm text-gray-500">
                     <span>{test.totalQuestions} Qs</span>
                     <span>{test.durationMinutes} min</span>
                   </div>
 
+                  <div className="flex-grow" />
+
                   <button
                     onClick={() => handleAttempt(test)}
-                    className="btn-glossy-primary w-full text-sm py-2.5"
+                    className="btn-glossy-primary w-full text-sm py-2.5 mt-4"
                   >
                     {isLocked ? "View Access" : "Start Test"}
                   </button>
