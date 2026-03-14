@@ -165,7 +165,7 @@ export async function getAllAttemptsForStudent(userId: string): Promise<AllAttem
         select: {
           title: true,
           accessType: true,
-          category: { select: { name: true } },
+          series: { select: { categoryId: true } },
         },
       },
     },
@@ -175,7 +175,7 @@ export async function getAllAttemptsForStudent(userId: string): Promise<AllAttem
     id: a.id,
     testId: a.testId,
     testTitle: a.test.title,
-    category: a.test.category?.name ?? null,
+    category: a.test.series?.categoryId ?? null,
     accessType: a.test.accessType as "FREE" | "LOCKED",
     status: a.status as "IN_PROGRESS" | "SUBMITTED",
     attemptNumber: a.attemptNumber,
