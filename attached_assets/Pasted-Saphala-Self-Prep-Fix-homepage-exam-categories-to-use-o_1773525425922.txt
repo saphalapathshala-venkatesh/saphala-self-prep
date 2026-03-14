@@ -1,0 +1,58 @@
+Saphala Self Prep — Fix homepage exam categories to use only real Admin Category data
+
+Problem:
+In the real Admin app taxonomy, there is currently only one Category: "APPSC Group 2".
+
+But on the frontend homepage, the exam category section still shows multiple categories like:
+- APPSC
+- AP Police
+- Banking
+- SSC
+- Railway
+
+And the newly added real admin category is not reflecting.
+
+Important clarification:
+I am NOT talking about TestHub tabs.
+I am talking about the homepage exam categories section before login.
+
+This means the homepage category UI is not behaving as a true live reflection of Admin-created Category data.
+
+Goal:
+Make the homepage exam categories section use only the real Category data from DB/Admin as the source of truth.
+
+Audit and fix the following:
+
+1. Inspect the homepage exam category component and its data source.
+2. Verify whether it is:
+   - using hardcoded defaults
+   - using fallback/mock categories
+   - using stale seeded data
+   - failing over when API returns empty/unexpected shape
+
+3. Inspect /api/public/categories and confirm:
+   - what exact records it returns
+   - whether it returns the real Category table entries
+   - whether old seeded/demo categories are still present in DB
+   - whether frontend is ignoring the returned live categories
+
+4. Fix homepage category rendering so that in production behavior:
+   - it shows only real Category records from DB/Admin
+   - it does NOT silently show demo/mock/default categories
+   - newly created Admin categories reflect correctly
+
+5. If fallback exists, restrict it properly:
+   - either remove fallback entirely
+   - or make fallback dev-only, not production-visible
+
+6. Report clearly:
+   - root cause
+   - whether the extra categories were from code fallback or from DB
+   - exact files changed
+   - confirmation that homepage categories now match Admin Category records exactly
+
+Important:
+- This is only about the homepage category section
+- Do not discuss TestHub behavior here
+- Do not mix in Product Category
+- Keep this narrow and launch-safe

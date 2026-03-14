@@ -12,17 +12,6 @@ interface Category {
   thumbnailUrl?: string | null;
 }
 
-const FALLBACK_CATEGORIES: Category[] = [
-  { id: "appsc", name: "APPSC" },
-  { id: "appolice", name: "AP Police" },
-  { id: "banking", name: "Banking" },
-  { id: "ssc", name: "SSC" },
-  { id: "railway", name: "Railway" },
-  { id: "upsc", name: "UPSC" },
-  { id: "tspsc", name: "TSPSC" },
-  { id: "defence", name: "Defence" },
-];
-
 function toSlug(name: string) {
   return encodeURIComponent(name.toLowerCase().replace(/\s+/g, "-"));
 }
@@ -77,41 +66,36 @@ export default function ExamCategoriesSection() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState("");
 
-  // Scroll container ref
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Track element ref — needed to measure width during drag and click
   const trackRef = useRef<HTMLDivElement>(null);
-  // Drag state kept in a ref (not state) to avoid re-renders on every mousemove
   const dragRef = useRef<{ startX: number; startScroll: number } | null>(null);
-  // Controls thumb CSS transition — disabled during drag so thumb tracks cursor exactly
   const [isDragging, setIsDragging] = useState(false);
 
   const [thumb, setThumb] = useState({ left: 0, width: 30 });
 
-  // ─── Scroll helpers ────────────────────────────────────────────────────────
   const scrollLeft = () =>
     scrollRef.current?.scrollBy({ left: -280, behavior: "smooth" });
   const scrollRight = () =>
     scrollRef.current?.scrollBy({ left: 280, behavior: "smooth" });
 
-  // ─── Data fetch ────────────────────────────────────────────────────────────
+  // ─── Data fetch — no fallback to hardcoded data ────────────────────────────
   useEffect(() => {
     fetch("/api/public/categories")
       .then((r) => r.json())
       .then((data: unknown) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setCategories(data as Category[]);
         } else {
-          setCategories(FALLBACK_CATEGORIES);
+          setCategories([]);
         }
       })
-      .catch(() => setCategories(FALLBACK_CATEGORIES))
+      .catch(() => setCategories([]))
       .finally(() => setLoading(false));
   }, []);
 
   // ─── Scroll → thumb sync ───────────────────────────────────────────────────
   useEffect(() => {
-    if (loading) return;
+    if (loading || categories.length === 0) return;
 
     const el = scrollRef.current;
     if (!el) return;
@@ -137,9 +121,8 @@ export default function ExamCategoriesSection() {
       el.removeEventListener("scroll", update);
       window.removeEventListener("resize", update);
     };
-  }, [loading]);
+  }, [loading, categories.length]);
 
-  // ─── Dropdown ──────────────────────────────────────────────────────────────
   function handleDropdownChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const slug = e.target.value;
     if (!slug) return;
@@ -147,11 +130,7 @@ export default function ExamCategoriesSection() {
     setSelected("");
   }
 
-  // ─── Track click (desktop) ─────────────────────────────────────────────────
-  // Maps click position linearly to scroll position.
-  // The thumb's onClick calls stopPropagation so this doesn't fire during drag end.
   function handleTrackClick(e: React.MouseEvent<HTMLDivElement>) {
-    // Ignore if the user just finished a drag (mouseup fired before this click)
     if (dragRef.current) return;
     const track = trackRef.current;
     const scroll = scrollRef.current;
@@ -163,10 +142,9 @@ export default function ExamCategoriesSection() {
     scroll.scrollLeft = fraction * scrollable;
   }
 
-  // ─── Thumb drag (desktop) ──────────────────────────────────────────────────
   function handleThumbMouseDown(e: React.MouseEvent<HTMLDivElement>) {
-    e.preventDefault(); // Prevent text selection during drag
-    e.stopPropagation(); // Prevent track click from also firing
+    e.preventDefault();
+    e.stopPropagation();
 
     const startX = e.clientX;
     const startScroll = scrollRef.current?.scrollLeft ?? 0;
@@ -184,9 +162,7 @@ export default function ExamCategoriesSection() {
       const scrollable = scroll.scrollWidth - scroll.clientWidth;
       if (scrollable <= 0) return;
 
-      // Thumb width as fraction of track (computed fresh, not from stale closure)
       const thumbWidthFrac = Math.max(scroll.clientWidth / scroll.scrollWidth, 0.12);
-      // Range of pixels the thumb's left edge can travel across the track
       const trackRange = track.clientWidth * (1 - thumbWidthFrac);
 
       const delta = ev.clientX - drag.startX;
@@ -210,7 +186,6 @@ export default function ExamCategoriesSection() {
   return (
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
-        {/* Section header */}
         <div className="text-center mb-8">
           <h2 className="text-3xl md:text-4xl font-bold text-[#8050C0] mb-3">
             Choose Your Exam
@@ -221,7 +196,7 @@ export default function ExamCategoriesSection() {
           </p>
         </div>
 
-        {/* Quick-select dropdown — full-width on mobile, constrained from sm up */}
+        {/* Quick-select dropdown — only when categories exist */}
         {!loading && categories.length > 0 && (
           <div className="relative w-full sm:max-w-xs sm:mx-auto mb-8">
             <select
@@ -254,9 +229,12 @@ export default function ExamCategoriesSection() {
               />
             ))}
           </div>
+        ) : categories.length === 0 ? (
+          <p className="text-center text-sm text-[#6B5CA5] py-8">
+            Exam categories coming soon. Check back shortly.
+          </p>
         ) : (
           <div className="flex items-center gap-2">
-            {/* Left arrow — desktop only */}
             <button
               onClick={scrollLeft}
               aria-label="Scroll left"
@@ -267,7 +245,6 @@ export default function ExamCategoriesSection() {
               </svg>
             </button>
 
-            {/* Scroll container with right-edge fade hint on mobile */}
             <div className="relative flex-1 min-w-0">
               <div
                 id="exam-category-scroll"
@@ -280,11 +257,9 @@ export default function ExamCategoriesSection() {
                   </div>
                 ))}
               </div>
-              {/* Subtle right-edge fade — mobile only, signals more cards to the right */}
               <div className="pointer-events-none absolute right-0 top-0 bottom-3 w-12 bg-gradient-to-l from-white to-transparent md:hidden" />
             </div>
 
-            {/* Right arrow — desktop only */}
             <button
               onClick={scrollRight}
               aria-label="Scroll right"
@@ -297,12 +272,8 @@ export default function ExamCategoriesSection() {
           </div>
         )}
 
-        {/*
-          Progress bar / interactive scroll control
-          ─ Mobile:  passive indicator only (touch scroll is primary)
-          ─ Desktop: click on track to jump, drag thumb to scrub
-        */}
-        {!loading && (
+        {/* Scroll bar — only when categories are loaded and present */}
+        {!loading && categories.length > 0 && (
           <div
             ref={trackRef}
             role="scrollbar"
@@ -321,7 +292,6 @@ export default function ExamCategoriesSection() {
               style={{
                 width: `${thumb.width}%`,
                 left: `${thumb.left}%`,
-                // Disable transition while dragging so thumb tracks cursor exactly
                 transition: isDragging
                   ? "none"
                   : "left 80ms ease, width 80ms ease",
@@ -330,10 +300,12 @@ export default function ExamCategoriesSection() {
           </div>
         )}
 
-        {/* Helper hint — mobile only, desktop has arrows + interactive bar */}
-        <p className="md:hidden text-xs text-[#8050C0]/60 font-medium text-center mt-3">
-          Swipe to explore all exam categories
-        </p>
+        {/* Swipe hint — mobile only, only when cards are shown */}
+        {!loading && categories.length > 0 && (
+          <p className="md:hidden text-xs text-[#8050C0]/60 font-medium text-center mt-3">
+            Swipe to explore all exam categories
+          </p>
+        )}
       </div>
     </section>
   );
