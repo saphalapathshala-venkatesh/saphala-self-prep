@@ -38,5 +38,7 @@ export function normalizeIdentifier(identifier: string): { type: "email" | "mobi
   if (trimmed.includes("@")) {
     return { type: "email", value: trimmed };
   }
-  return { type: "mobile", value: trimmed.replace(/\D/g, "") };
+  const digits = trimmed.replace(/\D/g, "");
+  const mobile = digits.length === 12 && digits.startsWith("91") ? digits.slice(2) : digits;
+  return { type: "mobile", value: mobile };
 }

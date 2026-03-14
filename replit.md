@@ -25,6 +25,13 @@ Preferred communication style: Simple, everyday language.
 - User roles include STUDENT (default), ADMIN, and SUPER_ADMIN.
 - Registration collects `fullName`, `email`, `mobile`, `state`, `gender`, and `password`.
 - Registration requires legal acceptance (`legalAccepted: true`, `legalVersion`) — enforced on both frontend (disabled button) and backend (API validation). Legal version string managed in `web/config/legal.ts`.
+- **One-device login**: User model has `allowMultiDevice Boolean @default(false)`. At login, if user already has an active session and `allowMultiDevice` is false, login is blocked with a 409 response. Admin can clear sessions and toggle `allowMultiDevice` per user.
+- **`normalizeIdentifier`** in `web/lib/validation.ts` strips `+91` prefix: 12-digit numbers starting with "91" are trimmed to the last 10 digits before DB lookup.
+- **XP by attempt number**: `generate-result` applies `xpMultiplier` — 1st attempt=1.0×, 2nd=0.5×, 3rd+=0× of base XP. Multiplier and attemptNumber stored in `XpLedgerEntry.meta`.
+
+### Admin APIs (new)
+- `DELETE /api/admin/users/[id]/sessions` — clears all sessions for a user
+- `PATCH /api/admin/users/[id]/allow-multi-device` — toggles multi-device access
 
 ### Core Features
 

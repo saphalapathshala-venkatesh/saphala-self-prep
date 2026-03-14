@@ -1,0 +1,228 @@
+Saphala Self Prep — Focused Stabilization Batch
+Goal: Fix test expected behavior and login/device-control behavior WITHOUT disturbing unrelated modules like homepage, courses, videos, flashcards, analytics redesign, XP redesign, taxonomy, imports, or product builder.
+
+Critical project context
+- Student frontend app and admin app are separate applications
+- Both share one database
+- Preserve clean separation; do not create future coupling headaches
+- Do not introduce schema changes unless absolutely necessary
+- First inspect existing code, data flow, auth flow, test attempt flow, XP awarding flow, result logs, and device/session logic before changing anything
+- Reuse current structures where possible
+- If a DB/schema change is unavoidable, keep it minimal, backward-safe, and clearly justified in code comments
+
+Scope of this batch only
+1. Fix Start Test / Reattempt / Resume / Attempts Exhausted / Starts on / Expired button-state logic
+2. Fix Review Questions application error
+3. Enforce one-device login control properly
+4. Make admin password reset truly work for existing users
+5. Make attempt-wise marks + XP logging clear and correct
+6. Ensure XP award rules are applied by attempt number exactly as defined
+
+Locked business rules
+A. Test state/button behavior
+For a given student + test:
+- No previous attempt exists -> show "Start Test"
+- Existing in-progress resumable attempt -> show "Resume Test"
+- At least one completed/submitted attempt exists and reattempts are allowed -> show "Reattempt"
+- Max attempts reached -> disable CTA and show "Attempts Exhausted"
+- Test is published but current time is before student-visible start time -> show "Starts on <date/time>"
+- Test availability window passed / test unavailable -> show "Expired" or "Unavailable"
+
+Important:
+- After the first successfully submitted attempt, the student must NOT continue seeing "Start Test"
+- They must see "Reattempt" if another attempt is allowed
+- Use actual attempt state from DB, not only superficial UI state
+
+B. XP rules by attempt number
+For each test attempt:
+- Attempt 1 -> 100% of original/base XP
+- Attempt 2 -> 50% of original/base XP
+- Attempt 3 and beyond -> 0 XP
+
+This must be applied attempt-wise, not only test-wise.
+Store enough data so admin can see:
+- attempt number
+- base XP
+- awarded XP
+- rule used / reason
+- marks/score/percentage
+
+C. Attempt history / result log
+Each attempt must remain separate.
+Do NOT merge attempts into one ambiguous result record.
+
+For each attempt, preserve/show as available:
+- attempt number
+- startedAt
+- submittedAt
+- score / marks
+- percentage
+- time taken
+- XP awarded
+- status (in_progress / completed / auto_submitted / abandoned if such states exist)
+- device/session metadata if already available or easy to add without destabilizing system
+
+Admin should clearly see attempt-wise records.
+Student side can remain simpler, but attempt separation must be preserved in backend logic and admin logs.
+
+D. Review Questions behavior
+Fix application error completely.
+Expected behavior:
+- Clicking Review Questions must open review screen reliably
+- Show question statuses correctly:
+  - Answered
+  - Not Answered
+  - Marked for Review
+  - Marked for Review + Answered
+  - Not Visited
+- Student must be able to jump to any question
+- Final submit must calculate result from saved answers correctly
+- Must work for normal attempt, resumed attempt, and reattempt
+- Do not leave any runtime crash or undefined/null access path
+
+E. Save / answer persistence behavior
+Preserve existing intended behavior, but make it consistent and safe:
+- Answer persists on Save & Next
+- Answer persists when Marked for Review and answered
+- Resume should restore saved state correctly
+- Refresh/reconnect should not silently lose saved answers if attempt is resumable
+- Reattempt must create a fresh attempt record and must not overwrite prior attempt answers
+
+F. One-device login control
+Current issue: user can login on two devices and attempt test across both. Fix this.
+
+Expected behavior:
+- By default, one learner account may be used on only one approved device/browser at a time
+- If same learner tries login from another device/browser and they are NOT explicitly allowed multi-device access, block login
+- Recommended block message: account already active on another device; contact support/admin or logout from previous device
+- Admin override must continue to work if already designed:
+  - allow specific learner multi-device access
+  - reset learner device binding
+  - global reset if such control already exists
+
+Implementation guidance:
+- Audit current session/device restriction logic end-to-end
+- Find why second device is currently allowed
+- Do not rely only on userId
+- Use current session/device token design if already present
+- If missing, implement the smallest robust mechanism possible:
+  - stable device token/fingerprint stored securely
+  - compare current device to allowed device binding
+  - block mismatch unless admin override
+- Avoid fragile IP-only logic
+- Enforce this both at login/session creation level and at test-start/test-resume access level where relevant
+
+G. Concurrent test protection
+Very important:
+- A learner should not be able to actively run the same test attempt from two devices/sessions simultaneously
+- If a second device/session tries to access same active attempt, block it
+- Only one active session/attempt context for a learner+attempt should be effective
+- Prevent fairness/security loopholes
+
+H. Admin password reset behavior
+Current issue: for existing users, admin password reset appears to succeed but new password does not work reliably.
+
+Expected behavior:
+- Admin reset updates password hash correctly
+- New password works immediately
+- Old password no longer works
+- Login should continue supporting normalized identifier/email/mobile flow already hardened earlier
+- If current auth design supports it cleanly, invalidate old sessions after password reset for that user
+- Ensure admin app and student frontend authenticate against the same DB/auth logic and same normalized fields
+- Audit for mismatch between:
+  - email vs identifier vs mobile
+  - normalized vs raw values
+  - bcrypt/bcryptjs compatibility
+  - stale env/DB mismatches
+  - session/token stale behavior
+
+Deliverables required
+1. Root-cause analysis in comments / implementation notes inside code where appropriate
+2. Minimal, safe code changes
+3. No unrelated refactors
+4. Build must pass
+5. Existing unrelated flows must remain intact
+
+Implementation checklist
+1. Audit current models/routes/components involved in:
+   - login
+   - session creation
+   - admin password reset
+   - test listing CTA logic
+   - test attempt creation
+   - test attempt resume
+   - review page
+   - result logging
+   - XP awarding
+   - device restriction / active device logic
+2. Fix button-state logic on test cards/pages from real DB attempt state
+3. Fix review page runtime error and null/undefined guards
+4. Ensure reattempt creates a new clean attempt record
+5. Apply XP by attempt number exactly:
+   - 1st = 100%
+   - 2nd = 50%
+   - 3rd+ = 0
+6. Ensure result/attempt log is attempt-wise and admin-visible
+7. Fix password reset path for existing users end-to-end
+8. Fix one-device restriction at auth/session level
+9. Add protection so same active attempt cannot be effectively used on multiple devices
+10. Run full local verification
+
+Acceptance tests to pass before finishing
+A. Test CTA behavior
+- Fresh learner on a test -> Start Test
+- Learner with one completed attempt and another attempt allowed -> Reattempt
+- Learner with in-progress attempt -> Resume Test
+- Learner with attempts exhausted -> disabled exhausted state
+- Test scheduled in future -> Starts on date/time
+- Expired/unavailable test -> Expired/Unavailable
+
+B. XP behavior
+For a test with base XP = 100:
+- attempt 1 awards 100
+- attempt 2 awards 50
+- attempt 3 awards 0
+- attempt 4 awards 0
+Ensure admin logs reflect each separately
+
+C. Review behavior
+- Review Questions opens without application error
+- Question status map renders correctly
+- Can jump to questions
+- Submit works from review screen
+
+D. Password reset behavior
+- Reset password for an existing learner from admin
+- New password works immediately
+- Old password fails
+- Identifier/email/mobile login still works as intended
+- No mismatch between admin and frontend auth
+
+E. Device-control behavior
+- Login on device A succeeds
+- Login on device B with same learner is blocked by default
+- If admin explicitly allows multi-device for that learner, device B can login
+- If admin resets learner device binding, fresh login can occur from new device
+- Same active test attempt cannot be meaningfully accessed from two devices in parallel
+
+F. Regression safety
+- Existing admin login must still work
+- Student login must still work
+- Published tests still list properly
+- Completed attempts/history still view properly
+- No breakage in unrelated content/product modules
+
+Output expected from you after implementation
+Provide:
+1. What root causes were found
+2. Exact files changed
+3. What logic was fixed
+4. Whether any schema change was required
+5. Which acceptance tests passed
+6. Any remaining edge cases to watch
+
+Important constraints
+- Do not touch unrelated homepage/frontend polish tasks in this batch
+- Do not redesign overall XP system beyond attempt-based awarding needed here
+- Do not disturb admin/product/taxonomy/content creation flows
+- Prefer precise stabilization over refactoring

@@ -27,6 +27,7 @@ export default function BriefClient({ test }: BriefClientProps) {
   const [checkingAttempt, setCheckingAttempt] = useState(true);
 
   const attemptsExhausted = attemptsUsed >= test.attemptsAllowed && !activeAttempt;
+  const isReattempt = attemptsUsed > 0 && !activeAttempt && !attemptsExhausted;
 
   useEffect(() => {
     async function checkActiveAttempt() {
@@ -187,7 +188,9 @@ export default function BriefClient({ test }: BriefClientProps) {
             ? "Starting..."
             : activeAttempt
               ? "Resume Test"
-              : "Start Test"
+              : isReattempt
+                ? "Reattempt"
+                : "Start Test"
           }
         </button>
       </div>

@@ -4,9 +4,13 @@ import { useEffect, useRef, useState } from "react";
 
 type User = {
   id: string;
-  email: string;
-  mobile: string;
+  email: string | null;
+  mobile: string | null;
+  fullName: string | null;
   role: string;
+  isActive: boolean;
+  allowMultiDevice: boolean;
+  activeSessionCount: number;
   createdAt: string;
 };
 
@@ -103,10 +107,40 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function clearSessions(userId: string) {
+    setFeedback((prev) => ({ ...prev, [userId]: { msg: "Clearing…", ok: true } }));
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/sessions`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, activeSessionCount: 0 } : u));
+      setFeedback((prev) => ({ ...prev, [userId]: { msg: `Cleared ${data.cleared} session(s)`, ok: true } }));
+    } catch (err: unknown) {
+      setFeedback((prev) => ({ ...prev, [userId]: { msg: err instanceof Error ? err.message : "Failed", ok: false } }));
+    }
+  }
+
+  async function toggleMultiDevice(userId: string, allow: boolean) {
+    setFeedback((prev) => ({ ...prev, [userId]: { msg: "Saving…", ok: true } }));
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/allow-multi-device`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allowMultiDevice: allow }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, allowMultiDevice: allow } : u));
+      setFeedback((prev) => ({ ...prev, [userId]: { msg: allow ? "Multi-device enabled" : "Single-device enforced", ok: true } }));
+    } catch (err: unknown) {
+      setFeedback((prev) => ({ ...prev, [userId]: { msg: err instanceof Error ? err.message : "Failed", ok: false } }));
+    }
+  }
+
   function openResetModal(user: User) {
     setReset({
       userId: user.id,
-      email: user.email || user.mobile,
+      email: user.email || user.mobile || "",
       newPassword: "",
       confirmPassword: "",
       showNew: false,
@@ -154,9 +188,10 @@ export default function AdminUsersPage() {
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={{ borderBottom: "2px solid #ccc", textAlign: "left" }}>
-              <th style={{ padding: "8px 4px" }}>Email</th>
+              <th style={{ padding: "8px 4px" }}>User</th>
               <th style={{ padding: "8px 4px" }}>Mobile</th>
               <th style={{ padding: "8px 4px" }}>Role</th>
+              <th style={{ padding: "8px 4px" }}>Sessions</th>
               <th style={{ padding: "8px 4px" }}>Joined</th>
               <th style={{ padding: "8px 4px" }}>Actions</th>
             </tr>
@@ -164,8 +199,11 @@ export default function AdminUsersPage() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} style={{ borderBottom: "1px solid #eee" }}>
-                <td style={{ padding: "8px 4px" }}>{u.email}</td>
-                <td style={{ padding: "8px 4px" }}>{u.mobile}</td>
+                <td style={{ padding: "8px 4px" }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{u.fullName || "—"}</div>
+                  <div style={{ fontSize: 12, color: "#555" }}>{u.email || "—"}</div>
+                </td>
+                <td style={{ padding: "8px 4px", fontSize: 13 }}>{u.mobile || "—"}</td>
                 <td style={{ padding: "8px 4px" }}>
                   <select
                     value={pendingRoles[u.id] ?? u.role}
@@ -180,48 +218,89 @@ export default function AdminUsersPage() {
                   </select>
                 </td>
                 <td style={{ padding: "8px 4px" }}>
+                  <span style={{
+                    display: "inline-block",
+                    padding: "2px 8px",
+                    borderRadius: 12,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    background: u.activeSessionCount > 0 ? "#dcfce7" : "#f1f5f9",
+                    color: u.activeSessionCount > 0 ? "#166534" : "#64748b",
+                  }}>
+                    {u.activeSessionCount} active
+                  </span>
+                </td>
+                <td style={{ padding: "8px 4px", fontSize: 12, color: "#555" }}>
                   {new Date(u.createdAt).toLocaleDateString()}
                 </td>
-                <td style={{ padding: "8px 4px", display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  <button
-                    onClick={() => saveRole(u.id)}
-                    disabled={!pendingRoles[u.id] || pendingRoles[u.id] === u.role}
-                    style={{
-                      padding: "4px 12px",
-                      cursor:
-                        pendingRoles[u.id] && pendingRoles[u.id] !== u.role
-                          ? "pointer"
-                          : "not-allowed",
-                      opacity:
-                        pendingRoles[u.id] && pendingRoles[u.id] !== u.role ? 1 : 0.5,
-                    }}
-                  >
-                    Save
-                  </button>
-                  <button
-                    onClick={() => openResetModal(u)}
-                    style={{
-                      padding: "4px 12px",
-                      cursor: "pointer",
-                      background: "#fef3c7",
-                      border: "1px solid #d97706",
-                      borderRadius: 4,
-                      color: "#92400e",
-                      fontSize: 13,
-                    }}
-                  >
-                    Reset Pwd
-                  </button>
-                  {feedback[u.id] && (
-                    <span
+                <td style={{ padding: "8px 4px" }}>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => saveRole(u.id)}
+                      disabled={!pendingRoles[u.id] || pendingRoles[u.id] === u.role}
                       style={{
-                        color: feedback[u.id].ok ? "green" : "red",
-                        fontSize: 13,
+                        padding: "3px 10px",
+                        fontSize: 12,
+                        cursor: pendingRoles[u.id] && pendingRoles[u.id] !== u.role ? "pointer" : "not-allowed",
+                        opacity: pendingRoles[u.id] && pendingRoles[u.id] !== u.role ? 1 : 0.5,
+                        borderRadius: 4,
+                        border: "1px solid #cbd5e1",
+                        background: "#f8fafc",
                       }}
                     >
-                      {feedback[u.id].msg}
-                    </span>
-                  )}
+                      Save Role
+                    </button>
+                    <button
+                      onClick={() => openResetModal(u)}
+                      style={{
+                        padding: "3px 10px",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        background: "#fef3c7",
+                        border: "1px solid #d97706",
+                        borderRadius: 4,
+                        color: "#92400e",
+                      }}
+                    >
+                      Reset Pwd
+                    </button>
+                    {u.activeSessionCount > 0 && (
+                      <button
+                        onClick={() => clearSessions(u.id)}
+                        style={{
+                          padding: "3px 10px",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          background: "#fee2e2",
+                          border: "1px solid #f87171",
+                          borderRadius: 4,
+                          color: "#991b1b",
+                        }}
+                      >
+                        Clear Sessions
+                      </button>
+                    )}
+                    <button
+                      onClick={() => toggleMultiDevice(u.id, !u.allowMultiDevice)}
+                      title={u.allowMultiDevice ? "Multi-device ON — click to restrict to one device" : "Single-device — click to allow multi-device"}
+                      style={{
+                        padding: "3px 10px",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        background: u.allowMultiDevice ? "#dbeafe" : "#f1f5f9",
+                        border: `1px solid ${u.allowMultiDevice ? "#3b82f6" : "#cbd5e1"}`,
+                        borderRadius: 4,
+                        color: u.allowMultiDevice ? "#1d4ed8" : "#64748b",
+                      }}
+                    >
+                      {u.allowMultiDevice ? "Multi-Device ✓" : "1-Device"}
+                    </button>
+                    {feedback[u.id] && (
+                      <span style={{ color: feedback[u.id].ok ? "green" : "red", fontSize: 12 }}>
+                        {feedback[u.id].msg}
+                      </span>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

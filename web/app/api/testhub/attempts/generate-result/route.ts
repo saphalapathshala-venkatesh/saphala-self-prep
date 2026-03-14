@@ -185,7 +185,8 @@ export async function POST(request: Request) {
 
   const baseXP = totalCorrect * 2;
   const bonusXP = accuracyPercent >= 80 ? 10 : 0;
-  const xpEarned = baseXP + bonusXP;
+  const xpMultiplier = attempt.attemptNumber === 1 ? 1.0 : attempt.attemptNumber === 2 ? 0.5 : 0;
+  const xpEarned = Math.round((baseXP + bonusXP) * xpMultiplier);
 
   const result: MockResult = {
     resultId: `result_${attemptId}_${Date.now()}`,
@@ -234,6 +235,8 @@ export async function POST(request: Request) {
                 accuracyPercent,
                 baseXP,
                 bonusXP,
+                xpMultiplier,
+                attemptNumber: attempt.attemptNumber,
               },
             },
           }),

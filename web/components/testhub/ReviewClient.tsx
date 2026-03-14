@@ -128,6 +128,17 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
     }
   }, [toast]);
 
+  const counts = useMemo(() => {
+    const qs = data?.questions ?? [];
+    let correct = 0, incorrect = 0, unattempted = 0;
+    for (const q of qs) {
+      if (q.userSelectedOption === null) unattempted++;
+      else if (q.userSelectedOption === q.correctOption) correct++;
+      else incorrect++;
+    }
+    return { correct, incorrect, unattempted };
+  }, [data]);
+
   function navigateTo(idx: number) {
     setCurrentIndex(idx);
     setShowAltLang(false);
@@ -202,16 +213,6 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
   const { testMeta, attemptMeta, questions } = data;
   const primaryLang = attemptMeta.language;
   const altLang = primaryLang === "EN" ? "TE" : "EN";
-
-  const counts = useMemo(() => {
-    let correct = 0, incorrect = 0, unattempted = 0;
-    for (const q of questions) {
-      if (q.userSelectedOption === null) unattempted++;
-      else if (q.userSelectedOption === q.correctOption) correct++;
-      else incorrect++;
-    }
-    return { correct, incorrect, unattempted };
-  }, [questions]);
 
   const currentQ = filteredQuestions[currentIndex];
   const hasQuestions = filteredQuestions.length > 0;

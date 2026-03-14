@@ -107,6 +107,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // One-device enforcement: block if user already has an active session
+    // (unless the user is explicitly allowed multi-device access)
+    if (!user.allowMultiDevice) {
+      const existingSession = await prisma.session.findFirst({
+        where: {
+          userId: user.id,
+          expiresAt: { gt: new Date() },
+          revokedAt: null,
+        },
+        select: { id: true },
+      });
+      if (existingSession) {
+        return NextResponse.json(
+          {
+            error: "This account is already active on another device. Please sign out from your other device first, or contact support.",
+            code: "ACTIVE_SESSION_EXISTS",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Session creation — retry once on transient failure
     let cookie;
     try {
