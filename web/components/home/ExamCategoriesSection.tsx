@@ -33,7 +33,6 @@ function CategoryCard({ cat }: { cat: Category }) {
       href={`/exams/${toSlug(cat.name)}`}
       className="group shrink-0 w-48 sm:w-52 flex flex-col rounded-2xl border border-gray-100 bg-white overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200"
     >
-      {/* 16:9 Thumbnail */}
       <div className="relative w-full aspect-video bg-gradient-to-br from-[#6D4BCB]/10 to-[#2D1B69]/20 overflow-hidden">
         {cat.thumbnailUrl ? (
           <Image
@@ -60,7 +59,6 @@ function CategoryCard({ cat }: { cat: Category }) {
         <div className="absolute inset-0 bg-[#2D1B69]/0 group-hover:bg-[#2D1B69]/10 transition-colors duration-200" />
       </div>
 
-      {/* Title row */}
       <div className="flex items-center justify-between px-4 py-3">
         <span className="text-sm font-semibold text-[#2D1B69] group-hover:text-[#6D4BCB] transition-colors truncate">
           {cat.name}
@@ -75,17 +73,26 @@ export default function ExamCategoriesSection() {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
-  // Controlled value resets to "" after navigation so placeholder always shows on return
   const [selected, setSelected] = useState("");
 
+  // Scroll container ref
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Track element ref — needed to measure width during drag and click
+  const trackRef = useRef<HTMLDivElement>(null);
+  // Drag state kept in a ref (not state) to avoid re-renders on every mousemove
+  const dragRef = useRef<{ startX: number; startScroll: number } | null>(null);
+  // Controls thumb CSS transition — disabled during drag so thumb tracks cursor exactly
+  const [isDragging, setIsDragging] = useState(false);
+
   const [thumb, setThumb] = useState({ left: 0, width: 30 });
 
+  // ─── Scroll helpers ────────────────────────────────────────────────────────
   const scrollLeft = () =>
     scrollRef.current?.scrollBy({ left: -280, behavior: "smooth" });
   const scrollRight = () =>
     scrollRef.current?.scrollBy({ left: 280, behavior: "smooth" });
 
+  // ─── Data fetch ────────────────────────────────────────────────────────────
   useEffect(() => {
     fetch("/api/public/categories")
       .then((r) => r.json())
@@ -100,6 +107,7 @@ export default function ExamCategoriesSection() {
       .finally(() => setLoading(false));
   }, []);
 
+  // ─── Scroll → thumb sync ───────────────────────────────────────────────────
   useEffect(() => {
     if (loading) return;
 
@@ -129,12 +137,72 @@ export default function ExamCategoriesSection() {
     };
   }, [loading]);
 
+  // ─── Dropdown ──────────────────────────────────────────────────────────────
   function handleDropdownChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const slug = e.target.value;
     if (!slug) return;
     router.push(`/exams/${slug}`);
-    // Reset so placeholder shows again if user navigates back
     setSelected("");
+  }
+
+  // ─── Track click (desktop) ─────────────────────────────────────────────────
+  // Maps click position linearly to scroll position.
+  // The thumb's onClick calls stopPropagation so this doesn't fire during drag end.
+  function handleTrackClick(e: React.MouseEvent<HTMLDivElement>) {
+    // Ignore if the user just finished a drag (mouseup fired before this click)
+    if (dragRef.current) return;
+    const track = trackRef.current;
+    const scroll = scrollRef.current;
+    if (!track || !scroll) return;
+    const scrollable = scroll.scrollWidth - scroll.clientWidth;
+    if (scrollable <= 0) return;
+    const rect = track.getBoundingClientRect();
+    const fraction = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    scroll.scrollLeft = fraction * scrollable;
+  }
+
+  // ─── Thumb drag (desktop) ──────────────────────────────────────────────────
+  function handleThumbMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    e.preventDefault(); // Prevent text selection during drag
+    e.stopPropagation(); // Prevent track click from also firing
+
+    const startX = e.clientX;
+    const startScroll = scrollRef.current?.scrollLeft ?? 0;
+    dragRef.current = { startX, startScroll };
+    setIsDragging(true);
+    document.body.style.cursor = "grabbing";
+    document.body.style.userSelect = "none";
+
+    function onMouseMove(ev: MouseEvent) {
+      const drag = dragRef.current;
+      const scroll = scrollRef.current;
+      const track = trackRef.current;
+      if (!drag || !scroll || !track) return;
+
+      const scrollable = scroll.scrollWidth - scroll.clientWidth;
+      if (scrollable <= 0) return;
+
+      // Thumb width as fraction of track (computed fresh, not from stale closure)
+      const thumbWidthFrac = Math.max(scroll.clientWidth / scroll.scrollWidth, 0.12);
+      // Range of pixels the thumb's left edge can travel across the track
+      const trackRange = track.clientWidth * (1 - thumbWidthFrac);
+
+      const delta = ev.clientX - drag.startX;
+      const scrollDelta = trackRange > 0 ? (delta / trackRange) * scrollable : 0;
+      scroll.scrollLeft = Math.max(0, Math.min(scrollable, drag.startScroll + scrollDelta));
+    }
+
+    function onMouseUp() {
+      dragRef.current = null;
+      setIsDragging(false);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    }
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
   }
 
   return (
@@ -200,6 +268,7 @@ export default function ExamCategoriesSection() {
             {/* Scroll container with right-edge fade hint on mobile */}
             <div className="relative flex-1 min-w-0">
               <div
+                id="exam-category-scroll"
                 ref={scrollRef}
                 className="exam-scroll flex gap-4 overflow-x-auto pb-3 snap-x snap-mandatory"
               >
@@ -226,21 +295,40 @@ export default function ExamCategoriesSection() {
           </div>
         )}
 
-        {/* Progress indicator — responsive height: slightly taller on mobile, slim on desktop */}
+        {/*
+          Progress bar / interactive scroll control
+          ─ Mobile:  passive indicator only (touch scroll is primary)
+          ─ Desktop: click on track to jump, drag thumb to scrub
+        */}
         {!loading && (
-          <div className="relative h-2.5 md:h-2 rounded-full mt-4 overflow-hidden bg-[#E9E0FF]">
+          <div
+            ref={trackRef}
+            role="scrollbar"
+            aria-controls="exam-category-scroll"
+            aria-valuenow={Math.round(thumb.left)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Scroll exam categories"
+            onClick={handleTrackClick}
+            className="relative h-2.5 rounded-full mt-4 bg-[#E9E0FF] overflow-hidden md:cursor-pointer"
+          >
             <div
-              className="absolute top-0 h-full rounded-full bg-[#8050C0]"
+              onMouseDown={handleThumbMouseDown}
+              onClick={(e) => e.stopPropagation()}
+              className="absolute top-0 h-full rounded-full bg-[#8050C0] md:cursor-grab md:hover:bg-[#6D3DB0] transition-colors duration-150"
               style={{
                 width: `${thumb.width}%`,
                 left: `${thumb.left}%`,
-                transition: "left 80ms ease, width 80ms ease",
+                // Disable transition while dragging so thumb tracks cursor exactly
+                transition: isDragging
+                  ? "none"
+                  : "left 80ms ease, width 80ms ease",
               }}
             />
           </div>
         )}
 
-        {/* Helper hint — mobile only, desktop has arrows */}
+        {/* Helper hint — mobile only, desktop has arrows + interactive bar */}
         <p className="md:hidden text-xs text-[#8050C0]/60 font-medium text-center mt-3">
           Swipe to explore all exam categories
         </p>

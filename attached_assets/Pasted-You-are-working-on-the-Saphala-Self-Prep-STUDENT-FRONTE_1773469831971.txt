@@ -1,0 +1,77 @@
+You are working on the Saphala Self Prep STUDENT FRONTEND APP.
+
+Critical context:
+- The student frontend app and admin app are two separate applications.
+- Both share one common database.
+- Maintain clean separation between admin and frontend while keeping them in sync.
+- Do not hardcode admin-managed exam category values.
+- Existing exam cards UI must remain.
+- Existing dropdown must remain.
+- Existing desktop arrows must remain.
+
+New improvement required:
+The dark purple horizontal bar under the exam category cards should not behave only as a passive progress indicator.
+On desktop, users must also be able to use that bar itself to move/drag the slider left and right.
+
+==================================================
+TASK: MAKE THE DESKTOP EXAM SLIDER BAR INTERACTIVE
+==================================================
+
+Current state:
+- Desktop has left/right arrows for exam category scrolling
+- There is a dark purple slider/progress bar below the cards
+- But the bar is not usable as an actual control
+
+Required:
+- Keep the arrows
+- Keep the existing exam cards design
+- Keep the dropdown
+- Upgrade the purple bar so it works like a real horizontal slider/scroll controller on desktop
+
+Expected behavior:
+- User should be able to drag the purple thumb/bar left or right
+- Slider/cards should move accordingly
+- Clicking on the track should also move the scroll position sensibly
+- The control should feel smooth and premium, not clunky
+- It should visually stay within Saphala branding
+
+UX requirements:
+- Desktop: interactive draggable slider bar + arrows
+- Mobile: keep touch scroll behavior as primary
+- Do not break current mobile experience
+- Do not remove current scroll/swipe support
+
+Design requirements:
+- Keep dark Saphala purple treatment
+- Make the control look elegant and premium
+- Ensure the draggable part is clearly discoverable as interactive
+- Avoid making it bulky or visually heavy
+
+Technical requirements:
+- Sync slider thumb position with actual horizontal scroll position of the cards container
+- Sync arrow clicks with the slider thumb as well
+- Ensure resize behavior is handled correctly
+- Avoid janky updates
+- Keep accessibility in mind where practical
+
+Important:
+- This is a UI behavior enhancement only
+- Do not disturb admin/frontend category sync logic
+- Do not change exam taxonomy source
+- Do not affect product cards or unrelated homepage sections
+
+Please do this in order:
+1. Audit current exam slider/progress implementation
+2. Convert the purple bar into an interactive desktop scroll control
+3. Keep arrows and existing cards intact
+4. Test sync between:
+   - drag on bar
+   - click on track
+   - arrow navigation
+   - direct horizontal scroll
+5. Run build/type checks
+6. Summarize:
+   - what changed
+   - how the interactive bar works
+   - whether mobile behavior remains unaffected
+   - whether any visual follow-up is still recommended
