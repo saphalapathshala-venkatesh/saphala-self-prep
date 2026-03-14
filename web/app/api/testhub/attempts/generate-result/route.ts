@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import {
   getAttemptById,
   getAnswersForAttempt,
@@ -16,10 +17,6 @@ import {
 } from "@/lib/resultStore";
 
 export const dynamic = "force-dynamic";
-
-function optionLetter(order: number): string {
-  return ["A", "B", "C", "D"][order] || "A";
-}
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -47,11 +44,51 @@ export async function POST(request: Request) {
     return Response.json({ error: "Attempt not yet submitted" }, { status: 400 });
   }
 
+  // Check XP idempotency guard from DB
+  const existingXpEntry = await prisma.xpLedgerEntry.findFirst({
+    where: { userId: user.id, refType: "Attempt", refId: attemptId },
+  });
+
+  // Check in-memory result cache
   const existing = getResultByAttemptId(attemptId);
+
   if (existing) {
+    // Result already computed this session — persist scores to DB (idempotent) and write XP if needed
+    const correct = existing.subjectBreakdown.reduce((s, sb) => s + sb.correctCount, 0);
+    const wrong = existing.subjectBreakdown.reduce((s, sb) => s + sb.incorrectCount, 0);
+    const unattempted = existing.subjectBreakdown.reduce((s, sb) => s + sb.unattemptedCount, 0);
+
+    await Promise.all([
+      prisma.attempt.update({
+        where: { id: attemptId },
+        data: {
+          scorePct: existing.accuracyPercent,
+          correctCount: correct,
+          wrongCount: wrong,
+          unansweredCount: unattempted,
+          totalTimeUsedMs: existing.totalTimeUsedMs,
+        },
+      }),
+      ...(!existingXpEntry
+        ? [
+            prisma.xpLedgerEntry.create({
+              data: {
+                userId: user.id,
+                delta: existing.xpEarned,
+                reason: "TestHub test completion",
+                refType: "Attempt",
+                refId: attemptId,
+                meta: { testId: attempt.testId, accuracyPercent: existing.accuracyPercent },
+              },
+            }),
+          ]
+        : []),
+    ]);
+
     return buildResponse(existing, attempt.testId, user.id);
   }
 
+  // Not in cache — compute fresh from DB
   const test = await getDbTestById(attempt.testId);
   if (!test) {
     return Response.json({ error: "Test not found" }, { status: 404 });
@@ -129,7 +166,10 @@ export async function POST(request: Request) {
   const negativeMarksTotal = totalIncorrect * test.negativeMarks;
   const netMarksTotal = grossMarksTotal - negativeMarksTotal;
   const answeredCount = totalCorrect + totalIncorrect;
-  const accuracyPercent = answeredCount > 0 ? Math.round((100 * totalCorrect) / answeredCount * 100) / 100 : 0;
+  const accuracyPercent =
+    answeredCount > 0
+      ? Math.round(((100 * totalCorrect) / answeredCount) * 100) / 100
+      : 0;
 
   const subjectBreakdown: SubjectBreakdown[] = Object.values(subjectAgg).map((s) => ({
     subjectId: s.subjectId,
@@ -165,7 +205,41 @@ export async function POST(request: Request) {
   };
 
   saveResult(result);
-  const totalXp = addUserXp(user.id, xpEarned);
+  addUserXp(user.id, xpEarned);
+
+  // Persist scores to Attempt and write XP to DB ledger
+  await Promise.all([
+    prisma.attempt.update({
+      where: { id: attemptId },
+      data: {
+        scorePct: accuracyPercent,
+        correctCount: totalCorrect,
+        wrongCount: totalIncorrect,
+        unansweredCount: totalUnattempted,
+        totalTimeUsedMs,
+      },
+    }),
+    ...(!existingXpEntry
+      ? [
+          prisma.xpLedgerEntry.create({
+            data: {
+              userId: user.id,
+              delta: xpEarned,
+              reason: "TestHub test completion",
+              refType: "Attempt",
+              refId: attemptId,
+              meta: {
+                testId: attempt.testId,
+                correct: totalCorrect,
+                accuracyPercent,
+                baseXP,
+                bonusXP,
+              },
+            },
+          }),
+        ]
+      : []),
+  ]);
 
   const allResults = getAllResultsForTest(attempt.testId);
   const showLeaderboard = allResults.length >= 30;
@@ -180,7 +254,8 @@ export async function POST(request: Request) {
 
     const rank = sorted.findIndex((r) => r.resultId === result.resultId) + 1;
     const belowCount = allResults.filter((r) => r.netMarksTotal < result.netMarksTotal).length;
-    const percentile = Math.round((100 * belowCount) / allResults.length * 100) / 100;
+    const percentile =
+      Math.round(((100 * belowCount) / allResults.length) * 100) / 100;
 
     result.rank = rank;
     result.percentile = percentile;
@@ -195,7 +270,12 @@ function buildResponse(result: MockResult, testId: string, userId: string) {
   const showLeaderboard = allResults.length >= 30;
   const totalXp = getUserTotalXp(userId);
 
-  let top10: Array<{ displayName: string; netMarks: number; accuracyPercent: number; timeUsedMs: number }> = [];
+  let top10: Array<{
+    displayName: string;
+    netMarks: number;
+    accuracyPercent: number;
+    timeUsedMs: number;
+  }> = [];
 
   if (showLeaderboard) {
     const sorted = [...allResults].sort((a, b) => {
@@ -207,7 +287,8 @@ function buildResponse(result: MockResult, testId: string, userId: string) {
 
     const rank = sorted.findIndex((r) => r.resultId === result.resultId) + 1;
     const belowCount = allResults.filter((r) => r.netMarksTotal < result.netMarksTotal).length;
-    const percentile = Math.round((100 * belowCount) / allResults.length * 100) / 100;
+    const percentile =
+      Math.round(((100 * belowCount) / allResults.length) * 100) / 100;
     result.rank = rank;
     result.percentile = percentile;
 

@@ -39,8 +39,12 @@ Preferred communication style: Simple, everyday language.
 - Review functionality includes correctness visualization, timing insights, and a question issue reporting system.
 
 #### Student Dashboard
-- Located at `/dashboard`, featuring a collapsible sidebar for navigation.
-- Displays user-specific information and access to different platform sections.
+- Located at `/dashboard` with a collapsible sidebar (desktop: icon-only collapsed mode, localStorage-persisted; mobile: hamburger drawer).
+- **Dashboard V1**: Hero gradient with contextual CTAs (Resume Exam / Browse Tests), 4 metric cards (Tests Attempted=real DB, XP=XpLedgerEntry, Accuracy=correctCount/wrongCount aggregate, Streak=placeholder), resume-in-progress amber banner, recent attempts list, profile summary card, coming-soon teaser strip, recommended free tests grid.
+- **My Attempts page** at `/dashboard/attempts`: full attempt history split into In Progress / Completed / Expired sections with score badges and Review/Result/Resume links.
+- **Profile page V1** at `/dashboard/profile`: read-only student profile (name, email, mobile masked, state, gender, joined date) with stats row (tests completed, XP, streak).
+- **Result score persistence**: `generate-result` API now writes `scorePct`, `correctCount`, `wrongCount`, `unansweredCount`, `totalTimeUsedMs` back to the `Attempt` DB record and creates an idempotent `XpLedgerEntry` (guarded by `refType:"Attempt"` + `refId` uniqueness check).
+- `getCurrentUser()` now selects `state` field in addition to existing fields.
 
 #### Homepage
 - 9-section layout: Header → Quote+Kalam Strip → Hero Slider (5 banners) → Exam Categories → Product Types (8) → Featured Courses → Features → Contact Form → Footer

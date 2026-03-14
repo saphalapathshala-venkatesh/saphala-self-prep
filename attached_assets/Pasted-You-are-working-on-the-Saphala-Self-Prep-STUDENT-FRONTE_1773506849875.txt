@@ -1,0 +1,276 @@
+You are working on the Saphala Self Prep STUDENT FRONTEND APP and any minimal backend-safe support needed for student dashboard data.
+
+Critical context:
+- The student frontend app and admin app are two separate applications.
+- Both share one common database.
+- Any change must preserve clean separation between frontend and admin while keeping data contracts fully in sync.
+- Before implementing, audit current frontend pages, API usage, Prisma schema, and backend data availability.
+- Do NOT introduce schema drift, fake backend assumptions, or UI that pretends data exists when it does not.
+- This batch must be safe, dashboard-focused, and future-ready.
+
+Goal:
+Build a premium, motivational, TestHub-first Student Dashboard V1 with a left hamburger/collapsible menu, real metrics where available, and graceful placeholders where backend wiring is not fully ready yet.
+
+==================================================
+1. AUDIT FIRST — FE / BE / SCHEMA SAFETY
+==================================================
+
+Before making changes, audit:
+
+A. Current dashboard implementation
+- what is currently rendered
+- which metrics are real
+- which values are hardcoded
+- which APIs/data loaders are used
+
+B. TestHub data availability
+- total attempts
+- completed/submitted attempts
+- latest attempts
+- resumable/incomplete attempt
+- scores/results availability
+- whether XP is persisted or still in-memory
+- whether accuracy can be safely calculated now
+- whether streak can be safely calculated now
+
+C. Schema/backend safety
+- Prisma schema related to attempts/results/users
+- whether result persistence is DB-safe or still in-memory
+- whether dashboard metrics can be sourced without schema breakage
+- whether any minimal backend/API extension is needed
+
+Important:
+- If result/XP logic is still in-memory, do not fake it as "fully implemented"
+- If a metric cannot be made real safely in this batch, keep the final UI card but show a graceful placeholder state
+- Do not make broad unrelated schema changes unless absolutely required
+
+==================================================
+2. PRIMARY FEATURE — STUDENT DASHBOARD V1
+==================================================
+
+Build/upgrade the student dashboard with a more premium and motivational feel, while keeping it useful and grounded in real TestHub data.
+
+Dashboard tone:
+- serious exam-prep + inspirational
+- premium but not flashy
+- motivational without being childish
+
+==================================================
+3. LEFT HAMBURGER / COLLAPSIBLE MENU
+==================================================
+
+Implement a left sidebar menu for the student area.
+
+Behavior:
+- desktop: collapsible sidebar
+- mobile: hamburger opens a drawer/sidebar
+- premium compact feel
+- clean transitions
+- easy to use
+
+Recommended menu structure:
+
+Primary:
+- Dashboard
+- TestHub
+- My Attempts
+- Profile
+
+Secondary / muted future-ready section:
+- Pathshala
+- Prep Library
+- Smart Learning
+
+These future modules should NOT behave like broken primary routes.
+Use a subtle "Soon" treatment or muted state if routes are not yet ready.
+
+Utility:
+- Support (if a real page/route exists; otherwise keep out for now)
+- Logout
+
+Important:
+- Clean up current misleading/dead navigation where needed
+- Do not present broken routes as fully active features
+- Keep nav aligned with actual product readiness
+
+==================================================
+4. DASHBOARD LAYOUT — REQUIRED COMPONENTS
+==================================================
+
+Implement the following dashboard components:
+
+A. Welcome Hero
+- greet student by name
+- short motivational line
+- primary CTA: Continue TestHub
+- secondary CTA: Explore Free Tests
+
+If resumable attempt exists, CTA can adapt intelligently.
+
+B. Metric Cards Row (final layout now, wired in phases)
+Show 4 cards:
+1. Tests Attempted
+2. XP Earned
+3. Accuracy
+4. Sadhana Streak
+
+Important:
+- Keep full final card layout now
+- Use real values where safely available
+- Use graceful placeholder text where backend is not fully ready
+
+Examples of graceful states:
+- XP Earned: "—" / "Attempt tests to start earning XP"
+- Accuracy: "—" / "Will appear after evaluated attempts"
+- Sadhana Streak: "0 days" / "Start today and build momentum"
+
+C. Resume / Continue Card
+- if an incomplete attempt exists, show Resume Attempt with relevant test info
+- otherwise show a strong Start Free Test / Continue TestHub state
+
+D. Motivational Progress Card
+- premium motivational card with progress-oriented messaging
+- should feel like a mentor/support card, not just decoration
+- message may be conditional on real test activity if available
+
+E. Recent Attempts Section
+- show recent attempts (prefer 5)
+- fields may include:
+  - test title
+  - category
+  - date
+  - status
+  - score/result state if safely available
+  - action (Resume / Review / Result as appropriate)
+
+F. Recommended Free Tests Section
+- show useful free/published tests from real TestHub data
+- CTA to attempt or view more tests
+
+G. Profile Summary Card
+- simple card with student basics:
+  - name
+  - email/mobile if appropriate
+  - state if available
+  - member since / joined date if available
+- CTA to profile page
+
+H. Future Learning Modes Teaser
+- one compact, subtle strip/card only
+- mention Pathshala / Prep Library / Smart Learning as upcoming modes
+- do not make this heavy or misleading
+
+==================================================
+5. MY ATTEMPTS PAGE
+==================================================
+
+Add a dedicated "My Attempts" page if it does not already exist.
+
+Requirements:
+- list student attempts using real DB-backed data
+- show enough information to be genuinely useful
+- allow access to review/result/resume where appropriate
+- keep UI clean and premium
+- this page should extend the dashboard's recent attempts section
+
+Important:
+- do not rely on in-memory-only data if it is unsafe
+- if some fields are unavailable safely, degrade gracefully
+
+==================================================
+6. PROFILE PAGE — V1
+==================================================
+
+Add a simple read-only student profile page if it does not already exist.
+
+Display:
+- full name
+- email
+- mobile
+- state
+- gender if available
+- joined date
+- account basics
+
+This is V1 only:
+- read-only is acceptable
+- do not overbuild edit functionality unless already easy and safe
+
+==================================================
+7. DATA WIRING RULES
+==================================================
+
+Use real data wherever safely available.
+
+Priority of real data:
+- attempts count
+- recent attempts
+- incomplete attempt / resume state
+- free tests / published tests
+- student identity/profile basics
+
+For metrics not fully ready:
+- keep the final UI card
+- render graceful placeholder state
+- do not hardcode misleading success values
+
+If any minimal API/data-loader additions are needed:
+- keep them narrowly scoped to dashboard/attempt/profile use
+- do not introduce broad unrelated APIs
+- keep contracts clean and future-safe
+
+==================================================
+8. TESTHUB RESULT / XP SAFETY CHECK
+==================================================
+
+This is important:
+- audit whether result generation / XP still depends on in-memory stores
+- if so, clearly state this in your summary
+- do not silently build dashboard assumptions on unstable result persistence
+
+If there is a very small safe improvement possible in this batch to make dashboard metrics more reliable, do it.
+If not, keep placeholders and report the blocker honestly.
+
+==================================================
+9. DESIGN REQUIREMENTS
+==================================================
+
+- premium and motivational
+- Saphala branding aligned
+- purple-led but not visually heavy
+- clean spacing
+- high readability
+- mobile responsive
+- sidebar experience should feel polished
+- dashboard should feel like a serious exam prep product, not a generic admin panel
+
+==================================================
+10. DO NOT DISTURB
+==================================================
+
+Do not disturb:
+- unrelated homepage sections
+- course platform features not yet being built
+- payment flow
+- admin-only pages
+- unrelated schema unless absolutely required for this batch
+
+==================================================
+11. FINAL OUTPUT REQUIRED
+==================================================
+
+Please do this in order:
+1. audit current dashboard, attempts, profile, and result/XP data safety
+2. identify what is real vs placeholder
+3. implement Student Dashboard V1
+4. implement left sidebar/hamburger navigation
+5. implement My Attempts page
+6. implement Profile page V1
+7. run build/type checks
+8. summarize:
+   - what was added/changed
+   - which metrics are real
+   - which metrics are placeholders pending backend/data work
+   - whether result/XP persistence is still a blocker
+   - whether FE and BE are now safely aligned for this batch
+   - any schema/API risks noticed

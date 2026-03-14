@@ -2,133 +2,419 @@ import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { getPublishedTestsForStudent } from "@/lib/testhubDb";
-import { prisma } from "@/lib/db";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import LoginSuccessToast from "./LoginSuccessToast";
+import { getDashboardData } from "@/lib/dashboardData";
+
+export const dynamic = "force-dynamic";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatDate(d: Date | null): string {
+  if (!d) return "—";
+  return new Intl.DateTimeFormat("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(d));
+}
+
+function formatMemberSince(d: Date): string {
+  return new Intl.DateTimeFormat("en-IN", {
+    month: "long",
+    year: "numeric",
+  }).format(new Date(d));
+}
+
+function ScoreBadge({ correct, wrong, total }: { correct: number; wrong: number; total: number }) {
+  if (correct === 0 && wrong === 0) {
+    return (
+      <span className="text-xs text-gray-400 italic">Score pending</span>
+    );
+  }
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const color =
+    pct >= 70
+      ? "text-green-700 bg-green-50"
+      : pct >= 40
+      ? "text-yellow-700 bg-yellow-50"
+      : "text-red-700 bg-red-50";
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${color}`}>
+      {correct}/{total} · {pct}%
+    </span>
+  );
+}
+
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
   const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
-  if (!user) {
-    redirect("/login");
-  }
+  const data = await getDashboardData(user.id);
 
-  const tests = await getPublishedTestsForStudent();
-  const freeTests = tests.filter((t) => t.accessType === "FREE");
-
-  const attemptCount = await prisma.attempt.count({
-    where: { userId: user.id, status: "SUBMITTED" },
-  });
-
-  let greeting = "Welcome back";
-  if (user.fullName) {
-    const salutation =
-      user.gender === "Male" ? "Mr. " :
-      user.gender === "Female" ? "Ms. " : "";
-    greeting = `Welcome back, ${salutation}${user.fullName}`;
-  }
+  // Greeting
+  const salutation =
+    user.gender === "Male" ? "Mr. " : user.gender === "Female" ? "Ms. " : "";
+  const firstName = user.fullName?.split(" ")[0] ?? user.fullName ?? null;
+  const greeting = firstName
+    ? `Welcome back, ${salutation}${firstName}`
+    : "Welcome back";
 
   const displayName = user.fullName ?? user.email ?? user.mobile ?? "Student";
 
+  // XP display
+  const xpDisplay = data.xpTotal > 0 ? String(data.xpTotal) : "0";
+
+  // Accuracy display
+  const accuracyDisplay =
+    data.accuracyPct !== null ? `${data.accuracyPct}%` : "—";
+
+  const hasAttempts = data.attemptCount > 0;
+
   return (
     <DashboardShell userName={displayName}>
-      <section className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] text-white py-8 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto">
-          <h1 className="text-xl sm:text-2xl font-bold mb-1">
-            {greeting}!
-          </h1>
-          <p className="text-purple-200 text-sm">
-            Ready to continue your preparation? Pick up where you left off.
+      <Suspense>
+        <LoginSuccessToast displayName={displayName} />
+      </Suspense>
+
+      {/* ── Hero ──────────────────────────────────────────────────────────── */}
+      <section className="bg-gradient-to-br from-[#2D1B69] via-[#4A2E9E] to-[#6D4BCB] text-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+          <p className="text-purple-300 text-xs font-semibold uppercase tracking-widest mb-1">
+            Saphala Self Prep
           </p>
+          <h1 className="text-2xl sm:text-3xl font-bold mb-1.5">{greeting}!</h1>
+          <p className="text-purple-200 text-sm mb-6 max-w-lg">
+            {data.activeAttempt
+              ? `You have an ongoing exam: "${data.activeAttempt.testTitle}". Pick up where you left off.`
+              : hasAttempts
+              ? "Every test you attempt brings you closer to your goal. Keep going."
+              : "Start your first practice test today and build your exam confidence."}
+          </p>
+
+          <div className="flex flex-wrap gap-3">
+            {data.activeAttempt ? (
+              <Link
+                href={`/testhub/tests/${data.activeAttempt.testId}/attempt`}
+                className="inline-flex items-center gap-2 bg-white text-[#2D1B69] font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-purple-50 transition-colors shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Resume Exam
+              </Link>
+            ) : (
+              <Link
+                href="/testhub"
+                className="inline-flex items-center gap-2 bg-white text-[#2D1B69] font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-purple-50 transition-colors shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                </svg>
+                Continue to TestHub
+              </Link>
+            )}
+            <Link
+              href="/testhub"
+              className="inline-flex items-center gap-2 border border-purple-400 text-purple-100 hover:border-purple-200 hover:text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
+            >
+              Browse Free Tests
+            </Link>
+          </div>
         </div>
       </section>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        <Suspense>
-          <LoginSuccessToast displayName={displayName} />
-        </Suspense>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-          <StatCard label="XP Earned" value="0" icon="star" color="purple" />
-          <StatCard label="Sadhana Streak" value="0 days" icon="flame" color="orange" />
-          <StatCard label="Tests Attempted" value={String(attemptCount)} icon="check" color="green" />
-          <StatCard label="Accuracy" value="—" icon="target" color="blue" />
+        {/* ── Metric cards ────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <MetricCard
+            label="Tests Attempted"
+            value={String(data.attemptCount)}
+            subtitle={data.attemptCount === 0 ? "Start your first test" : `${data.attemptCount} completed`}
+            icon="check"
+            color="purple"
+            isReal
+          />
+          <MetricCard
+            label="XP Earned"
+            value={xpDisplay}
+            subtitle={
+              data.xpTotal > 0
+                ? "Keep attempting to earn more"
+                : "Earn XP by completing tests"
+            }
+            icon="star"
+            color="amber"
+            isReal={data.xpHasLedger}
+          />
+          <MetricCard
+            label="Accuracy"
+            value={accuracyDisplay}
+            subtitle={
+              data.accuracyPct !== null
+                ? data.accuracyPct >= 70
+                  ? "Excellent performance"
+                  : "Keep practicing to improve"
+                : "Appears after your first test"
+            }
+            icon="target"
+            color="blue"
+            isReal={data.accuracyPct !== null}
+          />
+          <MetricCard
+            label="Sadhana Streak"
+            value="0 days"
+            subtitle="Begin today and build momentum"
+            icon="flame"
+            color="orange"
+            isReal={false}
+          />
         </div>
 
-        <section>
-          <h2 className="text-base font-bold text-[#2D1B69] mb-3">Saphala Self Prep</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ProductCard
-              title="Smart Learning"
-              description="Concept lessons, flashcards, and structured study paths"
-              href="/smart-learning"
-              icon="brain"
-              color="purple"
-              comingSoon
-            />
-            <ProductCard
-              title="TestHub"
-              description={`${tests.length} practice test${tests.length !== 1 ? "s" : ""} ready — simulate the real exam`}
-              href="/testhub"
-              icon="clipboard"
-              color="indigo"
-            />
-          </div>
-        </section>
-
-        <section>
-          <h2 className="text-base font-bold text-[#2D1B69] mb-3">Saphala Learn</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <ProductCard
-              title="Pathshala"
-              description="Premium video lessons by expert faculty"
-              href="/pathshala"
-              icon="play"
-              color="pink"
-              comingSoon
-            />
-            <ProductCard
-              title="Prep Library"
-              description="PDFs, notes, and downloadable study materials"
-              href="/prep-library"
-              icon="book"
-              color="teal"
-              comingSoon
-            />
-          </div>
-        </section>
-
-        <section>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-[#2D1B69]">Available Free Tests</h2>
+        {/* ── Resume card (if active attempt) ─────────────────────────────── */}
+        {data.activeAttempt && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-4">
+            <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-0.5">
+                Exam In Progress
+              </p>
+              <p className="text-sm font-bold text-gray-800 truncate">
+                {data.activeAttempt.testTitle}
+              </p>
+              {data.activeAttempt.endsAt && (
+                <p className="text-xs text-amber-600 mt-0.5">
+                  Expires: {formatDate(data.activeAttempt.endsAt)}
+                </p>
+              )}
+            </div>
             <Link
-              href="/testhub"
-              className="text-sm text-[#6D4BCB] hover:underline font-medium"
+              href={`/testhub/tests/${data.activeAttempt.testId}/attempt`}
+              className="flex-shrink-0 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
             >
-              View all →
+              Resume
             </Link>
           </div>
-          {freeTests.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {freeTests.slice(0, 3).map((test) => (
+        )}
+
+        {/* ── Main grid: Recent Attempts + Sidebar cards ───────────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          {/* Left: Recent Attempts */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                <h2 className="text-base font-bold text-[#2D1B69]">Recent Attempts</h2>
+                {hasAttempts && (
+                  <Link
+                    href="/dashboard/attempts"
+                    className="text-xs text-[#6D4BCB] hover:underline font-medium"
+                  >
+                    View all →
+                  </Link>
+                )}
+              </div>
+
+              {data.recentAttempts.length > 0 ? (
+                <div className="divide-y divide-gray-50">
+                  {data.recentAttempts.map((attempt) => {
+                    const total =
+                      attempt.correctCount + attempt.wrongCount + attempt.unansweredCount;
+                    return (
+                      <div
+                        key={attempt.id}
+                        className="flex items-center gap-3 px-5 py-3.5"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-[#2D1B69] truncate">
+                            {attempt.testTitle}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            {attempt.category ? `${attempt.category} · ` : ""}
+                            {formatDate(attempt.submittedAt)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <ScoreBadge
+                            correct={attempt.correctCount}
+                            wrong={attempt.wrongCount}
+                            total={total || attempt.correctCount + attempt.wrongCount + attempt.unansweredCount}
+                          />
+                          <Link
+                            href={`/testhub/tests/${attempt.testId}/review?attemptId=${attempt.id}`}
+                            className="text-xs font-medium text-[#6D4BCB] hover:underline"
+                          >
+                            Review
+                          </Link>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="px-5 py-10 text-center">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-purple-50 flex items-center justify-center">
+                    <svg className="w-6 h-6 text-[#6D4BCB]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-semibold text-gray-600 mb-1">No attempts yet</p>
+                  <p className="text-xs text-gray-400 mb-4">
+                    Your test history will appear here once you complete your first exam.
+                  </p>
+                  <Link
+                    href="/testhub"
+                    className="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-[#6D4BCB] hover:bg-[#5C3DB5] px-4 py-2 rounded-xl transition-colors"
+                  >
+                    Start a Free Test
+                  </Link>
+                </div>
+              )}
+            </div>
+
+            {/* Motivational card */}
+            <div className="relative bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] rounded-2xl p-6 overflow-hidden text-white">
+              <div className="absolute right-0 top-0 w-32 h-32 opacity-10">
+                <svg viewBox="0 0 100 100" fill="currentColor">
+                  <circle cx="80" cy="20" r="40" />
+                  <circle cx="20" cy="80" r="30" />
+                </svg>
+              </div>
+              <p className="text-purple-200 text-xs font-semibold uppercase tracking-widest mb-2">
+                Your Mentor Says
+              </p>
+              <p className="text-base font-semibold leading-relaxed mb-4 max-w-sm">
+                {hasAttempts
+                  ? "Consistency beats intensity. A daily practice session — even 30 minutes — compounds into mastery over time."
+                  : "The first step is always the hardest. Take your first practice test today — it is the foundation of all future success."}
+              </p>
+              <Link
+                href="/testhub"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                {hasAttempts ? "Continue Practice" : "Take First Test"}
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+          </div>
+
+          {/* Right: Profile card + Coming soon */}
+          <div className="space-y-4">
+            {/* Profile card */}
+            <div className="bg-white rounded-2xl border border-gray-100 p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-bold text-[#6D4BCB]">
+                    {displayName.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-[#2D1B69] truncate">{displayName}</p>
+                  <p className="text-xs text-gray-400">Student</p>
+                </div>
+              </div>
+              <div className="space-y-2 text-xs text-gray-500">
+                {user.email && (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span className="truncate">{user.email}</span>
+                  </div>
+                )}
+                {user.state && (
+                  <div className="flex items-center gap-2">
+                    <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>{user.state}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  <span>Joined {formatMemberSince(user.createdAt)}</span>
+                </div>
+              </div>
+              <Link
+                href="/dashboard/profile"
+                className="mt-4 block text-center text-xs font-semibold text-[#6D4BCB] hover:underline"
+              >
+                View full profile →
+              </Link>
+            </div>
+
+            {/* Coming Soon teaser */}
+            <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-5">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
+                More Coming Soon
+              </p>
+              <div className="space-y-2.5">
+                {[
+                  { label: "Pathshala", sub: "Video lessons by faculty" },
+                  { label: "Prep Library", sub: "PDFs & study material" },
+                  { label: "Smart Learning", sub: "Flashcards & concept maps" },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center gap-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-purple-300 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">{item.label}</p>
+                      <p className="text-[10px] text-gray-400">{item.sub}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Free Tests section ────────────────────────────────────────────── */}
+        {data.freeTests.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-[#2D1B69]">Recommended Free Tests</h2>
+              <Link
+                href="/testhub"
+                className="text-xs text-[#6D4BCB] hover:underline font-medium"
+              >
+                View all →
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {data.freeTests.map((test) => (
                 <div
                   key={test.id}
-                  className="bg-white rounded-xl border border-gray-200 p-4"
+                  className="bg-white rounded-xl border border-gray-100 p-4 hover:shadow-sm transition-shadow"
                 >
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
                       Free
                     </span>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      test.difficulty === "Easy" ? "text-green-700 bg-green-50" :
-                      test.difficulty === "Medium" ? "text-yellow-700 bg-yellow-50" :
-                      "text-red-700 bg-red-50"
-                    }`}>
+                    <span
+                      className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                        test.difficulty === "Easy"
+                          ? "text-green-700 bg-green-50"
+                          : test.difficulty === "Medium"
+                          ? "text-yellow-700 bg-yellow-50"
+                          : "text-red-700 bg-red-50"
+                      }`}
+                    >
                       {test.difficulty}
                     </span>
                   </div>
-                  <h3 className="text-sm font-semibold text-[#2D1B69] mb-1 leading-snug">
+                  <h3 className="text-sm font-semibold text-[#2D1B69] mb-1 leading-snug line-clamp-2">
                     {test.title}
                   </h3>
                   <p className="text-xs text-gray-400 mb-3">
@@ -136,57 +422,65 @@ export default async function DashboardPage() {
                   </p>
                   <Link
                     href={`/testhub/tests/${test.id}/brief`}
-                    className="btn-glossy-primary w-full text-xs py-2 text-center block"
+                    className="block text-center text-xs font-semibold text-white bg-[#6D4BCB] hover:bg-[#5C3DB5] px-3 py-2 rounded-lg transition-colors"
                   >
                     Start Test
                   </Link>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-              <p className="text-gray-500 text-sm mb-3">No free tests available right now.</p>
-              <Link href="/testhub" className="text-sm text-[#6D4BCB] hover:underline font-medium">
-                Browse all tests →
-              </Link>
-            </div>
-          )}
-        </section>
+          </section>
+        )}
       </div>
     </DashboardShell>
   );
 }
 
-function StatCard({
+// ── MetricCard ────────────────────────────────────────────────────────────────
+
+function MetricCard({
   label,
   value,
+  subtitle,
   icon,
   color,
+  isReal,
 }: {
   label: string;
   value: string;
+  subtitle: string;
   icon: string;
   color: string;
+  isReal: boolean;
 }) {
-  const bgMap: Record<string, string> = {
-    purple: "bg-purple-100 text-[#6D4BCB]",
-    orange: "bg-orange-100 text-orange-600",
-    green: "bg-green-100 text-green-600",
-    blue: "bg-blue-100 text-blue-600",
+  const colorMap: Record<string, { bg: string; text: string }> = {
+    purple: { bg: "bg-purple-100", text: "text-[#6D4BCB]" },
+    amber: { bg: "bg-amber-100", text: "text-amber-600" },
+    blue: { bg: "bg-blue-100", text: "text-blue-600" },
+    orange: { bg: "bg-orange-100", text: "text-orange-500" },
   };
+  const { bg, text } = colorMap[color] ?? colorMap.purple;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 ${bgMap[color]}`}>
-        <StatIcon name={icon} />
+    <div className="bg-white rounded-2xl border border-gray-100 p-4 relative overflow-hidden">
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${bg} ${text}`}>
+        <MetricIcon name={icon} />
       </div>
-      <p className="text-lg sm:text-xl font-bold text-[#2D1B69] leading-tight">{value}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+      <p className={`text-xl font-bold text-[#2D1B69] leading-tight ${!isReal ? "opacity-50" : ""}`}>
+        {value}
+      </p>
+      <p className="text-xs text-gray-400 font-medium mt-0.5">{label}</p>
+      <p className="text-[10px] text-gray-400 mt-1 leading-relaxed">{subtitle}</p>
+      {!isReal && (
+        <span className="absolute top-3 right-3 text-[9px] font-semibold text-gray-300 uppercase tracking-wider">
+          Soon
+        </span>
+      )}
     </div>
   );
 }
 
-function StatIcon({ name }: { name: string }) {
+function MetricIcon({ name }: { name: string }) {
   const cn = "w-4 h-4";
   switch (name) {
     case "star":
@@ -214,89 +508,6 @@ function StatIcon({ name }: { name: string }) {
           <circle cx="12" cy="12" r="10" />
           <circle cx="12" cy="12" r="6" />
           <circle cx="12" cy="12" r="2" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
-
-function ProductCard({
-  title,
-  description,
-  href,
-  icon,
-  color,
-  comingSoon,
-}: {
-  title: string;
-  description: string;
-  href: string;
-  icon: string;
-  color: string;
-  comingSoon?: boolean;
-}) {
-  const bgMap: Record<string, string> = {
-    purple: "bg-purple-100 text-[#6D4BCB]",
-    indigo: "bg-indigo-100 text-indigo-600",
-    pink: "bg-pink-100 text-pink-600",
-    teal: "bg-teal-100 text-teal-600",
-  };
-
-  const content = (
-    <div className={`bg-white rounded-xl border border-gray-200 p-5 transition-shadow ${comingSoon ? "opacity-75" : "hover:shadow-md group"}`}>
-      <div className="flex items-start gap-4">
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${bgMap[color]}`}>
-          <ProductIcon name={icon} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className={`text-sm font-semibold ${comingSoon ? "text-gray-500" : "text-[#2D1B69] group-hover:text-[#6D4BCB]"} transition-colors`}>
-              {title}
-            </h3>
-            {comingSoon && (
-              <span className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-full leading-none font-medium">
-                Coming Soon
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-gray-500 leading-relaxed">{description}</p>
-        </div>
-      </div>
-    </div>
-  );
-
-  if (comingSoon) return content;
-
-  return <Link href={href}>{content}</Link>;
-}
-
-function ProductIcon({ name }: { name: string }) {
-  const cn = "w-5 h-5";
-  switch (name) {
-    case "brain":
-      return (
-        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-        </svg>
-      );
-    case "clipboard":
-      return (
-        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-        </svg>
-      );
-    case "play":
-      return (
-        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      );
-    case "book":
-      return (
-        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
       );
     default:
