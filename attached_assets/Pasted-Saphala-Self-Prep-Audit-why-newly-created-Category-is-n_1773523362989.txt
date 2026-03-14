@@ -1,0 +1,57 @@
+Saphala Self Prep — Audit why newly created Category is not reflecting in frontend
+
+Problem:
+I created a new Category in the separate Admin app, but it is not appearing in the frontend app where expected.
+
+Important clarification:
+In this system, `Category` itself is the Exam Category.
+There is also a separate Product Category, but that is NOT relevant to this issue.
+
+So for frontend exam/category displays, filters, and taxonomy top-level reads, the correct source should be the main `Category` model/table.
+
+Goal:
+Find exactly why the newly created Category is not reflecting in the frontend app.
+
+Please audit only, and fix only if the issue is clearly in the frontend codebase.
+
+Check the following:
+
+1. Identify all frontend places where exam categories are read/displayed:
+- homepage exam/category section
+- test filters
+- dashboard filters
+- my attempts category filter
+- any public categories API usage
+
+2. For each place, report:
+- what source it reads from
+- whether it reads directly from Category table
+- whether it derives categories from tests/content instead of reading Category directly
+- whether it filters based on published tests/content
+- whether it is hardcoded or static
+
+3. Verify whether the frontend has a live categories API:
+- if yes, check whether it reads directly from Category
+- if no, identify how categories are currently sourced
+
+4. Check whether the specific section I am expecting is:
+- directly reading Category
+- only reading categories linked to published tests/content
+- using hardcoded/mock/static values
+- using cache or stale derived state
+
+5. If the issue is frontend wiring, fix it safely:
+- ensure newly created Category records reflect properly in frontend where appropriate
+- do not mix in Product Category
+- do not introduce schema changes unless absolutely necessary
+
+6. Report clearly:
+- root cause
+- exact frontend section affected
+- whether Category visibility depends on linked published tests/content
+- files changed if fixed
+
+Important:
+- `Category` = exam category
+- Product Category is separate and must not be used here
+- Keep this focused and do not refactor unrelated modules
