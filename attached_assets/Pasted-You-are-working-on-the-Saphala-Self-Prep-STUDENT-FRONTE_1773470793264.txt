@@ -1,0 +1,97 @@
+You are working on the Saphala Self Prep STUDENT FRONTEND APP.
+
+Task:
+Redesign the "Prepare Your Way" product category cards for a stronger premium layout.
+
+Important:
+- This is a UI-only change for the existing product category cards section.
+- Do not change backend logic, product meanings, routing, or homepage data flow.
+- Apply the same design treatment consistently to all existing product category cards.
+
+==================================================
+REQUIRED CARD STRUCTURE CHANGES
+==================================================
+
+Current state:
+- Each product card has icon at top
+- Title below
+- Description below
+- CTA text with arrow inline at bottom
+
+We now want this updated structure:
+
+1. TOP HEADER ROW
+- Place the icon on the left
+- Place the title to the right of the icon
+- Keep the icon color and icon background exactly as they are now
+- The title area must sit on a purple background
+- Only the title background should be purple — not the icon background
+- Ensure the title text remains clearly readable on the purple background
+
+2. DESCRIPTION AREA
+- Keep the descriptive text below the header
+- Description area should remain on white background
+- Maintain good spacing and readability
+
+3. CTA AREA
+- Remove the inline arrow from the current CTA text
+- The current CTA text (such as "Start for free", "Watch lessons", etc.) should now appear inside a proper purple button
+- Use the same Saphala purple button style already used across the site
+- Button text should stay the same unless minor spacing refinement is needed
+- Button should look clean, premium, and easy to tap/click
+
+==================================================
+DESIGN REQUIREMENTS
+==================================================
+
+- Keep card layout premium and minimal
+- Maintain current icon colors and icon background colors exactly
+- Purple title background must align well with the rest of the card
+- Ensure title row spacing looks balanced
+- Do not make the title strip too tall or bulky
+- Keep button style consistent across all cards
+- Ensure hover/tap states feel polished
+- Preserve responsiveness on mobile and desktop
+
+==================================================
+CONSISTENCY REQUIREMENTS
+==================================================
+
+Apply this consistently to all existing product category cards, including:
+- Free Demo Courses & Tests
+- Complete Prep Packs
+- Video Courses
+- Self Prep Courses
+- PDF Study Material
+- Test Series
+- Flash Cards
+- Current Affairs
+
+Ensure:
+- alignment is consistent
+- title strip height is consistent
+- button placement is consistent
+- spacing feels uniform across all cards
+
+==================================================
+DO NOT CHANGE
+==================================================
+
+- product category meanings
+- icon color
+- icon background color
+- routing behavior
+- section heading and supporting text
+- unrelated homepage sections
+
+==================================================
+FINAL STEPS
+==================================================
+
+After implementation:
+1. run build/type checks
+2. summarize:
+- what changed in the card structure
+- whether all 8 cards now follow the same layout
+- whether mobile responsiveness remains clean
+- whether any further visual polish is still recommended

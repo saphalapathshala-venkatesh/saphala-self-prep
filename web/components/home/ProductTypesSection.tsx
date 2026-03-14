@@ -107,32 +107,33 @@ export default function ProductTypesSection() {
               <Link
                 key={item.title}
                 href={item.href}
-                className="group bg-white rounded-2xl border border-gray-100 p-6 flex flex-col gap-4 hover:shadow-xl hover:-translate-y-1 hover:border-[#8050C0]/20 transition-all duration-200"
+                className="group bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-[#8050C0]/20 transition-all duration-200"
               >
-                {/* Icon */}
-                <div
-                  className={`w-12 h-12 rounded-2xl flex items-center justify-center ${item.iconBg} ${item.iconColor} group-hover:scale-110 transition-transform duration-200`}
-                >
-                  <Icon className="w-6 h-6" />
-                </div>
-
-                {/* Text */}
-                <div className="flex-1">
-                  <h3 className="font-bold text-[#2D1B69] text-base mb-2 group-hover:text-[#6D4BCB] transition-colors leading-snug">
+                {/* Header strip — purple background, icon left, title right */}
+                <div className="bg-[#8050C0] group-hover:bg-[#6D3DB0] px-4 py-3 flex items-center gap-3 transition-colors duration-200">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200 ${item.iconBg} ${item.iconColor}`}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-bold text-white text-sm leading-snug flex-1">
                     {item.title}
                   </h3>
+                </div>
+
+                {/* Description — white body */}
+                <div className="flex-1 px-4 pt-4 pb-3">
                   <p className="text-[#6B5CA5] text-sm leading-relaxed">
                     {item.desc}
                   </p>
                 </div>
 
-                {/* CTA */}
-                <span className="text-sm font-semibold text-[#6D4BCB] flex items-center gap-1 mt-auto">
-                  {item.cta}
-                  <span className="inline-block group-hover:translate-x-1 transition-transform duration-150">
-                    →
+                {/* CTA button */}
+                <div className="px-4 pb-4">
+                  <span className="block w-full text-center bg-[#8050C0] group-hover:bg-[#6D3DB0] text-white text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150">
+                    {item.cta}
                   </span>
-                </span>
+                </div>
               </Link>
             );
           })}
