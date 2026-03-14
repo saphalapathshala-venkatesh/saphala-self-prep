@@ -1,0 +1,97 @@
+Saphala Self Prep / Admin App — Analytics & Diagnostic Feature Audit
+
+Goal:
+Do a pure audit first. Do NOT implement anything yet.
+
+I want to know whether the following learner-performance intelligence features already exist in the admin app fully, partially, or not at all.
+
+Features to audit
+
+1. Reports
+Check whether admin already has:
+- learner-wise reports
+- test-wise reports
+- section-wise reports
+- topic/subtopic-wise reports
+- time-based reports
+- downloadable/exportable reports
+
+2. Heat maps
+Check whether admin already has any heat-map style analytics such as:
+- question difficulty heat map
+- topic weakness heat map
+- accuracy heat map
+- time-spent heat map
+- section performance heat map
+
+3. Compare last 3 tests
+Check whether there is any existing logic or UI for:
+- comparing a learner’s last 3 tests
+- identifying improvement vs deterioration
+- score trend
+- speed trend
+- accuracy trend
+- topic-wise trend
+- repeated weak areas
+
+4. Improvement / deterioration insights
+Check whether system already computes or can compute from existing data:
+- what improved from previous tests
+- what deteriorated
+- stable weak areas
+- stable strong areas
+
+5. Mistake tracking
+Check whether there is already any feature or partial wiring for:
+- repeated mistakes
+- committed mistakes / frequently repeated mistakes
+- wrong question patterns
+- weak question types
+- a learner mistake log
+
+6. Recommendation engine / guidance
+Check whether any existing admin or student-side logic already supports:
+- what to read next
+- what topic to revise
+- what material/test to attempt next
+- what mistakes to focus on
+- recommendations based on recent test performance
+
+7. Data availability
+Very important:
+Audit whether the existing schema/data is already sufficient to support these features, even if the UI is missing.
+
+Check whether current tables already store enough data such as:
+- attempt-wise scores
+- section-wise scores
+- question-wise responses
+- correct/wrong/unanswered
+- time spent
+- taxonomy mapping (category/subject/topic/subtopic)
+- historical attempts per learner
+- XP or performance logs
+
+Required output format
+
+For each feature above, classify it into one of these:
+- Fully Exists
+- Partially Exists
+- Data Exists but UI Missing
+- Not Present
+
+Then provide:
+
+1. Existing files/routes/pages/apis related to each feature
+2. What exactly is already implemented
+3. What is missing
+4. Whether current schema/data is sufficient
+5. Which features can be built with low effort vs medium vs high effort
+6. Recommended implementation order
+
+Important rules
+- This is audit only
+- Do not write code yet
+- Do not assume features exist
+- Base answer only on actual code/schema/routes/pages already present
+- If something is only partly wired, clearly say so
+- Separate Admin App features from Student App features clearly
