@@ -75,6 +75,8 @@ export default function ExamCategoriesSection() {
   const router = useRouter();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  // Controlled value resets to "" after navigation so placeholder always shows on return
+  const [selected, setSelected] = useState("");
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState({ left: 0, width: 30 });
@@ -127,6 +129,14 @@ export default function ExamCategoriesSection() {
     };
   }, [loading]);
 
+  function handleDropdownChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const slug = e.target.value;
+    if (!slug) return;
+    router.push(`/exams/${slug}`);
+    // Reset so placeholder shows again if user navigates back
+    setSelected("");
+  }
+
   return (
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
@@ -141,15 +151,13 @@ export default function ExamCategoriesSection() {
           </p>
         </div>
 
-        {/* Quick-select dropdown — populated from same admin-managed categories */}
+        {/* Quick-select dropdown — full-width on mobile, constrained from sm up */}
         {!loading && categories.length > 0 && (
-          <div className="relative max-w-xs mx-auto mb-8">
+          <div className="relative w-full sm:max-w-xs sm:mx-auto mb-8">
             <select
-              defaultValue=""
-              onChange={(e) => {
-                if (e.target.value) router.push(`/exams/${e.target.value}`);
-              }}
-              className="w-full appearance-none bg-white border border-[#8050C0]/30 text-[#2D1B69] rounded-xl px-4 py-3 pr-10 text-sm font-medium shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#8050C0]/40 focus:border-[#8050C0]/60 transition-colors"
+              value={selected}
+              onChange={handleDropdownChange}
+              className="w-full appearance-none bg-white border border-[#8050C0]/30 text-[#2D1B69] rounded-xl px-4 py-3.5 pr-10 text-sm font-medium shadow-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#8050C0]/40 focus:border-[#8050C0]/60 transition-colors"
             >
               <option value="" disabled>
                 Choose Your Target Exam
@@ -201,8 +209,8 @@ export default function ExamCategoriesSection() {
                   </div>
                 ))}
               </div>
-              {/* Right-edge fade — mobile only, hints more content to the right */}
-              <div className="pointer-events-none absolute right-0 top-0 bottom-3 w-16 bg-gradient-to-l from-white to-transparent md:hidden" />
+              {/* Subtle right-edge fade — mobile only, signals more cards to the right */}
+              <div className="pointer-events-none absolute right-0 top-0 bottom-3 w-12 bg-gradient-to-l from-white to-transparent md:hidden" />
             </div>
 
             {/* Right arrow — desktop only */}
@@ -218,16 +226,12 @@ export default function ExamCategoriesSection() {
           </div>
         )}
 
-        {/* Progress indicator — always visible, brand purple */}
+        {/* Progress indicator — responsive height: slightly taller on mobile, slim on desktop */}
         {!loading && (
-          <div
-            className="relative rounded-full mt-4 overflow-hidden"
-            style={{ height: "10px", background: "#E9E0FF" }}
-          >
+          <div className="relative h-2.5 md:h-2 rounded-full mt-4 overflow-hidden bg-[#E9E0FF]">
             <div
-              className="absolute top-0 h-full rounded-full"
+              className="absolute top-0 h-full rounded-full bg-[#8050C0]"
               style={{
-                background: "#8050C0",
                 width: `${thumb.width}%`,
                 left: `${thumb.left}%`,
                 transition: "left 80ms ease, width 80ms ease",
@@ -236,8 +240,9 @@ export default function ExamCategoriesSection() {
           </div>
         )}
 
-        <p className="text-xs text-[#8050C0]/60 font-medium text-center mt-3">
-          Swipe or use arrows to explore all exam categories
+        {/* Helper hint — mobile only, desktop has arrows */}
+        <p className="md:hidden text-xs text-[#8050C0]/60 font-medium text-center mt-3">
+          Swipe to explore all exam categories
         </p>
       </div>
     </section>
