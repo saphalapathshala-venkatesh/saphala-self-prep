@@ -32,15 +32,18 @@ The student frontend shares its database with the admin app. The admin app **own
 
 **Restored fields (after accidental drop):**
 - `User`: state, gender, isBlocked, blockedReason, maxWebDevices, deletedAt, infringementWarnings, infringementBlocked, mustChangePassword, legalAcceptedAt, legalVersion
-- `Test`: shuffleGroups, shuffleGroupChildren, shuffleOptions, shuffleQuestions, xpEnabled, xpValue, testStartTime, totalQuestions; code, languageAvailable, marksPerQuestion, negativeMarksPerQuestion, attemptsAllowed, subjectIds, syllabusTags
-- `TestSeries`: thumbnailUrl
+- `Test`: shuffleGroups, shuffleGroupChildren, shuffleOptions, shuffleQuestions, xpEnabled, xpValue, testStartTime, totalQuestions; code, languageAvailable (enum), marksPerQuestion, negativeMarksPerQuestion, attemptsAllowed, subjectIds, syllabusTags
+- `TestSeries`: thumbnailUrl, isFree
 - `TestSection`: targetCount, parentSectionId (self-referential nested sections)
 - `TestQuestion`: marks, negativeMarks
+- `Attempt`: status (AttemptStatus enum), attemptNumber, language (LanguageAvailable enum), endsAt, lockedSessionToken, totalTimeUsedMs
+- `AttemptAnswer`: selectedOptionId, isMarkedForReview, timeSpentMs, savedAt, updatedAt
 - `FlashcardDeck`: subtitle, subtopicId, titleTemplate, titleImageUrl, subjectColor, xpEnabled, xpValue
 - `FlashcardCard`: cardType (FlashcardCardType enum), content (Json)
 - `ContentPage`: categoryId, subjectId, topicId, xpEnabled, xpValue
 - `PdfAsset`: isDownloadable
 - `Purchase`: legalAcceptedAt, legalVersion
+**Enums added to DB (after accidental drop):** `AttemptStatus` (IN_PROGRESS, SUBMITTED), `LanguageAvailable` (EN, TE, BOTH)
 
 ### Admin APIs
 Admin functionalities include endpoints for clearing user sessions, toggling multi-device access per user, and retrieving user attempt records.
