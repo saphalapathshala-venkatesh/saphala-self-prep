@@ -1,0 +1,55 @@
+/**
+ * Canonical student-facing product names and UI labels for Saphala Pathshala.
+ *
+ * Import from this file whenever you need to display a product name, section
+ * heading, or CTA label so they stay consistent across all student-facing pages.
+ */
+
+/** Platform product names — use exactly these strings in UI copy. */
+export const PRODUCTS = {
+  testHub: "TestHub",
+  selfPrep: "Self Prep",
+  pathshala: "Pathshala",
+  prepLibrary: "Prep Library",
+  flashcards: "Flashcards",
+  lessonNotes: "Lesson Notes",
+  videoLessons: "Video Lessons",
+  currentAffairs: "Current Affairs",
+  testSeries: "Test Series",
+} as const;
+
+/** Brand identity strings. */
+export const BRAND = {
+  name: "Saphala Pathshala",
+  tagline: "Your Success is Our Focus",
+  selfPrepTag: "Self Prep",
+  supportEmail: "support@saphala.in",
+} as const;
+
+/** Canonical navigation labels — must stay in sync with Sidebar PRIMARY_NAV. */
+export const NAV_LABELS = {
+  dashboard: "Dashboard",
+  testHub: "TestHub",
+  courses: "Courses",
+  myAttempts: "My Attempts",
+  profile: "Profile",
+  lessonNotes: "Lesson Notes",
+  flashcards: "Flashcards",
+  prepLibrary: "Prep Library",
+} as const;
+
+/** Canonical routes for key student destinations. */
+export const ROUTES = {
+  home: "/",
+  courses: "/courses",
+  testHub: "/testhub",
+  lessonNotes: "/learn/lessons",
+  flashcards: "/learn/flashcards",
+  prepLibrary: "/learn/pdfs",
+  dashboard: "/dashboard",
+  login: "/login",
+  register: "/register",
+  contact: "/contact",
+  termsAndConditions: "/terms-and-conditions",
+  refundPolicy: "/refund-policy",
+} as const;

@@ -76,7 +76,7 @@ const slides = [
       "Practice regularly without needing separate resources",
       "Ideal for flexible daily study at your own pace",
     ],
-    primaryCta: { label: "Start Self Prep", href: "/courses?type=self-prep" },
+    primaryCta: { label: "Start Self Prep", href: "/courses" },
     // Student studying at desk with books
     image:
       "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=900&q=80",
@@ -97,7 +97,7 @@ const slides = [
       "Study at your own speed without missing classes",
       "Better for students who learn well through teaching",
     ],
-    primaryCta: { label: "Watch Video Courses", href: "/courses?type=video" },
+    primaryCta: { label: "Watch Video Courses", href: "/courses" },
     // Laptop / online video learning — swap `image` for production asset
     // Production fallback path: /hero/video-learning.png
     image:
@@ -122,7 +122,7 @@ const slides = [
       "Helps retain facts, formulas, and key points",
       "Makes revision lighter, faster, and more focused",
     ],
-    primaryCta: { label: "Try Flash Cards", href: "/courses?type=flashcards" },
+    primaryCta: { label: "Try Flash Cards", href: "/learn/flashcards" },
     // Notes / flashcard-style revision on mobile or paper
     image:
       "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=80",

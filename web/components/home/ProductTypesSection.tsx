@@ -9,6 +9,7 @@ import {
   Layers,
   Newspaper,
 } from "lucide-react";
+import { ROUTES } from "@/config/terminology";
 
 const PRODUCT_TYPES = [
   {
@@ -17,8 +18,8 @@ const PRODUCT_TYPES = [
     iconColor: "text-green-600",
     title: "Free Demo Courses & Tests",
     desc: "Try selected free courses and tests before choosing your full preparation path.",
-    cta: "Start for free",
-    href: "/courses?type=free",
+    cta: "Start for Free",
+    href: ROUTES.testHub,
   },
   {
     icon: Package,
@@ -26,8 +27,8 @@ const PRODUCT_TYPES = [
     iconColor: "text-[#6D4BCB]",
     title: "Complete Prep Packs",
     desc: "Get video, PDFs, tests, and flashcards bundled in one focused preparation package.",
-    cta: "View packs",
-    href: "/courses?type=complete-pack",
+    cta: "View Packs",
+    href: ROUTES.courses,
   },
   {
     icon: PlayCircle,
@@ -35,8 +36,8 @@ const PRODUCT_TYPES = [
     iconColor: "text-blue-600",
     title: "Video Courses",
     desc: "Learn through structured, topic-wise recorded video lessons taught by subject experts.",
-    cta: "Watch lessons",
-    href: "/courses?type=video",
+    cta: "Watch Lessons",
+    href: ROUTES.courses,
   },
   {
     icon: BookOpen,
@@ -44,8 +45,8 @@ const PRODUCT_TYPES = [
     iconColor: "text-indigo-600",
     title: "Self Prep Courses",
     desc: "Study independently using a structured mix of ebooks, PDFs, tests, and flashcards.",
-    cta: "Start self prep",
-    href: "/courses?type=self-prep",
+    cta: "Start Self Prep",
+    href: ROUTES.courses,
   },
   {
     icon: FileText,
@@ -54,7 +55,7 @@ const PRODUCT_TYPES = [
     title: "PDF Study Material",
     desc: "Access focused, exam-oriented study material for reading, revision, and offline use.",
     cta: "Browse PDFs",
-    href: "/courses?type=pdf",
+    href: ROUTES.prepLibrary,
   },
   {
     icon: ClipboardCheck,
@@ -62,8 +63,8 @@ const PRODUCT_TYPES = [
     iconColor: "text-orange-600",
     title: "Test Series",
     desc: "Practice topic tests, subject tests, and full-length mock exams in real exam format.",
-    cta: "Take a test",
-    href: "/testhub",
+    cta: "Take a Test",
+    href: ROUTES.testHub,
   },
   {
     icon: Layers,
@@ -71,8 +72,8 @@ const PRODUCT_TYPES = [
     iconColor: "text-pink-600",
     title: "Flash Cards",
     desc: "Revise key concepts quickly with memory-friendly cards built for daily recall practice.",
-    cta: "Revise now",
-    href: "/courses?type=flashcards",
+    cta: "Revise Now",
+    href: ROUTES.flashcards,
   },
   {
     icon: Newspaper,
@@ -80,8 +81,8 @@ const PRODUCT_TYPES = [
     iconColor: "text-amber-600",
     title: "Current Affairs",
     desc: "Stay exam-ready with targeted content, daily digests, and quiz-based current affairs revision.",
-    cta: "Stay updated",
-    href: "/courses?type=current-affairs",
+    cta: "Stay Updated",
+    href: ROUTES.testHub,
   },
 ];
 
@@ -89,14 +90,12 @@ export default function ProductTypesSection() {
   return (
     <section className="py-16 bg-gray-50">
       <div className="container mx-auto px-4">
-        {/* Section header */}
         <div className="text-center mb-10">
           <h2 className="text-3xl md:text-4xl font-bold text-[#8050C0] mb-3">
             Prepare Your Way
           </h2>
           <p className="text-[#6B5CA5] max-w-2xl mx-auto">
-            Find the right learning approach for you. Every student prepares
-            differently — Saphala supports all styles.
+            Find the right learning approach for you. Every student prepares differently — Saphala supports all styles.
           </p>
         </div>
 
@@ -109,7 +108,7 @@ export default function ProductTypesSection() {
                 href={item.href}
                 className="group bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col hover:shadow-xl hover:-translate-y-1 hover:border-[#8050C0]/20 transition-all duration-200"
               >
-                {/* Header strip — purple background, icon left, title right */}
+                {/* Header strip */}
                 <div className="bg-[#8050C0] group-hover:bg-[#6D3DB0] px-4 py-3 flex items-center gap-3 transition-colors duration-200">
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-200 ${item.iconBg} ${item.iconColor}`}
@@ -121,14 +120,14 @@ export default function ProductTypesSection() {
                   </h3>
                 </div>
 
-                {/* Description — white body */}
+                {/* Description */}
                 <div className="flex-1 px-4 pt-4 pb-3">
                   <p className="text-[#6B5CA5] text-sm leading-relaxed">
                     {item.desc}
                   </p>
                 </div>
 
-                {/* CTA button */}
+                {/* CTA */}
                 <div className="px-4 pb-4">
                   <span className="block w-full text-center bg-white border-2 border-[#8050C0] text-[#8050C0] group-hover:bg-[#F6F2FF] group-hover:text-[#6D3DB0] text-sm font-semibold py-2.5 rounded-xl transition-colors duration-150">
                     {item.cta}
