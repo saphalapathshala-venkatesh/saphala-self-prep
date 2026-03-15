@@ -90,11 +90,6 @@ enum XpRuleKey {
   FLASHCARD_XP
   RR_XP
 }
-// Student-frontend runtime enums
-enum TestAccessType {
-  FREE
-  LOCKED
-}
 enum LanguageAvailable {
   EN
   TE
@@ -355,7 +350,10 @@ model Test {
   createdBy    User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
   // Student-frontend runtime fields
   code                     String?           @unique
-  accessType               TestAccessType    @default(LOCKED)
+  // Admin-managed free-access flag on individual tests
+  // isFree=true means this specific test is freely accessible without entitlement.
+  // See also TestSeries.isFree which unlocks all child tests.
+  isFree                   Boolean           @default(false)
   languageAvailable        LanguageAvailable @default(BOTH)
   marksPerQuestion         Float             @default(1)
   negativeMarksPerQuestion Float             @default(0)

@@ -24,6 +24,12 @@ The student frontend shares its database with the admin app. The admin app **own
 4. When the admin app adds new fields to shared tables, they must also be added here (and vice versa).
 5. To add columns safely: run `ALTER TABLE "TableName" ADD COLUMN IF NOT EXISTS ...` SQL first, then update `schema.prisma`, then run `prisma generate`.
 
+**Key schema facts:**
+- `Test.accessType` does **NOT** exist in the DB. The admin app uses `Test.isFree Boolean` instead. `accessType: "FREE" | "LOCKED"` is a DERIVED TypeScript value computed from `Test.isFree` in `testhubDb.ts`. Never add `accessType` back to the Prisma schema.
+- `TestSeries.isFree Boolean @default(false)` controls series-level free access — when true, all published tests in that series are freely accessible.
+- Student-frontend runtime fields on `Test`: `code`, `languageAvailable`, `marksPerQuestion`, `negativeMarksPerQuestion`, `attemptsAllowed`, `subjectIds`, `syllabusTags` — these are in the DB and schema.
+- Bilingual fields on `Question` (`stemEn`, `stemTe`, `explanationEn`, `explanationTe`) and `QuestionOption` (`textEn`, `textTe`) are nullable; `getDbQuestionsForTest` falls back to `stem`/`text` when null.
+
 **Restored admin fields (after accidental drop):**
 - `Test`: shuffleGroups, shuffleGroupChildren, shuffleOptions, shuffleQuestions, xpEnabled, xpValue, testStartTime, totalQuestions
 - `TestSeries`: thumbnailUrl

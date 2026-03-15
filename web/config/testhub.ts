@@ -192,6 +192,9 @@ const _mockTestBase = [
 
 export const mockTests: MockTest[] = _mockTestBase.map((t) => ({
   ...t,
+  difficulty: t.difficulty as MockTest["difficulty"],
+  accessType: t.accessType as MockTest["accessType"],
+  languageAvailable: t.languageAvailable as MockTest["languageAvailable"],
   isFree: t.accessType === "FREE",
 }));
 

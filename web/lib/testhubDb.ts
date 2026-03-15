@@ -128,7 +128,7 @@ function mapToDbTest(
     seriesId: string | null;
     instructions: string | null;
     durationSec: number | null;
-    accessType: string;
+    isFree: boolean;
     marksPerQuestion: number;
     negativeMarksPerQuestion: number;
     attemptsAllowed: number;
@@ -147,7 +147,7 @@ function mapToDbTest(
   categoryName: string | null
 ): DbTest {
   const qDiffs = test.questions.map((tq) => tq.question.difficulty);
-  const isFreeByTest = test.accessType === "FREE";
+  const isFreeByTest = test.isFree;
   const isFreeByS = test.series?.isFree === true;
 
   return {
@@ -159,7 +159,7 @@ function mapToDbTest(
     seriesIsPublished: test.series?.isPublished ?? null,
     seriesIsFree: test.series?.isFree ?? null,
     isFree: isFreeByS || isFreeByTest,
-    accessType: test.accessType as "FREE" | "LOCKED",
+    accessType: (isFreeByS || isFreeByTest) ? "FREE" : "LOCKED",
     category: categoryName,
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
     totalQuestions: test.questions.length,
@@ -277,13 +277,13 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
         ? (subjectNameMap.get(q.subjectId) ?? q.subjectId.charAt(0).toUpperCase() + q.subjectId.slice(1))
         : null,
       correctOptionOrder: correctIdx >= 0 ? correctIdx : 0,
-      questionText_en: q.stemEn,
-      questionText_te: q.stemTe,
+      questionText_en: q.stemEn ?? q.stem,
+      questionText_te: q.stemTe ?? q.stemEn ?? q.stem,
       options: q.options.map((o) => ({
         id: o.id,
         order: o.order,
-        textEn: o.textEn,
-        textTe: o.textTe,
+        textEn: o.textEn ?? o.text,
+        textTe: o.textTe ?? o.textEn ?? o.text,
         isCorrect: o.isCorrect,
       })),
     };

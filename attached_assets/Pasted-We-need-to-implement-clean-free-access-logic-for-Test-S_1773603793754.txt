@@ -1,0 +1,82 @@
+We need to implement clean free-access logic for Test Series and Tests in the Saphala Self Prep student frontend app.
+
+Problem:
+A Test Series can have price = 0 or appear in free/demo sections, but tests still show as locked because frontend access logic is not using explicit free-access flags.
+
+Business rules:
+1. If TestSeries.isPublished is false → series/tests must not be accessible
+2. If Test.isPublished is false → test must not be accessible
+3. If TestSeries.isFree = true → all published tests inside that series are free
+4. If TestSeries.isFree = false but Test.isFree = true → that specific published test is free
+5. Otherwise, learner must have valid entitlement/purchase to access
+6. Price alone is NOT the source of truth for access
+
+Goal:
+Make frontend and backend access resolution use explicit free flags plus entitlement logic.
+
+Required work:
+
+PART A — Read shared DB fields
+Assume the shared schema now includes:
+- TestSeries.isFree
+- Test.isFree
+
+Update all relevant Prisma queries / types / mapping layers to read these fields.
+
+PART B — Access resolution
+Implement one consistent access rule for test cards, test detail pages, and start-test flows:
+
+A test is accessible if:
+- parent series is published
+- test is published
+- and (
+    series.isFree = true
+    OR test.isFree = true
+    OR learner has valid entitlement/purchase
+  )
+
+Otherwise it is locked.
+
+PART C — UI behavior
+On frontend, compute state like:
+- free
+- unlocked via purchase
+- locked
+
+Expected UI:
+- free test → show “Start Test” and a FREE / DEMO badge
+- purchased paid test → show “Start Test”
+- locked paid test → show “Locked” / “Buy Now” / appropriate CTA
+
+If series.isFree = true:
+- all tests in that series should appear unlocked/free
+
+If only test.isFree = true:
+- only that test should appear free; remaining tests in the paid series stay locked unless purchased
+
+PART D — Backend/API enforcement
+Audit and update any backend/server-side access checks involved in:
+- test detail loading
+- start test
+- attempt creation
+- any test brief/access route
+
+Ensure server-side rules match frontend rules exactly.
+Do not rely only on UI.
+
+PART E — Preserve security
+- unpublished series/tests must remain inaccessible
+- direct URL access should not bypass lock rules
+- entitlement logic should still work for paid purchasers
+
+PART F — Deliverables
+A. Exact files/pages/routes changed
+B. Exact final access rule implemented
+C. Confirmation that free series unlocks all child tests
+D. Confirmation that free individual test unlocks only that test in a paid series
+E. Confirmation that locked paid tests remain locked without entitlement
+F. Any remaining edge cases noticed
+
+Important:
+This prompt is for the Saphala Self Prep student frontend app only.
+Do not redesign pricing or admin forms here.

@@ -8,7 +8,7 @@ export interface SerializedAttempt {
   testId: string;
   testTitle: string;
   category: string | null;
-  accessType: "FREE" | "LOCKED";
+  isFree: boolean;
   status: "IN_PROGRESS" | "SUBMITTED";
   attemptNumber: number;
   language: string;
@@ -97,11 +97,11 @@ function AttemptCard({ row }: { row: SerializedAttempt }) {
             )}
             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full"
               style={{
-                background: row.accessType === "FREE" ? "#f0fdf4" : "#f5f3ff",
-                color: row.accessType === "FREE" ? "#166534" : "#5b21b6",
+                background: row.isFree ? "#f0fdf4" : "#f5f3ff",
+                color: row.isFree ? "#166534" : "#5b21b6",
               }}
             >
-              {row.accessType === "FREE" ? "Free" : "Paid"}
+              {row.isFree ? "Free" : "Paid"}
             </span>
             <span className="text-xs text-gray-400">
               Attempt #{row.attemptNumber}
@@ -171,8 +171,8 @@ export default function AttemptsClient({ attempts }: { attempts: SerializedAttem
     const now = new Date();
     return attempts.filter((a) => {
       if (category !== "all" && a.category !== category) return false;
-      if (testType === "free" && a.accessType !== "FREE") return false;
-      if (testType === "paid" && a.accessType !== "LOCKED") return false;
+      if (testType === "free" && !a.isFree) return false;
+      if (testType === "paid" && a.isFree) return false;
       if (status === "completed" && a.status !== "SUBMITTED") return false;
       if (
         status === "inprogress" &&

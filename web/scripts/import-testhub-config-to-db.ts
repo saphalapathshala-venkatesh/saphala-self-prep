@@ -26,6 +26,7 @@ interface ConfigTest {
   questions: number;
   difficulty: "Easy" | "Medium" | "Hard";
   accessType: AccessType;
+  isFree: boolean;
   marksPerQuestion: number;
   negativeMarks: number;
   attemptsAllowed: number;
@@ -50,11 +51,11 @@ interface ConfigQuestion {
   optionD_te: string;
 }
 
-const seedTests: ConfigTest[] = [
+const _seedTestsBase = [
   {
     id: "seed-free-en-neg", title: "Polity & Arithmetic - Quick Test (EN)", testCode: "SEED-001",
-    category: "NEET", series: "Seed Tests", duration: 10, questions: 10, difficulty: "Easy",
-    accessType: "FREE", marksPerQuestion: 1, negativeMarks: 0.25, attemptsAllowed: 2, languageAvailable: "EN",
+    category: "NEET", series: "Seed Tests", duration: 10, questions: 10, difficulty: "Easy" as const,
+    accessType: "FREE" as AccessType, marksPerQuestion: 1, negativeMarks: 0.25, attemptsAllowed: 2, languageAvailable: "EN" as LangAvail,
   },
   {
     id: "seed-free-both-noneg", title: "Polity & Arithmetic - Bilingual (No Negative)", testCode: "SEED-002",
@@ -73,10 +74,18 @@ const seedTests: ConfigTest[] = [
   },
   {
     id: "seed-locked-te-noneg", title: "రాజ్యాంగం & గణితం - ప్రీమియం (TE)", testCode: "SEED-005",
-    category: "NEET", series: "Seed Tests", duration: 10, questions: 8, difficulty: "Easy",
-    accessType: "LOCKED", marksPerQuestion: 1, negativeMarks: 0, attemptsAllowed: 2, languageAvailable: "TE",
+    category: "NEET", series: "Seed Tests", duration: 10, questions: 8, difficulty: "Easy" as const,
+    accessType: "LOCKED" as AccessType, marksPerQuestion: 1, negativeMarks: 0, attemptsAllowed: 2, languageAvailable: "TE" as LangAvail,
   },
 ];
+
+const seedTests: ConfigTest[] = _seedTestsBase.map((t) => ({
+  ...t,
+  difficulty: t.difficulty as ConfigTest["difficulty"],
+  accessType: t.accessType as AccessType,
+  languageAvailable: t.languageAvailable as LangAvail,
+  isFree: t.accessType === "FREE",
+}));
 
 const polityEn = [
   { stem_en: "Who is known as the Father of the Indian Constitution?", stem_te: "భారత రాజ్యాంగ పితామహుడుగా ఎవరిని పిలుస్తారు?", options: [{ en: "Mahatma Gandhi", te: "మహాత్మా గాంధీ" }, { en: "Dr. B.R. Ambedkar", te: "డా. బి.ఆర్. అంబేద్కర్" }, { en: "Jawaharlal Nehru", te: "జవహర్‌లాల్ నెహ్రూ" }, { en: "Sardar Patel", te: "సర్దార్ పటేల్" }], correct: 1 },
@@ -156,7 +165,7 @@ async function main() {
         where: { id: test.id },
         data: {
           title: ct.title,
-          accessType: ct.accessType,
+          isFree: ct.isFree,
           languageAvailable: ct.languageAvailable,
           marksPerQuestion: ct.marksPerQuestion,
           negativeMarksPerQuestion: ct.negativeMarks,
@@ -179,7 +188,7 @@ async function main() {
           isPublished: true,
           publishedAt: new Date(),
           createdById: systemUser.id,
-          accessType: ct.accessType,
+          isFree: ct.isFree,
           languageAvailable: ct.languageAvailable,
           marksPerQuestion: ct.marksPerQuestion,
           negativeMarksPerQuestion: ct.negativeMarks,
@@ -250,7 +259,7 @@ async function main() {
 
   const dbTests = await prisma.test.findMany({
     where: { code: { in: seedTests.map(t => t.testCode) } },
-    select: { id: true, code: true, title: true, accessType: true, languageAvailable: true },
+    select: { id: true, code: true, title: true, isFree: true, languageAvailable: true },
     orderBy: { code: "asc" },
   });
 
@@ -259,7 +268,8 @@ async function main() {
   console.log("│ Code         │ Access     │ Lang   │ ID                                   │");
   console.log("├──────────────┼────────────┼────────┼──────────────────────────────────────┤");
   for (const t of dbTests) {
-    console.log(`│ ${(t.code || "").padEnd(12)} │ ${t.accessType.padEnd(10)} │ ${t.languageAvailable.padEnd(6)} │ ${t.id.padEnd(36)} │`);
+    const accessLabel = t.isFree ? "FREE      " : "LOCKED    ";
+    console.log(`│ ${(t.code || "").padEnd(12)} │ ${accessLabel} │ ${t.languageAvailable.padEnd(6)} │ ${t.id.padEnd(36)} │`);
   }
   console.log("└──────────────┴────────────┴────────┴──────────────────────────────────────┘");
 

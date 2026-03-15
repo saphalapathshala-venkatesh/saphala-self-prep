@@ -81,7 +81,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       },
       select: { correctCount: true, wrongCount: true },
     }),
-    getPublishedTestsForStudent(),
+    getPublishedTestsForStudent(userId),
   ]);
 
   const xpTotal = xpAgg._sum.delta ?? 0;
@@ -127,7 +127,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     : null;
 
   const freeTests = allFreeTests
-    .filter((t) => t.accessType === "FREE")
+    .filter((t) => t.isFree)
     .slice(0, 3);
 
   return {
@@ -146,7 +146,7 @@ export interface AllAttemptsRow {
   testId: string;
   testTitle: string;
   category: string | null;
-  accessType: "FREE" | "LOCKED";
+  isFree: boolean;
   status: "IN_PROGRESS" | "SUBMITTED";
   attemptNumber: number;
   language: string;
@@ -168,8 +168,8 @@ export async function getAllAttemptsForStudent(userId: string): Promise<AllAttem
       test: {
         select: {
           title: true,
-          accessType: true,
-          series: { select: { categoryId: true } },
+          isFree: true,
+          series: { select: { categoryId: true, isFree: true } },
         },
       },
     },
@@ -180,7 +180,7 @@ export async function getAllAttemptsForStudent(userId: string): Promise<AllAttem
     testId: a.testId,
     testTitle: a.test.title,
     category: a.test.series?.categoryId ?? null,
-    accessType: a.test.accessType as "FREE" | "LOCKED",
+    isFree: a.test.series?.isFree === true || a.test.isFree,
     status: a.status as "IN_PROGRESS" | "SUBMITTED",
     attemptNumber: a.attemptNumber,
     language: a.language,
