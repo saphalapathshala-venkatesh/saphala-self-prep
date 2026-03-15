@@ -6,8 +6,28 @@ import {
   validateMobile,
   validatePassword,
   validateConfirmPassword,
-  normalizeIdentifier,
 } from "@/lib/validation";
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function dbFindByEmail(email: string) {
+  return prisma.user.findUnique({ where: { email }, select: { id: true } });
+}
+
+async function dbFindByMobile(mobile: string) {
+  return prisma.user.findUnique({ where: { mobile }, select: { id: true } });
+}
+
+async function dbCreateUser(data: {
+  email: string;
+  mobile: string;
+  passwordHash: string;
+  fullName: string;
+  state: string;
+  gender: string;
+}) {
+  return prisma.user.create({ data, select: { id: true } });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -19,7 +39,6 @@ export async function POST(request: NextRequest) {
 
     const { password, confirmPassword, fullName, state, gender, legalAccepted } = body;
 
-    // Backend enforcement — frontend disabling alone is not sufficient
     if (legalAccepted !== true) {
       return NextResponse.json(
         { error: "You must accept the Terms & Conditions and Refund Policy to register." },
@@ -80,12 +99,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicates — two separate findUnique calls, each hitting the
-    // unique index directly, so the result is always unambiguous.
-    const emailConflict = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
-    });
+    // ── Email duplicate check — retry once on transient connection failure ──
+    let emailConflict;
+    try {
+      emailConflict = await dbFindByEmail(email);
+    } catch (dbErr) {
+      console.error("[register] email lookup failed (attempt 1):", dbErr);
+      try {
+        await sleep(700);
+        emailConflict = await dbFindByEmail(email);
+        console.log("[register] email lookup succeeded on retry");
+      } catch (retryErr) {
+        console.error("[register] email lookup failed (attempt 2):", retryErr);
+        return NextResponse.json(
+          { error: "Registration is temporarily unavailable. Please try again in a moment." },
+          { status: 503 }
+        );
+      }
+    }
     if (emailConflict) {
       return NextResponse.json(
         { error: "An account with this email already exists. Please log in instead." },
@@ -93,10 +124,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const mobileConflict = await prisma.user.findUnique({
-      where: { mobile },
-      select: { id: true },
-    });
+    // ── Mobile duplicate check — retry once on transient connection failure ──
+    let mobileConflict;
+    try {
+      mobileConflict = await dbFindByMobile(mobile);
+    } catch (dbErr) {
+      console.error("[register] mobile lookup failed (attempt 1):", dbErr);
+      try {
+        await sleep(700);
+        mobileConflict = await dbFindByMobile(mobile);
+        console.log("[register] mobile lookup succeeded on retry");
+      } catch (retryErr) {
+        console.error("[register] mobile lookup failed (attempt 2):", retryErr);
+        return NextResponse.json(
+          { error: "Registration is temporarily unavailable. Please try again in a moment." },
+          { status: 503 }
+        );
+      }
+    }
     if (mobileConflict) {
       return NextResponse.json(
         { error: "An account with this mobile number already exists. Please log in instead." },
@@ -106,47 +151,96 @@ export async function POST(request: NextRequest) {
 
     const hashed = await bcrypt.hash(password, 10);
 
-    await prisma.user.create({
-      data: {
+    // ── User creation — retry once on transient connection failure ──
+    try {
+      await dbCreateUser({
         email,
         mobile,
         passwordHash: hashed,
         fullName: fullName.trim(),
         state: state.trim(),
         gender,
-      },
-      select: { id: true },
-    });
+      });
+    } catch (dbErr) {
+      console.error("[register] user create failed (attempt 1):", dbErr);
 
-    // Account created — user will log in manually on the login page.
-    // No auto-login session is created here to keep the flow clean.
+      const code = (dbErr as { code?: string })?.code;
+      if (code === "P2002") {
+        const target = (dbErr as { meta?: { target?: string[] } })?.meta?.target?.[0];
+        if (target === "email") {
+          return NextResponse.json(
+            { error: "An account with this email already exists. Please log in instead." },
+            { status: 409 }
+          );
+        }
+        if (target === "mobile") {
+          return NextResponse.json(
+            { error: "An account with this mobile number already exists. Please log in instead." },
+            { status: 409 }
+          );
+        }
+        return NextResponse.json(
+          { error: "An account with these details already exists. Please log in instead." },
+          { status: 409 }
+        );
+      }
+
+      try {
+        await sleep(700);
+        await dbCreateUser({
+          email,
+          mobile,
+          passwordHash: hashed,
+          fullName: fullName.trim(),
+          state: state.trim(),
+          gender,
+        });
+        console.log("[register] user create succeeded on retry");
+      } catch (retryErr) {
+        console.error("[register] user create failed (attempt 2):", retryErr);
+        const retryCode = (retryErr as { code?: string })?.code;
+        if (retryCode === "P2002") {
+          const target = (retryErr as { meta?: { target?: string[] } })?.meta?.target?.[0];
+          if (target === "email") {
+            return NextResponse.json(
+              { error: "An account with this email already exists. Please log in instead." },
+              { status: 409 }
+            );
+          }
+          if (target === "mobile") {
+            return NextResponse.json(
+              { error: "An account with this mobile number already exists. Please log in instead." },
+              { status: 409 }
+            );
+          }
+        }
+        return NextResponse.json(
+          { error: "Registration is temporarily unavailable. Please try again in a moment." },
+          { status: 503 }
+        );
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
-    console.error("[register] Error:", e);
+    const err = e as { code?: string; message?: string; meta?: { target?: string[] } };
+    console.error("[register] Unhandled error:", {
+      code: err?.code,
+      message: err?.message,
+      meta: err?.meta,
+    });
 
-    if (
-      typeof e === "object" &&
-      e !== null &&
-      "code" in e &&
-      (e as { code: string }).code === "P2002"
-    ) {
-      const meta = (e as { meta?: { target?: string[] } }).meta;
-      const field = meta?.target?.[0];
+    if (err?.code === "P2002") {
+      const field = err?.meta?.target?.[0];
       if (field === "email") {
         return NextResponse.json(
-          {
-            error:
-              "An account with this email already exists. Please log in instead.",
-          },
+          { error: "An account with this email already exists. Please log in instead." },
           { status: 409 }
         );
       }
       if (field === "mobile") {
         return NextResponse.json(
-          {
-            error:
-              "An account with this mobile number already exists. Please log in instead.",
-          },
+          { error: "An account with this mobile number already exists. Please log in instead." },
           { status: 409 }
         );
       }
