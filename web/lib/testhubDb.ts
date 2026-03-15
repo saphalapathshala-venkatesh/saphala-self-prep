@@ -142,13 +142,27 @@ function mapToDbTest(
       isPublished: boolean;
       isFree: boolean;
     } | null;
-    questions: { question: { difficulty: string } }[];
+    questions: { marks: number; negativeMarks: number; question: { difficulty: string } }[];
   },
   categoryName: string | null
 ): DbTest {
   const qDiffs = test.questions.map((tq) => tq.question.difficulty);
   const isFreeByTest = test.isFree;
   const isFreeByS = test.series?.isFree === true;
+
+  // Derive marks from per-question data (admin source of truth) when test-level
+  // fields are not set. Admin sets TestQuestion.marks / TestQuestion.negativeMarks;
+  // Test.marksPerQuestion / Test.negativeMarksPerQuestion are student-side fields
+  // that may remain 0 when admin hasn't synced them.
+  const firstTq = test.questions[0];
+  const effectiveMarksPerQ =
+    test.marksPerQuestion > 0
+      ? test.marksPerQuestion
+      : (firstTq?.marks ?? 1);
+  const effectiveNegMarks =
+    test.negativeMarksPerQuestion > 0
+      ? test.negativeMarksPerQuestion
+      : (firstTq?.negativeMarks ?? 0);
 
   return {
     id: test.id,
@@ -164,8 +178,8 @@ function mapToDbTest(
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
     totalQuestions: test.questions.length,
     difficulty: deriveDifficulty(qDiffs),
-    marksPerQuestion: test.marksPerQuestion,
-    negativeMarks: test.negativeMarksPerQuestion,
+    marksPerQuestion: effectiveMarksPerQ,
+    negativeMarks: effectiveNegMarks,
     attemptsAllowed: test.attemptsAllowed,
     languageAvailable: test.languageAvailable as "EN" | "TE" | "BOTH",
     instructions: test.instructions,
@@ -187,7 +201,11 @@ const SERIES_SELECT = {
 } as const;
 
 const QUESTIONS_INCLUDE = {
-  include: { question: { select: { difficulty: true } } },
+  select: {
+    marks: true,
+    negativeMarks: true,
+    question: { select: { difficulty: true } },
+  },
 } as const;
 
 export async function getDbTestById(testId: string): Promise<DbTest | null> {
