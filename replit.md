@@ -88,6 +88,50 @@ Preferred communication style: Simple, everyday language.
 - **Footer**: 5-column dark navy — Brand/Contact, Explore (10 links), Student, Support (FAQ/Privacy/Terms/Refund), Community (social links)
 - Guest browsing allowed for all homepage sections; content access is login-gated
 
+### Learn Routes (Student Content Reflection Layer)
+All routes are DB-driven (`force-dynamic`). No hardcoded content labels or category names anywhere.
+
+#### Shared DB helpers — `web/lib/contentDb.ts`
+- `getPublishedLessons()` — ContentPages with full taxonomy breadcrumb (Category→Subject→Topic→Subtopic) via Prisma JOIN
+- `getLessonById(id)` — single ContentPage with `body` + breadcrumb; returns `null` if not found or not published
+- `getPublishedPdfs()` — PdfAssets with taxonomy labels via batch-lookup (no Prisma relations on bare string ID fields)
+- `getPublishedDecks()` — FlashcardDecks with card count + taxonomy batch-lookup
+- `getDeckById(id)` — single deck with cards ordered by `card.order`; returns `null` if not published
+
+#### Lesson Notes (`/learn/lessons`)
+- Public listing of all published `ContentPage` rows.
+- Each card shows Category→Subject→Topic→Subtopic breadcrumb from DB joins.
+- Cards link to `/learn/lessons/[id]`.
+- Empty state shown when no published lessons exist.
+
+#### Lesson Reader (`/learn/lessons/[id]`)
+- Auth-required: redirects to `/login?from=…` if not logged in.
+- Renders `ContentPage.body` as HTML (`dangerouslySetInnerHTML` — admin-created, trusted).
+- 404 via `notFound()` if lesson not found or not published.
+- Breadcrumb header shows full taxonomy path from DB.
+
+#### PDF Study Materials (`/learn/pdfs`)
+- Public listing of all published `PdfAsset` rows with taxonomy breadcrumb.
+- **Logged-in users**: see direct download link to `fileUrl`.
+- **Guests**: see "Login to download →" link — fileUrl never exposed to unauthenticated requests.
+- Empty state shown when no published PDFs exist.
+
+#### Flashcard Decks (`/learn/flashcards`)
+- Public listing of all published `FlashcardDeck` rows with card count and taxonomy label.
+- Cards link to `/learn/flashcards/[id]`.
+- Empty state shown when no published decks exist.
+
+#### Flashcard Study (`/learn/flashcards/[id]`)
+- Auth-required: redirects to `/login?from=…` if not logged in.
+- 404 if deck not found or not published.
+- `FlashcardStudyClient` (client component): flip-card UI; cards served in `card.order` ASC; progress bar; prev/next navigation; "Deck complete" screen with restart option.
+
+#### Dashboard Sidebar
+- "Lesson Notes" (brain icon) → `/learn/lessons`
+- "Flashcards" (cards icon) → `/learn/flashcards`
+- "Prep Library" (book icon) → `/learn/pdfs`
+- Only "Pathshala" (video) remains in the "Coming Soon" section.
+
 ### Course Catalog (`/courses`)
 - DB-driven server component (`force-dynamic`) — queries all four published content types in parallel: `TestSeries`, `PdfAsset`, `FlashcardDeck`, `ContentPage`.
 - Joins `Category` table for labels on each item.

@@ -187,9 +187,10 @@ export default async function CoursesPage() {
                       : null;
 
                   return (
-                    <div
+                    <Link
                       key={pdf.id}
-                      className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col gap-2"
+                      href="/learn/pdfs"
+                      className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4 flex flex-col gap-2"
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
@@ -223,10 +224,10 @@ export default async function CoursesPage() {
                           )}
                         </div>
                       </div>
-                      <span className="mt-auto text-xs text-gray-400 italic">
-                        Login to download
+                      <span className="mt-auto text-xs font-semibold text-[#6D4BCB] group-hover:underline">
+                        View Materials →
                       </span>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -247,9 +248,10 @@ export default async function CoursesPage() {
                     : null;
 
                   return (
-                    <div
+                    <Link
                       key={deck.id}
-                      className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col gap-2"
+                      href={`/learn/flashcards/${deck.id}`}
+                      className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4 flex flex-col gap-2"
                     >
                       <div className="flex items-start gap-3">
                         <div className="w-9 h-9 rounded-lg bg-yellow-50 flex items-center justify-center shrink-0">
@@ -286,10 +288,10 @@ export default async function CoursesPage() {
                           {deck.description}
                         </p>
                       )}
-                      <span className="mt-auto text-xs text-gray-400 italic">
-                        Login to study
+                      <span className="mt-auto text-xs font-semibold text-[#6D4BCB] group-hover:underline">
+                        Study Deck →
                       </span>
-                    </div>
+                    </Link>
                   );
                 })}
               </div>
@@ -305,11 +307,12 @@ export default async function CoursesPage() {
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {contentPages.map((cp) => (
-                  <div
+                  <Link
                     key={cp.id}
-                    className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow p-4 flex items-start gap-3"
+                    href={`/learn/lessons/${cp.id}`}
+                    className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4 flex items-start gap-3"
                   >
-                    <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center shrink-0 group-hover:bg-green-100 transition-colors">
                       <svg
                         className="w-5 h-5 text-green-500"
                         fill="none"
@@ -325,14 +328,14 @@ export default async function CoursesPage() {
                       </svg>
                     </div>
                     <div className="min-w-0">
-                      <h3 className="font-semibold text-[#2D1B69] text-sm leading-snug line-clamp-2">
+                      <h3 className="font-semibold text-[#2D1B69] text-sm leading-snug line-clamp-2 group-hover:text-[#6D4BCB] transition-colors">
                         {cp.title}
                       </h3>
-                      <span className="text-xs text-gray-400 italic">
-                        Login to read
+                      <span className="text-xs font-semibold text-[#6D4BCB] group-hover:underline">
+                        Read →
                       </span>
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </div>

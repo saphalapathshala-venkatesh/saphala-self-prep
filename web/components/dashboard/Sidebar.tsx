@@ -75,6 +75,12 @@ function Icon({ name, className }: { name: string; className?: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
         </svg>
       );
+    case "cards":
+      return (
+        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -86,13 +92,14 @@ const PRIMARY_NAV = [
   { key: "dashboard", label: "Dashboard", href: "/dashboard", icon: "home" },
   { key: "testhub", label: "TestHub", href: "/testhub", icon: "clipboard" },
   { key: "attempts", label: "My Attempts", href: "/dashboard/attempts", icon: "history" },
+  { key: "lessons", label: "Lesson Notes", href: "/learn/lessons", icon: "brain" },
+  { key: "flashcards", label: "Flashcards", href: "/learn/flashcards", icon: "cards" },
+  { key: "preplibrary", label: "Prep Library", href: "/learn/pdfs", icon: "book" },
   { key: "profile", label: "Profile", href: "/dashboard/profile", icon: "user" },
 ] as const;
 
 const UPCOMING_NAV = [
   { key: "pathshala", label: "Pathshala", icon: "play" },
-  { key: "preplibrary", label: "Prep Library", icon: "book" },
-  { key: "smartlearning", label: "Smart Learning", icon: "brain" },
 ] as const;
 
 // ── Component ────────────────────────────────────────────────────────────────
