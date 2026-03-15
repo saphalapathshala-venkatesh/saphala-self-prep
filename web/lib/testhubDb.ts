@@ -1,16 +1,71 @@
 import { prisma } from "./db";
 
+// ============================================================
+// ACCESS RESOLUTION
+// Rule: a test is accessible when:
+//   1. test.isPublished = true
+//   2. series.isPublished = true (if the test belongs to a series)
+//   3. AND one of:
+//        a. series.isFree = true  → whole series is open
+//        b. test.accessType = "FREE"  → this specific test is open
+//        c. learner has a valid TESTHUB entitlement
+//
+// Price (pricePaise) is NOT the source of truth for access.
+// ============================================================
+
+export type AccessState = "free" | "purchased" | "locked";
+
+/**
+ * Resolve whether a user can access a given test.
+ * Pass `isFree` from DbTest and `seriesId` for entitlement checks.
+ */
+export async function resolveTestAccess(
+  test: { isFree: boolean; seriesId: string | null },
+  userId: string
+): Promise<AccessState> {
+  if (test.isFree) return "free";
+
+  // Check entitlement: TESTHUB_ALL grants full access;
+  // TESTHUB_SERIES_<seriesId> grants access to that specific series.
+  const now = new Date();
+  const productCodes = ["TESTHUB_ALL"];
+  if (test.seriesId) productCodes.push(`TESTHUB_SERIES_${test.seriesId}`);
+
+  const entitlement = await prisma.userEntitlement.findFirst({
+    where: {
+      userId,
+      status: "ACTIVE",
+      productCode: { in: productCodes },
+      OR: [{ validUntil: null }, { validUntil: { gt: now } }],
+    },
+  });
+
+  return entitlement ? "purchased" : "locked";
+}
+
+// ============================================================
+// DB TYPES
+// ============================================================
+
 export interface DbTest {
   id: string;
   title: string;
   code: string | null;
-  category: string | null;
+  // Series info
+  seriesId: string | null;
   series: string | null;
   seriesIsPublished: boolean | null;
+  seriesIsFree: boolean | null;
+  // Access
+  /** Computed: seriesIsFree === true OR accessType === "FREE" */
+  isFree: boolean;
+  /** Raw admin-set access flag on the Test row itself */
+  accessType: "FREE" | "LOCKED";
+  // Display / scheduling
+  category: string | null;
   durationMinutes: number;
   totalQuestions: number;
   difficulty: string;
-  accessType: "FREE" | "LOCKED";
   marksPerQuestion: number;
   negativeMarks: number;
   attemptsAllowed: number;
@@ -38,6 +93,10 @@ export interface DbQuestion {
   }[];
 }
 
+// ============================================================
+// HELPERS
+// ============================================================
+
 function difficultyLabel(d: string): string {
   if (d === "FOUNDATIONAL") return "Easy";
   if (d === "PROFICIENT") return "Medium";
@@ -61,99 +120,125 @@ function deriveDifficulty(questionDifficulties: string[]): string {
   return difficultyLabel(maxKey);
 }
 
-function optionLetter(order: number): string {
-  return ["A", "B", "C", "D"][order] || "A";
-}
-
-export async function getDbTestById(testId: string): Promise<DbTest | null> {
-  const test = await prisma.test.findUnique({
-    where: { id: testId, isPublished: true },
-    include: {
-      series: { select: { title: true, categoryId: true, isPublished: true } },
-      questions: {
-        include: { question: { select: { difficulty: true } } },
-      },
-    },
-  });
-
-  if (!test) return null;
-
+function mapToDbTest(
+  test: {
+    id: string;
+    title: string;
+    code: string | null;
+    seriesId: string | null;
+    instructions: string | null;
+    durationSec: number | null;
+    accessType: string;
+    marksPerQuestion: number;
+    negativeMarksPerQuestion: number;
+    attemptsAllowed: number;
+    languageAvailable: string;
+    subjectIds: string[];
+    publishedAt: Date | null;
+    isPublished: boolean;
+    series?: {
+      title: string;
+      categoryId: string | null;
+      isPublished: boolean;
+      isFree: boolean;
+    } | null;
+    questions: { question: { difficulty: string } }[];
+  },
+  categoryName: string | null
+): DbTest {
   const qDiffs = test.questions.map((tq) => tq.question.difficulty);
-  const testDifficulty = deriveDifficulty(qDiffs);
-
-  const rawCategoryId = test.series?.categoryId ?? null;
-  let categoryName: string | null = null;
-  if (rawCategoryId) {
-    const cat = await prisma.category.findUnique({ where: { id: rawCategoryId }, select: { name: true } });
-    categoryName = cat?.name ?? null;
-  }
+  const isFreeByTest = test.accessType === "FREE";
+  const isFreeByS = test.series?.isFree === true;
 
   return {
     id: test.id,
     title: test.title,
     code: test.code,
-    category: categoryName,
+    seriesId: test.seriesId,
     series: test.series?.title || null,
     seriesIsPublished: test.series?.isPublished ?? null,
+    seriesIsFree: test.series?.isFree ?? null,
+    isFree: isFreeByS || isFreeByTest,
+    accessType: test.accessType as "FREE" | "LOCKED",
+    category: categoryName,
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
     totalQuestions: test.questions.length,
-    difficulty: testDifficulty,
-    accessType: test.accessType,
+    difficulty: deriveDifficulty(qDiffs),
     marksPerQuestion: test.marksPerQuestion,
     negativeMarks: test.negativeMarksPerQuestion,
     attemptsAllowed: test.attemptsAllowed,
-    languageAvailable: test.languageAvailable,
+    languageAvailable: test.languageAvailable as "EN" | "TE" | "BOTH",
     instructions: test.instructions,
     subjectIds: test.subjectIds,
     publishedAt: test.publishedAt,
     isPublished: test.isPublished,
   };
+}
+
+// ============================================================
+// QUERIES — single test
+// ============================================================
+
+const SERIES_SELECT = {
+  title: true,
+  categoryId: true,
+  isPublished: true,
+  isFree: true,
+} as const;
+
+const QUESTIONS_INCLUDE = {
+  include: { question: { select: { difficulty: true } } },
+} as const;
+
+export async function getDbTestById(testId: string): Promise<DbTest | null> {
+  const test = await prisma.test.findUnique({
+    where: { id: testId, isPublished: true },
+    include: {
+      series: { select: SERIES_SELECT },
+      questions: QUESTIONS_INCLUDE,
+    },
+  });
+  if (!test) return null;
+
+  const rawCategoryId = test.series?.categoryId ?? null;
+  let categoryName: string | null = null;
+  if (rawCategoryId) {
+    const cat = await prisma.category.findUnique({
+      where: { id: rawCategoryId },
+      select: { name: true },
+    });
+    categoryName = cat?.name ?? null;
+  }
+
+  return mapToDbTest(test, categoryName);
 }
 
 export async function getDbTestByCode(code: string): Promise<DbTest | null> {
   const test = await prisma.test.findUnique({
     where: { code, isPublished: true },
     include: {
-      series: { select: { title: true, categoryId: true, isPublished: true } },
-      questions: {
-        include: { question: { select: { difficulty: true } } },
-      },
+      series: { select: SERIES_SELECT },
+      questions: QUESTIONS_INCLUDE,
     },
   });
-
   if (!test) return null;
-
-  const qDiffs = test.questions.map((tq) => tq.question.difficulty);
-  const testDifficulty = deriveDifficulty(qDiffs);
 
   const rawCatId = test.series?.categoryId ?? null;
   let catName: string | null = null;
   if (rawCatId) {
-    const cat = await prisma.category.findUnique({ where: { id: rawCatId }, select: { name: true } });
+    const cat = await prisma.category.findUnique({
+      where: { id: rawCatId },
+      select: { name: true },
+    });
     catName = cat?.name ?? null;
   }
 
-  return {
-    id: test.id,
-    title: test.title,
-    code: test.code,
-    category: catName,
-    series: test.series?.title || null,
-    seriesIsPublished: test.series?.isPublished ?? null,
-    durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
-    totalQuestions: test.questions.length,
-    difficulty: testDifficulty,
-    accessType: test.accessType,
-    marksPerQuestion: test.marksPerQuestion,
-    negativeMarks: test.negativeMarksPerQuestion,
-    attemptsAllowed: test.attemptsAllowed,
-    languageAvailable: test.languageAvailable,
-    instructions: test.instructions,
-    subjectIds: test.subjectIds,
-    publishedAt: test.publishedAt,
-    isPublished: test.isPublished,
-  };
+  return mapToDbTest(test, catName);
 }
+
+// ============================================================
+// QUERIES — questions for attempt
+// ============================================================
 
 export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
   const testQuestions = await prisma.testQuestion.findMany({
@@ -168,7 +253,6 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
     },
   });
 
-  // Resolve human-readable subject names from the Subject table
   const rawSubjectIds = Array.from(
     new Set(testQuestions.map((tq) => tq.question.subjectId).filter((id): id is string => !!id))
   );
@@ -206,15 +290,25 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
   });
 }
 
+// ============================================================
+// QUERIES — published test listing
+// ============================================================
+
 export interface StudentTestItem {
   id: string;
   title: string;
   code: string | null;
   category: string | null;
   series: string | null;
+  seriesId: string | null;
   durationMinutes: number;
   totalQuestions: number;
   difficulty: string;
+  /** Computed free flag: series.isFree OR test.accessType === "FREE" */
+  isFree: boolean;
+  /** User-specific resolved state (requires userId to get "purchased") */
+  accessState: AccessState;
+  /** Raw admin-set flag on the test row */
   accessType: "FREE" | "LOCKED";
   languageAvailable: "EN" | "TE" | "BOTH";
   attemptsAllowed: number;
@@ -223,71 +317,23 @@ export interface StudentTestItem {
   attemptsExhausted: boolean;
 }
 
-export async function getPublishedTestsForStudent(userId?: string): Promise<StudentTestItem[]> {
-  const all = await getAllPublishedTests();
-
-  // Build per-test attempt state maps if user is logged in
-  const completedMap = new Map<string, number>();
-  const activeSet = new Set<string>();
-
-  if (userId) {
-    const now = new Date();
-    const userAttempts = await prisma.attempt.findMany({
-      where: { userId, testId: { in: all.map((t) => t.id) } },
-      select: { testId: true, status: true, endsAt: true },
-    });
-    for (const a of userAttempts) {
-      if (a.status === "SUBMITTED") {
-        completedMap.set(a.testId, (completedMap.get(a.testId) ?? 0) + 1);
-      } else if (a.status === "IN_PROGRESS" && (!a.endsAt || a.endsAt > now)) {
-        activeSet.add(a.testId);
-      }
-    }
-  }
-
-  return all.map((t) => {
-    const completed = completedMap.get(t.id) ?? 0;
-    const hasActive = activeSet.has(t.id);
-    return {
-      id: t.id,
-      title: t.title,
-      code: t.code,
-      category: t.category,
-      series: t.series,
-      durationMinutes: t.durationMinutes,
-      totalQuestions: t.totalQuestions,
-      difficulty: t.difficulty,
-      accessType: t.accessType,
-      languageAvailable: t.languageAvailable,
-      attemptsAllowed: t.attemptsAllowed,
-      completedAttempts: completed,
-      hasActiveAttempt: hasActive,
-      attemptsExhausted: !hasActive && completed >= t.attemptsAllowed,
-    };
-  });
-}
-
 export async function getAllPublishedTests(): Promise<DbTest[]> {
   const tests = await prisma.test.findMany({
     where: {
       isPublished: true,
-      // If the test belongs to a series, that series must also be published.
-      // Tests with no series (seriesId = null) are always eligible.
       OR: [
         { seriesId: null },
         { series: { isPublished: true } },
       ],
     },
     include: {
-      series: { select: { title: true, categoryId: true, isPublished: true } },
-      questions: {
-        include: { question: { select: { difficulty: true } } },
-      },
+      series: { select: SERIES_SELECT },
+      questions: QUESTIONS_INCLUDE,
     },
     orderBy: { createdAt: "asc" },
   });
 
-  // Batch-resolve category names from the Category table
+  // Batch-resolve category names
   const rawCategoryIds = Array.from(
     new Set(tests.map((t) => t.series?.categoryId).filter((id): id is string => !!id))
   );
@@ -300,32 +346,94 @@ export async function getAllPublishedTests(): Promise<DbTest[]> {
   const categoryMap = new Map(categoryRows.map((c) => [c.id, c.name]));
 
   return tests.map((test) => {
-    const qDiffs = test.questions.map((tq) => tq.question.difficulty);
-    const testDifficulty = deriveDifficulty(qDiffs);
     const rawCatId = test.series?.categoryId ?? null;
+    return mapToDbTest(test, rawCatId ? (categoryMap.get(rawCatId) ?? null) : null);
+  });
+}
+
+export async function getPublishedTestsForStudent(userId?: string): Promise<StudentTestItem[]> {
+  const all = await getAllPublishedTests();
+
+  // Build attempt state maps if user is logged in
+  const completedMap = new Map<string, number>();
+  const activeSet = new Set<string>();
+
+  // Build entitlement maps if user is logged in
+  let userHasFullAccess = false;
+  const userSeriesAccess = new Set<string>();
+
+  if (userId) {
+    const now = new Date();
+
+    const [userAttempts, entitlements] = await Promise.all([
+      prisma.attempt.findMany({
+        where: { userId, testId: { in: all.map((t) => t.id) } },
+        select: { testId: true, status: true, endsAt: true },
+      }),
+      prisma.userEntitlement.findMany({
+        where: {
+          userId,
+          status: "ACTIVE",
+          OR: [{ validUntil: null }, { validUntil: { gt: now } }],
+        },
+        select: { productCode: true },
+      }),
+    ]);
+
+    for (const a of userAttempts) {
+      if (a.status === "SUBMITTED") {
+        completedMap.set(a.testId, (completedMap.get(a.testId) ?? 0) + 1);
+      } else if (a.status === "IN_PROGRESS" && (!a.endsAt || a.endsAt > now)) {
+        activeSet.add(a.testId);
+      }
+    }
+
+    userHasFullAccess = entitlements.some((e) => e.productCode === "TESTHUB_ALL");
+    for (const e of entitlements) {
+      if (e.productCode.startsWith("TESTHUB_SERIES_")) {
+        userSeriesAccess.add(e.productCode.slice("TESTHUB_SERIES_".length));
+      }
+    }
+  }
+
+  return all.map((t) => {
+    const completed = completedMap.get(t.id) ?? 0;
+    const hasActive = activeSet.has(t.id);
+
+    let accessState: AccessState;
+    if (t.isFree) {
+      accessState = "free";
+    } else if (userId && (userHasFullAccess || (t.seriesId && userSeriesAccess.has(t.seriesId)))) {
+      accessState = "purchased";
+    } else {
+      accessState = "locked";
+    }
 
     return {
-      id: test.id,
-      title: test.title,
-      code: test.code,
-      category: rawCatId ? (categoryMap.get(rawCatId) ?? null) : null,
-      series: test.series?.title || null,
-      seriesIsPublished: test.series?.isPublished ?? null,
-      durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
-      totalQuestions: test.questions.length,
-      difficulty: testDifficulty,
-      accessType: test.accessType,
-      marksPerQuestion: test.marksPerQuestion,
-      negativeMarks: test.negativeMarksPerQuestion,
-      attemptsAllowed: test.attemptsAllowed,
-      languageAvailable: test.languageAvailable,
-      instructions: test.instructions,
-      subjectIds: test.subjectIds,
-      publishedAt: test.publishedAt,
-      isPublished: test.isPublished,
+      id: t.id,
+      title: t.title,
+      code: t.code,
+      category: t.category,
+      series: t.series,
+      seriesId: t.seriesId,
+      durationMinutes: t.durationMinutes,
+      totalQuestions: t.totalQuestions,
+      difficulty: t.difficulty,
+      isFree: t.isFree,
+      accessState,
+      accessType: t.accessType,
+      languageAvailable: t.languageAvailable,
+      attemptsAllowed: t.attemptsAllowed,
+      completedAttempts: completed,
+      hasActiveAttempt: hasActive,
+      attemptsExhausted: !hasActive && completed >= t.attemptsAllowed,
     };
   });
 }
+
+// ============================================================
+// ATTEMPT OPERATIONS
+// ============================================================
 
 export async function getAttemptsForUserTest(userId: string, testId: string) {
   return prisma.attempt.findMany({

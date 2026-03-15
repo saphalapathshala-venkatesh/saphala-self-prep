@@ -11,6 +11,8 @@ export interface MockTest {
   questions: number;
   difficulty: "Easy" | "Medium" | "Hard";
   accessType: AccessType;
+  /** Computed free flag: series.isFree OR test.accessType === "FREE" */
+  isFree: boolean;
   marksPerQuestion: number;
   negativeMarks: number;
   attemptsAllowed: number;
@@ -18,7 +20,9 @@ export interface MockTest {
   publishedAt?: string | null;
 }
 
-export const mockTests: MockTest[] = [
+// Legacy static mock data — not used in the live app (DB-backed tests are used instead).
+// isFree is derived from accessType for backward compatibility.
+const _mockTestBase = [
   {
     id: "neet-bio-1",
     title: "NEET Biology - Chapter 1: Living World",
@@ -185,6 +189,11 @@ export const mockTests: MockTest[] = [
     languageAvailable: "TE",
   },
 ];
+
+export const mockTests: MockTest[] = _mockTestBase.map((t) => ({
+  ...t,
+  isFree: t.accessType === "FREE",
+}));
 
 export function getTestById(id: string): MockTest | undefined {
   return mockTests.find((t) => t.id === id);

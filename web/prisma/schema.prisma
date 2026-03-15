@@ -316,6 +316,9 @@ model TestSeries {
   currency     String   @default("INR")
   // Admin field — thumbnail for the series
   thumbnailUrl String?
+  // Free-access flag: when true, all published tests in this series are freely accessible
+  // without entitlement. Managed by admin. Price alone is NOT the source of truth for access.
+  isFree       Boolean  @default(false)
   scheduleJson Json?
   isPublished  Boolean  @default(false)
   createdById  String

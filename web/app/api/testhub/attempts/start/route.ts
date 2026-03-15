@@ -4,6 +4,7 @@ import {
   getActiveAttempt,
   getAttemptsForUserTest,
   createAttempt,
+  resolveTestAccess,
 } from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
@@ -40,8 +41,13 @@ export async function POST(request: Request) {
     return Response.json({ error: "Test is not available." }, { status: 404 });
   }
 
-  if (test.accessType === "LOCKED") {
-    return Response.json({ error: "This test requires a premium plan." }, { status: 403 });
+  // Access check: free (series.isFree || test.accessType=FREE) OR valid entitlement
+  const access = await resolveTestAccess(test, user.id);
+  if (access === "locked") {
+    return Response.json(
+      { error: "This test requires a premium plan." },
+      { status: 403 }
+    );
   }
 
   const active = await getActiveAttempt(user.id, testId);
