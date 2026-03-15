@@ -15,7 +15,7 @@ export async function createSession(token: string, userId: string, expiresAt: Da
   }
 
   const session = await prisma.session.create({
-    data: { id: token, token, userId, expiresAt },
+    data: { id: token, token, userId, expiresAt, type: "STUDENT" },
   });
   return session;
 }

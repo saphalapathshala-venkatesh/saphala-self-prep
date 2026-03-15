@@ -1,0 +1,68 @@
+Audit the current Saphala Self Prep codebase against the CURRENT connected database only. Do not redesign or disturb the existing Prisma schema unless you find an absolutely blocking mismatch. This is a schema-safe DB integrity and wiring audit.
+
+Primary goal:
+Ensure all auth flows, non-video product storage flows, attempt/result storage, XP registry, and admin→frontend reflection work correctly against the CURRENT DB.
+
+Important constraints:
+- Admin and frontend must both treat the current DB as the single source of truth.
+- Do not introduce hardcoded frontend business logic where admin/DB already owns the feature.
+- Prefer code fixes, normalization fixes, null-safety, enum alignment, validation fixes, and data-write corrections over schema changes.
+- If a schema change appears necessary, do NOT apply it immediately. First report the exact blocking mismatch and whether it can be solved in code instead.
+
+Audit and fix in this exact order:
+
+1) AUTH / REGISTRATION / LOGIN
+- Inspect registration API and login API end-to-end.
+- Verify current DB write path for new user creation.
+- Check for unique constraint mismatches on normalized email/mobile.
+- Check required fields/defaults (role, legalAccepted, legalVersion, gender/state if applicable).
+- Check enum mismatches.
+- Verify password hashing and password compare use the same library consistently.
+- Verify session creation and cookie/session persistence after login.
+- Improve error reporting so registration/login failures surface the real DB/validation reason in logs, while keeping user-facing messages safe.
+
+2) CURRENT DB SCHEMA VS CODE EXPECTATIONS
+- Audit Prisma schema, generated client usage, and all create/update paths to find places where code expects fields/values that do not match the current DB.
+- Identify any stale assumptions, nullable/required mismatches, enum issues, or missing defaults.
+- Fix these in code where possible, without schema disturbance.
+
+3) NON-VIDEO PRODUCT STORAGE INTEGRITY
+Audit create/edit/publish/read flows for all current non-video products and confirm they store correctly in the current DB:
+- HTML courses
+- PDF courses/materials
+- Test series
+- Tests
+- Flashcard decks
+- LIVE classes
+- combo/package products if already supported
+Also verify taxonomy mapping, publish flags, ordering, and product-type combinations are stored/read safely.
+
+4) ATTEMPTS / RESULTS / XP REGISTRY
+Audit current DB write/read integrity for:
+- test attempts
+- attempt answers
+- result generation
+- marks persistence
+- XP award persistence
+- attempt-wise XP rules (1st attempt full, 2nd reduced, 3rd+ no XP if already intended)
+- result history visibility
+- review question loading
+Do not change XP design; just ensure current DB persistence is correct and aligned.
+
+5) ADMIN → FRONTEND REFLECTION
+Audit all frontend reads so they reflect current admin/DB truth only:
+- no hardcoded categories or product assumptions
+- no raw subject/category IDs rendered where names should be joined
+- no unpublished content accessible by direct API
+- no broken locked/unlocked assumptions where entitlements are involved
+- no dashboard metrics derived from wrong sources
+Frontend must behave as a DB-driven reflection layer.
+
+Expected output:
+- First provide a concise audit report grouped by severity:
+  Critical / High / Medium / Low
+- Then apply the minimum safe code fixes needed
+- Then list exactly what was fixed
+- Then list any remaining schema-level blockers separately, only if truly unavoidable
+- Then provide a manual QA checklist for:
+  registration, login, admin demo data creation, frontend product reflection, test attempts, XP logs, and dashboard metrics

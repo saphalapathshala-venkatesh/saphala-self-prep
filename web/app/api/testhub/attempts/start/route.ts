@@ -30,6 +30,16 @@ export async function POST(request: Request) {
     return Response.json({ error: "Test not found" }, { status: 404 });
   }
 
+  // Guard: test must be published
+  if (!test.isPublished) {
+    return Response.json({ error: "Test is not available." }, { status: 404 });
+  }
+
+  // Guard: if the test belongs to a series, that series must also be published
+  if (test.seriesIsPublished === false) {
+    return Response.json({ error: "Test is not available." }, { status: 404 });
+  }
+
   if (test.accessType === "LOCKED") {
     return Response.json({ error: "This test requires a premium plan." }, { status: 403 });
   }

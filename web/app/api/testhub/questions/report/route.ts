@@ -21,13 +21,16 @@ export async function POST(request: Request) {
     return Response.json({ error: "Invalid issueType" }, { status: 400 });
   }
 
-  saveQuestionReport({
+  const report = saveQuestionReport({
     userId: user.id,
     attemptId,
     questionId,
     issueType,
     message: message || "",
   });
+
+  // No DB table for question reports yet — log to server output as paper trail
+  console.log("[question-report]", JSON.stringify({ userId: user.id, attemptId, questionId, issueType, message: message || "", createdAt: report.createdAt }));
 
   return Response.json({ ok: true });
 }

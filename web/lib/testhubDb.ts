@@ -6,6 +6,7 @@ export interface DbTest {
   code: string | null;
   category: string | null;
   series: string | null;
+  seriesIsPublished: boolean | null;
   durationMinutes: number;
   totalQuestions: number;
   difficulty: string;
@@ -86,6 +87,7 @@ export async function getDbTestById(testId: string): Promise<DbTest | null> {
     code: test.code,
     category: test.series?.categoryId || null,
     series: test.series?.title || null,
+    seriesIsPublished: test.series?.isPublished ?? null,
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
     totalQuestions: test.questions.length,
     difficulty: testDifficulty,
@@ -123,6 +125,7 @@ export async function getDbTestByCode(code: string): Promise<DbTest | null> {
     code: test.code,
     category: test.series?.categoryId || null,
     series: test.series?.title || null,
+    seriesIsPublished: test.series?.isPublished ?? null,
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
     totalQuestions: test.questions.length,
     difficulty: testDifficulty,
@@ -151,6 +154,19 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
     },
   });
 
+  // Resolve human-readable subject names from the Subject table
+  const rawSubjectIds = Array.from(
+    new Set(testQuestions.map((tq) => tq.question.subjectId).filter((id): id is string => !!id))
+  );
+  const subjectRows =
+    rawSubjectIds.length > 0
+      ? await prisma.subject.findMany({
+          where: { id: { in: rawSubjectIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+  const subjectNameMap = new Map(subjectRows.map((s) => [s.id, s.name]));
+
   return testQuestions.map((tq) => {
     const q = tq.question;
     const correctIdx = q.options.findIndex((o) => o.isCorrect);
@@ -159,7 +175,9 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
       id: q.id,
       order: tq.order,
       subjectId: q.subjectId,
-      subjectName: q.subjectId ? q.subjectId.charAt(0).toUpperCase() + q.subjectId.slice(1) : null,
+      subjectName: q.subjectId
+        ? (subjectNameMap.get(q.subjectId) ?? q.subjectId.charAt(0).toUpperCase() + q.subjectId.slice(1))
+        : null,
       correctOptionOrder: correctIdx >= 0 ? correctIdx : 0,
       questionText_en: q.stemEn,
       questionText_te: q.stemTe,
@@ -265,6 +283,7 @@ export async function getAllPublishedTests(): Promise<DbTest[]> {
       code: test.code,
       category: test.series?.categoryId || null,
       series: test.series?.title || null,
+      seriesIsPublished: test.series?.isPublished ?? null,
       durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
       totalQuestions: test.questions.length,
       difficulty: testDifficulty,

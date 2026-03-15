@@ -28,6 +28,7 @@ Preferred communication style: Simple, everyday language.
 - **One-device login**: User model has `allowMultiDevice Boolean @default(false)`. At login, if user already has an active session and `allowMultiDevice` is false, login is blocked with a 409 response. Admin can clear sessions and toggle `allowMultiDevice` per user.
 - **`normalizeIdentifier`** in `web/lib/validation.ts` strips `+91` prefix: 12-digit numbers starting with "91" are trimmed to the last 10 digits before DB lookup.
 - **XP by attempt number**: `generate-result` applies `xpMultiplier` — 1st attempt=1.0×, 2nd=0.5×, 3rd+=0× of base XP. Multiplier and attemptNumber stored in `XpLedgerEntry.meta`.
+- **Session type**: Student sessions are created with `type: "STUDENT"` in `sessionStore.ts` (schema default was `ADMIN` — corrected).
 
 ### Admin APIs
 - `DELETE /api/admin/users/[id]/sessions` — clears all sessions for a user
@@ -65,8 +66,17 @@ Preferred communication style: Simple, everyday language.
 - **My Attempts page** at `/dashboard/attempts`: full attempt history split into In Progress / Completed / Expired sections with score badges and Review/Result/Resume links.
 - **Per-test Attempt History page** at `/testhub/tests/[testId]/attempts`: shows all submitted attempts for that test with score, correct/wrong/skipped, time used, XP earned and multiplier; links to Result and Review per attempt; summary stats (attempts used, best score, total XP).
 - **Profile page V1** at `/dashboard/profile`: read-only student profile (name, email, mobile masked, state, gender, joined date) with stats row (tests completed, XP, streak).
-- **Result score persistence**: `generate-result` API now writes `scorePct`, `correctCount`, `wrongCount`, `unansweredCount`, `totalTimeUsedMs` back to the `Attempt` DB record and creates an idempotent `XpLedgerEntry` (guarded by `refType:"Attempt"` + `refId` uniqueness check).
-- `getCurrentUser()` now selects `state` field in addition to existing fields.
+- **Result score persistence**: `generate-result` API writes `scorePct`, `correctCount`, `wrongCount`, `unansweredCount`, `totalTimeUsedMs` back to `Attempt` and creates an idempotent `XpLedgerEntry`. Both routes (`generate-result` POST and `result` GET) delegate to `web/lib/resultComputer.ts` — shared function that tries the in-memory cache first, then recomputes entirely from DB on cache miss (handles server restarts).
+- **Total XP**: `result` GET and `generate-result` POST both read `totalXp` from `XpLedgerEntry` DB aggregate (never from in-memory store).
+- **Subject name resolution**: `getDbQuestionsForTest` now joins the `Subject` table by unique subjectId batch; falls back to capitalized raw ID only if subject not found.
+- **`seriesIsPublished` on DbTest**: All three query functions (`getDbTestById`, `getDbTestByCode`, `getAllPublishedTests`) now expose `seriesIsPublished: boolean | null`. The `start` attempt route rejects requests where `!test.isPublished` or `test.seriesIsPublished === false`.
+- **Category source consistency**: `getDashboardData` recent attempts now join `test.series.categoryId` with fallback to `test.categoryId`, matching the pattern used in `getAllAttemptsForStudent`.
+- **Feedback/report paper trail**: `feedback` and `question-report` routes log structured JSON to server stdout (`[feedback]` / `[question-report]`) until DB tables are added.
+
+### Known Schema-Level Blockers (not yet resolved)
+- **`AttemptFeedback` / `QuestionReport` tables missing**: Feedback and question reports are in-memory + server logs only. DB tables required.
+- **`legalAccepted`/`legalVersion` not on User model**: Enforced at registration but not auditable per user post-registration. Requires `legalAccepted Boolean @default(false)` + `legalVersion String?` on User.
+- **`UserEntitlement` completely unwired**: Entitlement checks are not enforced on any test or content access flow. Schema exists but no code reads it.
 
 #### Homepage
 - 9-section layout: Header → Quote+Kalam Strip → Hero Slider (5 banners) → Exam Categories → Product Types (8) → Featured Courses → Features → Contact Form → Footer

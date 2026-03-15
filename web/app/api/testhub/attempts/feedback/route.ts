@@ -20,12 +20,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "Rating must be between 1 and 5" }, { status: 400 });
   }
 
-  saveFeedback({
+  const feedback = saveFeedback({
     userId: user.id,
     attemptId,
     rating,
     comment: comment || "",
   });
+
+  // No DB table for feedback yet — log to server output as paper trail
+  console.log("[feedback]", JSON.stringify({ userId: user.id, attemptId, rating, comment: comment || "", createdAt: feedback.createdAt }));
 
   return Response.json({ ok: true });
 }

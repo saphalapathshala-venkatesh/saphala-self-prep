@@ -1,11 +1,8 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getAttemptById, getDbTestById } from "@/lib/testhubDb";
-import {
-  getResultByAttemptId,
-  getAllResultsForTest,
-  getUserTotalXp,
-} from "@/lib/resultStore";
+import { getAllResultsForTest } from "@/lib/resultStore";
+import { computeOrGetResult } from "@/lib/resultComputer";
 
 export const dynamic = "force-dynamic";
 
@@ -31,15 +28,20 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const result = getResultByAttemptId(attemptId);
+  if (attempt.status !== "SUBMITTED") {
+    return Response.json({ error: "Attempt not yet submitted" }, { status: 400 });
+  }
+
+  // Primary: in-memory cache. Fallback: recompute from DB (handles server restarts).
+  const result = await computeOrGetResult(attemptId, user.id);
   if (!result) {
-    return Response.json({ error: "Result not generated yet" }, { status: 404 });
+    return Response.json({ error: "Result not available." }, { status: 404 });
   }
 
   const test = await getDbTestById(attempt.testId);
   const maxMarks = test ? test.totalQuestions * test.marksPerQuestion : 0;
 
-  // Load XP breakdown from ledger meta
+  // XP breakdown from ledger meta — always read from DB
   const xpEntry = await prisma.xpLedgerEntry.findFirst({
     where: { userId: user.id, refType: "Attempt", refId: attemptId },
     select: { delta: true, meta: true },
@@ -50,13 +52,20 @@ export async function GET(request: Request) {
     attemptNumber: attempt.attemptNumber,
     baseXP: meta?.baseXP ?? 0,
     bonusXP: meta?.bonusXP ?? 0,
-    xpMultiplier: meta?.xpMultiplier ??
+    xpMultiplier:
+      meta?.xpMultiplier ??
       (attempt.attemptNumber === 1 ? 1.0 : attempt.attemptNumber === 2 ? 0.5 : 0),
   };
 
+  // Total XP always read from DB — never from in-memory store
+  const totalXpAgg = await prisma.xpLedgerEntry.aggregate({
+    where: { userId: user.id },
+    _sum: { delta: true },
+  });
+  const totalXp = totalXpAgg._sum.delta ?? 0;
+
   const allResults = getAllResultsForTest(attempt.testId);
   const showLeaderboard = allResults.length >= 30;
-  const totalXp = getUserTotalXp(user.id);
 
   let top10: Array<{ displayName: string; netMarks: number; accuracyPercent: number; timeUsedMs: number }> = [];
   let rank = result.rank;
@@ -72,7 +81,7 @@ export async function GET(request: Request) {
 
     rank = sorted.findIndex((r) => r.resultId === result.resultId) + 1;
     const belowCount = allResults.filter((r) => r.netMarksTotal < result.netMarksTotal).length;
-    percentile = Math.round((100 * belowCount) / allResults.length * 100) / 100;
+    percentile = Math.round(((100 * belowCount) / allResults.length) * 100) / 100;
 
     top10 = sorted.slice(0, 10).map((r, i) => ({
       displayName: `Learner #${i + 1}`,

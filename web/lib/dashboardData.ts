@@ -52,7 +52,11 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       take: 5,
       include: {
         test: {
-          select: { title: true, categoryId: true },
+          select: {
+            title: true,
+            categoryId: true,
+            series: { select: { categoryId: true } },
+          },
         },
       },
     }),
@@ -99,7 +103,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     id: a.id,
     testId: a.testId,
     testTitle: a.test.title,
-    category: a.test.categoryId ?? null,
+    category: a.test.series?.categoryId ?? a.test.categoryId ?? null,
     attemptNumber: a.attemptNumber,
     language: a.language,
     startedAt: a.startedAt,
