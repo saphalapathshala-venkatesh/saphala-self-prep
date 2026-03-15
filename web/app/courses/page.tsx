@@ -60,6 +60,19 @@ export default async function CoursesPage() {
         select: {
           id: true,
           title: true,
+          subtopic: {
+            select: {
+              topic: {
+                select: {
+                  subject: {
+                    select: {
+                      category: { select: { name: true } },
+                    },
+                  },
+                },
+              },
+            },
+          },
         },
       }),
       prisma.category.findMany({ select: { id: true, name: true } }),
@@ -328,6 +341,11 @@ export default async function CoursesPage() {
                       </svg>
                     </div>
                     <div className="min-w-0">
+                      {cp.subtopic?.topic.subject.category?.name && (
+                        <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 block mb-0.5">
+                          {cp.subtopic.topic.subject.category.name}
+                        </span>
+                      )}
                       <h3 className="font-semibold text-[#2D1B69] text-sm leading-snug line-clamp-2 group-hover:text-[#6D4BCB] transition-colors">
                         {cp.title}
                       </h3>

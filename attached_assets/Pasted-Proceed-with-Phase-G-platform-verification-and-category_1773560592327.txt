@@ -1,0 +1,193 @@
+Proceed with Phase G: platform verification and category wiring audit.
+
+Goal:
+Verify that the rebuilt student frontend (Phases B–F) works end-to-end and confirm that Admin-created courses reflect correctly on the frontend based on BOTH dimensions:
+
+1) Product Category
+2) Exam Category
+
+The platform uses two independent classification systems and the frontend must reflect both correctly.
+
+--------------------------------------------------
+
+ADMIN COURSE BUILDER CONTEXT
+
+When creating a course in Admin, two key fields are selected:
+
+1) Product Category (one of the platform product types)
+
+Examples:
+- Free Demo Courses & Tests
+- Test Series
+- Video Courses
+- HTML Courses (Ebooks)
+- PDF Courses
+- Flashcard Courses
+- LIVE Classes
+- Combo Packages
+
+This determines HOW the course is consumed.
+
+2) Exam Category (called “Category” in Admin)
+
+Examples:
+- AP Police
+- APPSC Group 1
+- APPSC Group 2
+- Banking
+- SSC
+
+This determines WHO the course is for.
+
+--------------------------------------------------
+
+FRONTEND EXPECTED BEHAVIOR
+
+Every published course must appear in TWO places:
+
+A) Product Category placement
+
+Course must appear in the relevant product section.
+
+Examples:
+
+Flashcard course → /learn/flashcards  
+PDF course → /learn/pdfs  
+HTML course → /learn/lessons  
+Test Series → /testhub  
+
+Homepage sections and /courses catalog must also reflect this.
+
+Example:
+
+Flashcards section
+  AP Police Flashcard Pack
+  APPSC Economy Flashcards
+
+--------------------------------------------------
+
+B) Exam Category placement
+
+Course must also appear inside the correct exam category section.
+
+Examples:
+
+Homepage → Choose Your Exam  
+or exam category pages.
+
+Example:
+
+AP Police
+
+  AP Police Test Series
+  AP Police Flashcards
+  AP Police PDFs
+  AP Police Ebooks
+
+This ensures students browsing by exam see ALL relevant products.
+
+--------------------------------------------------
+
+IMPORTANT RULE
+
+Product Category and Exam Category must remain independent filters.
+
+Correct data model conceptually:
+
+Course
+  id
+  title
+  categoryId (Exam Category)
+  productType (Product Category)
+  isPublished
+
+--------------------------------------------------
+
+VERIFICATION TASKS
+
+1) Navigation audit
+- homepage → courses → testhub → login → dashboard
+- confirm no broken links
+
+2) Content Library flows
+- ebooks → lesson reader
+- flashcards → study mode
+- PDFs → download
+
+3) TestHub flow
+- brief → attempt → submit → result → review
+
+4) Dashboard metrics
+- attempts count
+- XP display
+- accuracy display
+
+5) Mobile responsiveness
+- homepage
+- dashboard
+- learn pages
+
+6) Admin → frontend reflection
+Verify publishing behavior from Admin.
+
+Specifically confirm:
+
+- Creating a course with productType = FLASHCARDS appears in:
+  /learn/flashcards
+  Flashcards section on homepage
+  /courses catalog
+
+- Creating a course with productType = HTML appears in:
+  /learn/lessons
+  Ebooks section
+
+- Creating a course with productType = PDF appears in:
+  /learn/pdfs
+  PDFs section
+
+7) Exam category verification
+
+Create or inspect a course:
+
+Example:
+
+Title: AP Police Flashcard Pack  
+Category: AP Police  
+Product Category: Flashcards  
+Published: TRUE
+
+Frontend must show this course in BOTH places:
+
+A) Product location
+/learn/flashcards
+
+B) Exam category location
+AP Police category section
+
+8) Confirm no course disappears due to filtering errors.
+
+--------------------------------------------------
+
+RULES
+
+Do NOT introduce new features.
+
+Do NOT modify:
+- lib/*
+- app/api/*
+- database schema
+
+Only:
+- verify wiring
+- fix real bugs
+- ensure correct frontend reflection
+
+--------------------------------------------------
+
+EXPECTED OUTPUT
+
+1) Confirmation of correct product category wiring
+2) Confirmation of exam category wiring
+3) List of any courses not appearing correctly
+4) Fixes applied (if required)
+5) Remaining issues or architecture risks
