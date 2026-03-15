@@ -1,0 +1,112 @@
+We are now in Saphala Self Prep frontend reflection audit.
+
+Problem observed:
+In the Admin app, a Test Series is published, and the Test inside it is also published, but the student frontend is not reflecting it correctly. We suspect this is part of a broader Admin → Frontend wiring gap.
+
+Goal:
+Audit and fix the reflection flow so admin-published content actually appears correctly in the student frontend, starting with Test Series and Tests, and identify whether similar gaps exist for other product types.
+
+Important architecture context:
+- Admin app and student frontend are separate apps sharing one DB
+- Admin is the source of truth
+- Frontend must reflect admin-created/published data from DB
+- We want DB-driven reflection, not hardcoded frontend logic
+- No schema changes unless absolutely necessary
+- No random refactors — audit the actual wiring
+
+PHASE 1 — Test Series / Test reflection audit (highest priority)
+Please inspect end-to-end:
+
+1. Admin side
+- How Test Series publish works
+- How Test publish works
+- Which fields are set on publish/unpublish:
+  - isPublished
+  - publishedAt
+  - categoryId
+  - examId if present
+  - series linkage / foreign keys
+  - any status fields
+
+2. Database model
+- Prisma TestSeries model
+- Prisma Test model
+- relations between them
+- required visibility/access fields
+- category / exam / product-type associations used by frontend
+
+3. Student frontend
+- list page(s) showing test series / test products
+- course/product detail pages
+- APIs or server actions fetching tests/test series
+- exact filters used in frontend queries
+- whether frontend checks:
+  - isPublished only
+  - publishedAt too
+  - category source mismatch
+  - entitlement/access state
+  - series status
+  - product type capability flags
+  - taxonomy filters hiding data
+- whether frontend fetches only series but not nested tests
+- whether frontend is reading the wrong relation or wrong field
+
+4. Actual root cause analysis
+Find the exact reason published tests are not showing.
+Possibilities include:
+- frontend only renders published test series, not tests inside series
+- frontend/API requires publishedAt but admin publish only set isPublished
+- category mismatch between Test.categoryId and TestSeries.categoryId
+- nested relation not included
+- unpublished tests not filtered consistently
+- series/test linkage not being read
+- frontend page still hardcoded/skeleton
+- entitlement logic blocking visibility
+- frontend product cards built for courses/PDFs but not fully wired for tests
+
+PHASE 2 — Fix the reflection logic
+Make the smallest correct fix so that:
+- published Test Series appears in frontend
+- published Tests inside that series can be discovered/started from frontend as intended
+- frontend uses admin DB state as source of truth
+- publish/unpublish behavior is consistent
+- hidden/unpublished tests do not leak
+
+Important constraints:
+- Preserve existing architecture
+- No broad redesign
+- Keep fixes production-safe
+- Prefer alignment of frontend query logic with admin publish logic
+- If publish metadata is inconsistent, normalize it safely
+
+PHASE 3 — Wider reflection audit (report, not necessarily fix all now)
+After fixing the Test Series/Test issue, inspect whether the same reflection gap likely exists for:
+- Courses
+- E-books / HTML content
+- PDFs
+- Flashcards
+- Videos
+Provide a concise report of what is already wired vs not fully wired.
+
+Deliverables required:
+A. Exact root cause why published Test Series / Tests are not reflecting in frontend
+B. Exact files/pages/APIs inspected
+C. Exact files changed
+D. Confirmation of the corrected publish/reflection rule
+E. Whether frontend depends on isPublished, publishedAt, category, exam, entitlements, or other fields
+F. Short audit table:
+   - Test Series
+   - Tests
+   - Courses
+   - E-books
+   - PDFs
+   - Flashcards
+   - Videos
+   with status:
+   - fully wired
+   - partially wired
+   - not wired
+G. Any critical admin ↔ frontend mismatch still remaining
+
+Important:
+Do not just patch one symptom. Audit the true Admin → Frontend reflection chain and explain the real source of truth.

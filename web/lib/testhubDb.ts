@@ -67,7 +67,7 @@ function optionLetter(order: number): string {
 
 export async function getDbTestById(testId: string): Promise<DbTest | null> {
   const test = await prisma.test.findUnique({
-    where: { id: testId },
+    where: { id: testId, isPublished: true },
     include: {
       series: { select: { title: true, categoryId: true, isPublished: true } },
       questions: {
@@ -81,11 +81,18 @@ export async function getDbTestById(testId: string): Promise<DbTest | null> {
   const qDiffs = test.questions.map((tq) => tq.question.difficulty);
   const testDifficulty = deriveDifficulty(qDiffs);
 
+  const rawCategoryId = test.series?.categoryId ?? null;
+  let categoryName: string | null = null;
+  if (rawCategoryId) {
+    const cat = await prisma.category.findUnique({ where: { id: rawCategoryId }, select: { name: true } });
+    categoryName = cat?.name ?? null;
+  }
+
   return {
     id: test.id,
     title: test.title,
     code: test.code,
-    category: test.series?.categoryId || null,
+    category: categoryName,
     series: test.series?.title || null,
     seriesIsPublished: test.series?.isPublished ?? null,
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
@@ -105,7 +112,7 @@ export async function getDbTestById(testId: string): Promise<DbTest | null> {
 
 export async function getDbTestByCode(code: string): Promise<DbTest | null> {
   const test = await prisma.test.findUnique({
-    where: { code },
+    where: { code, isPublished: true },
     include: {
       series: { select: { title: true, categoryId: true, isPublished: true } },
       questions: {
@@ -119,11 +126,18 @@ export async function getDbTestByCode(code: string): Promise<DbTest | null> {
   const qDiffs = test.questions.map((tq) => tq.question.difficulty);
   const testDifficulty = deriveDifficulty(qDiffs);
 
+  const rawCatId = test.series?.categoryId ?? null;
+  let catName: string | null = null;
+  if (rawCatId) {
+    const cat = await prisma.category.findUnique({ where: { id: rawCatId }, select: { name: true } });
+    catName = cat?.name ?? null;
+  }
+
   return {
     id: test.id,
     title: test.title,
     code: test.code,
-    category: test.series?.categoryId || null,
+    category: catName,
     series: test.series?.title || null,
     seriesIsPublished: test.series?.isPublished ?? null,
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
@@ -273,15 +287,28 @@ export async function getAllPublishedTests(): Promise<DbTest[]> {
     orderBy: { createdAt: "asc" },
   });
 
+  // Batch-resolve category names from the Category table
+  const rawCategoryIds = Array.from(
+    new Set(tests.map((t) => t.series?.categoryId).filter((id): id is string => !!id))
+  );
+  const categoryRows = rawCategoryIds.length
+    ? await prisma.category.findMany({
+        where: { id: { in: rawCategoryIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const categoryMap = new Map(categoryRows.map((c) => [c.id, c.name]));
+
   return tests.map((test) => {
     const qDiffs = test.questions.map((tq) => tq.question.difficulty);
     const testDifficulty = deriveDifficulty(qDiffs);
+    const rawCatId = test.series?.categoryId ?? null;
 
     return {
       id: test.id,
       title: test.title,
       code: test.code,
-      category: test.series?.categoryId || null,
+      category: rawCatId ? (categoryMap.get(rawCatId) ?? null) : null,
       series: test.series?.title || null,
       seriesIsPublished: test.series?.isPublished ?? null,
       durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
