@@ -29,7 +29,26 @@ async function dbCreateUser(data: {
   return prisma.user.create({ data, select: { id: true } });
 }
 
+function dbUrlProbe(): string {
+  try {
+    const raw = process.env.DATABASE_URL ?? "";
+    const proto = raw.split("://")[0] ?? "missing";
+    const host = raw.split("@")[1]?.split("/")[0]?.split(":")[0] ?? "unknown";
+    return `${proto}://${host}`;
+  } catch {
+    return "unreadable";
+  }
+}
+
+function extractPrismaError(e: unknown): { code: string | undefined; message: string | undefined; meta: unknown } {
+  const err = e as { code?: string; message?: string; meta?: unknown };
+  return { code: err?.code, message: err?.message, meta: err?.meta ?? null };
+}
+
 export async function POST(request: NextRequest) {
+  const dbProbe = dbUrlProbe();
+  console.log("[register] START dbUrl:", dbProbe);
+
   try {
     const body = await request.json().catch(() => null);
 
@@ -104,13 +123,15 @@ export async function POST(request: NextRequest) {
     try {
       emailConflict = await dbFindByEmail(email);
     } catch (dbErr) {
-      console.error("[register] email lookup failed (attempt 1):", dbErr);
+      const e1 = extractPrismaError(dbErr);
+      console.error("[register] email lookup failed (attempt 1):", { code: e1.code, message: e1.message, meta: e1.meta, dbUrl: dbProbe });
       try {
         await sleep(700);
         emailConflict = await dbFindByEmail(email);
         console.log("[register] email lookup succeeded on retry");
       } catch (retryErr) {
-        console.error("[register] email lookup failed (attempt 2):", retryErr);
+        const e2 = extractPrismaError(retryErr);
+        console.error("[register] email lookup failed (attempt 2):", { code: e2.code, message: e2.message, meta: e2.meta, dbUrl: dbProbe });
         return NextResponse.json(
           { error: "Registration is temporarily unavailable. Please try again in a moment." },
           { status: 503 }
@@ -129,13 +150,15 @@ export async function POST(request: NextRequest) {
     try {
       mobileConflict = await dbFindByMobile(mobile);
     } catch (dbErr) {
-      console.error("[register] mobile lookup failed (attempt 1):", dbErr);
+      const e1 = extractPrismaError(dbErr);
+      console.error("[register] mobile lookup failed (attempt 1):", { code: e1.code, message: e1.message, meta: e1.meta, dbUrl: dbProbe });
       try {
         await sleep(700);
         mobileConflict = await dbFindByMobile(mobile);
         console.log("[register] mobile lookup succeeded on retry");
       } catch (retryErr) {
-        console.error("[register] mobile lookup failed (attempt 2):", retryErr);
+        const e2 = extractPrismaError(retryErr);
+        console.error("[register] mobile lookup failed (attempt 2):", { code: e2.code, message: e2.message, meta: e2.meta, dbUrl: dbProbe });
         return NextResponse.json(
           { error: "Registration is temporarily unavailable. Please try again in a moment." },
           { status: 503 }
@@ -162,11 +185,12 @@ export async function POST(request: NextRequest) {
         gender,
       });
     } catch (dbErr) {
-      console.error("[register] user create failed (attempt 1):", dbErr);
+      const e1 = extractPrismaError(dbErr);
+      console.error("[register] user create failed (attempt 1):", { code: e1.code, message: e1.message, meta: e1.meta, dbUrl: dbProbe });
 
-      const code = (dbErr as { code?: string })?.code;
+      const code = e1.code;
       if (code === "P2002") {
-        const target = (dbErr as { meta?: { target?: string[] } })?.meta?.target?.[0];
+        const target = (e1.meta as { target?: string[] } | null)?.target?.[0];
         if (target === "email") {
           return NextResponse.json(
             { error: "An account with this email already exists. Please log in instead." },
@@ -197,10 +221,11 @@ export async function POST(request: NextRequest) {
         });
         console.log("[register] user create succeeded on retry");
       } catch (retryErr) {
-        console.error("[register] user create failed (attempt 2):", retryErr);
-        const retryCode = (retryErr as { code?: string })?.code;
+        const e2 = extractPrismaError(retryErr);
+        console.error("[register] user create failed (attempt 2):", { code: e2.code, message: e2.message, meta: e2.meta, dbUrl: dbProbe });
+        const retryCode = e2.code;
         if (retryCode === "P2002") {
-          const target = (retryErr as { meta?: { target?: string[] } })?.meta?.target?.[0];
+          const target = (e2.meta as { target?: string[] } | null)?.target?.[0];
           if (target === "email") {
             return NextResponse.json(
               { error: "An account with this email already exists. Please log in instead." },
