@@ -14,7 +14,9 @@ Preferred communication style: Simple, everyday language.
 - **Next.js 16** with App Router, TypeScript, and React 19.
 - **Tailwind CSS 4** for styling, supplemented by custom CSS in `globals.css` and design tokens in `styles/tokens.ts` and `styles/typography.ts`.
 - **lucide-react** for icons.
-- UI components are organized in `/web/ui-core/`.
+- **Canonical layout components** live in `web/components/layout/`: `Header.tsx`, `Footer.tsx`, `Sidebar.tsx`, `DashboardShell.tsx`. These are the source of truth for all layout. Files in `ui-core/` (Header, Footer) and `components/dashboard/` (Sidebar, DashboardShell) are thin re-exports pointing here — kept for backward compatibility with pages not yet migrated.
+- **`app/(student)/layout.tsx`** — server-side route-group layout that resolves the logged-in user and wraps children in `DashboardShell`. Pages moved into `app/(student)/` automatically get auth protection and the sidebar shell with no per-page boilerplate.
+- UI components are organized in `/web/ui-core/` (legacy) and `/web/components/layout/` (canonical).
 - Configuration and mock data are in `/web/config/`.
 - Responsive design with mobile-first breakpoints is a key principle.
 
