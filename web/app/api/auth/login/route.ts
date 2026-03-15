@@ -54,13 +54,34 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user) {
+      console.log(`[login] No user found for identifier type=${normalized.type}`);
       return NextResponse.json(
         { error: "Incorrect email/mobile or password." },
         { status: 401 }
       );
     }
 
+    // Soft-deleted account
+    if (user.deletedAt) {
+      console.log(`[login] Rejected — user ${user.id} is soft-deleted`);
+      return NextResponse.json(
+        { error: "Incorrect email/mobile or password." },
+        { status: 401 }
+      );
+    }
+
+    // Blocked by admin
+    if (user.isBlocked || user.infringementBlocked) {
+      console.log(`[login] Rejected — user ${user.id} is blocked (isBlocked=${user.isBlocked}, infringementBlocked=${user.infringementBlocked})`);
+      return NextResponse.json(
+        { error: "Your account has been suspended. Please contact support." },
+        { status: 403 }
+      );
+    }
+
+    // Deactivated
     if (!user.isActive) {
+      console.log(`[login] Rejected — user ${user.id} is inactive`);
       return NextResponse.json(
         { error: "Your account is inactive. Please contact support." },
         { status: 403 }
@@ -101,6 +122,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!passwordValid) {
+      console.log(`[login] Rejected — wrong password for user ${user.id}`);
       return NextResponse.json(
         { error: "Incorrect email/mobile or password." },
         { status: 401 }
@@ -119,6 +141,7 @@ export async function POST(request: NextRequest) {
         select: { id: true },
       });
       if (existingSession) {
+        console.log(`[login] Rejected — active session already exists for user ${user.id}`);
         return NextResponse.json(
           {
             error: "This account is already active on another device. Please sign out from your other device first, or contact support.",
@@ -148,6 +171,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log(`[login] Success — user ${user.id} (${user.role})`);
     const res = NextResponse.json({ success: true, redirectTo: "/dashboard" });
     res.cookies.set(cookie.name, cookie.value, cookie.options);
     return res;

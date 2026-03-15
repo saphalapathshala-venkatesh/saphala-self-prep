@@ -30,12 +30,12 @@ The student frontend shares its database with the admin app. The admin app **own
 - Student-frontend runtime fields on `Test`: `code`, `languageAvailable`, `marksPerQuestion`, `negativeMarksPerQuestion`, `attemptsAllowed`, `subjectIds`, `syllabusTags` — these are in the DB and schema.
 - Bilingual fields on `Question` (`stemEn`, `stemTe`, `explanationEn`, `explanationTe`) and `QuestionOption` (`textEn`, `textTe`) are nullable; `getDbQuestionsForTest` falls back to `stem`/`text` when null.
 
-**Restored admin fields (after accidental drop):**
-- `Test`: shuffleGroups, shuffleGroupChildren, shuffleOptions, shuffleQuestions, xpEnabled, xpValue, testStartTime, totalQuestions
+**Restored fields (after accidental drop):**
+- `User`: state, gender, isBlocked, blockedReason, maxWebDevices, deletedAt, infringementWarnings, infringementBlocked, mustChangePassword, legalAcceptedAt, legalVersion
+- `Test`: shuffleGroups, shuffleGroupChildren, shuffleOptions, shuffleQuestions, xpEnabled, xpValue, testStartTime, totalQuestions; code, languageAvailable, marksPerQuestion, negativeMarksPerQuestion, attemptsAllowed, subjectIds, syllabusTags
 - `TestSeries`: thumbnailUrl
 - `TestSection`: targetCount, parentSectionId (self-referential nested sections)
 - `TestQuestion`: marks, negativeMarks
-- `User`: isBlocked, blockedReason, maxWebDevices, deletedAt, infringementWarnings, infringementBlocked, mustChangePassword, legalAcceptedAt, legalVersion
 - `FlashcardDeck`: subtitle, subtopicId, titleTemplate, titleImageUrl, subjectColor, xpEnabled, xpValue
 - `FlashcardCard`: cardType (FlashcardCardType enum), content (Json)
 - `ContentPage`: categoryId, subjectId, topicId, xpEnabled, xpValue
