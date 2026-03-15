@@ -10,19 +10,32 @@ function createPrismaClient() {
   const connectionString = process.env.DATABASE_URL;
 
   if (!connectionString) {
-    throw new Error("DATABASE_URL environment variable is not set");
+    throw new Error("[db] DATABASE_URL is not set — cannot create Prisma client");
   }
+
+  const proto = connectionString.split("://")[0] ?? "";
+  if (proto === "prisma+postgres") {
+    throw new Error(
+      "[db] DATABASE_URL is set to a local Prisma Postgres dev URL (prisma+postgres://). " +
+      "Set DATABASE_URL to the Neon PostgreSQL pooler URL (postgresql://...pooler...) in your deployment environment."
+    );
+  }
+  if (proto !== "postgresql" && proto !== "postgres") {
+    throw new Error(
+      `[db] DATABASE_URL has unrecognised protocol "${proto}://". Expected postgresql:// or postgres://.`
+    );
+  }
+
+  const host = connectionString.split("@")[1]?.split("/")[0]?.split(":")[0] ?? "unknown";
+  console.log(`[db] Initialising PrismaClient — host: ${host}`);
 
   const pool = new Pool({
     connectionString,
-    // Keep TCP connections alive so Neon doesn't drop idle sockets
     keepAlive: true,
     keepAliveInitialDelayMillis: 10_000,
-    // Destroy idle connections after 60s (default was 10s — too aggressive for Neon)
-    idleTimeoutMillis: 60_000,
-    // Fail fast on connection errors rather than hanging indefinitely
+    idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 10_000,
-    max: 5,
+    max: 2,
   });
 
   const adapter = new PrismaPg(pool);
