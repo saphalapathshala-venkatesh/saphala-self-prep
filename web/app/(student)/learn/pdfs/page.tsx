@@ -1,6 +1,6 @@
 import { getPublishedPdfs } from "@/lib/contentDb";
 import LearnPageShell from "@/components/learn/LearnPageShell";
-import { PRODUCTS } from "@/config/terminology";
+import { PRODUCTS, ROUTES } from "@/config/terminology";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,7 @@ export default async function PdfsPage() {
   return (
     <LearnPageShell
       productLabel={PRODUCTS.contentLibrary}
-      title="PDFs"
+      title={PRODUCTS.pdfs}
       description="Download and study curated PDFs for your exam preparation."
     >
       {pdfs.length === 0 ? (
@@ -40,7 +40,7 @@ export default async function PdfsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {pdfs.map((pdf) => (
             <div
               key={pdf.id}

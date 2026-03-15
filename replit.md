@@ -56,7 +56,7 @@ A database-driven server component that dynamically queries and displays publish
 Legal constants like `LEGAL_VERSION`, `LEGAL_TERMS_URL`, and `LEGAL_REFUND_URL` are defined in `web/config/legal.ts` and used across the platform for signup and future checkout flows. Policy pages exist as placeholders.
 
 ### Route Protection
-A `proxy.ts` mechanism redirects unauthenticated users from protected routes to the login page.
+A `proxy.ts` middleware redirects unauthenticated guests from protected routes to `/login?from=<path>`. Protected paths: `/dashboard`, `/learn`, `/admin`. `/courses` and all public pages are intentionally unprotected at the edge. Auth for TestHub is handled inside its own API and page layers.
 
 ## External Dependencies
 

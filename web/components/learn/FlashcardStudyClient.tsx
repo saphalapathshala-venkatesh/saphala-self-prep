@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { FlashCard } from "@/lib/contentDb";
+import { ROUTES } from "@/config/terminology";
 
 interface Props {
   deckTitle: string;
@@ -51,7 +52,7 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
             This deck has no cards yet
           </p>
           <Link
-            href="/learn/flashcards"
+            href={ROUTES.flashcards}
             className="text-sm text-[#6D4BCB] hover:underline"
           >
             ← Back to decks
@@ -95,7 +96,7 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
               Study Again
             </button>
             <Link
-              href="/learn/flashcards"
+              href={ROUTES.flashcards}
               className="bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
             >
               All Decks

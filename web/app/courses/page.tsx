@@ -2,6 +2,7 @@ import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import { PRODUCTS, ROUTES } from "@/config/terminology";
 
 export const dynamic = "force-dynamic";
 
@@ -102,11 +103,11 @@ export default async function CoursesPage() {
             <div className="mb-12">
               <h2 className="text-xl font-bold text-[#2D1B69] mb-4 flex items-center gap-2">
                 <span className="w-1 h-5 rounded-full bg-[#6D4BCB] inline-block" />
-                Test Series
+                {PRODUCTS.testSeries}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {testSeries.length === 0 ? (
-                  <SectionEmpty label="Test Series" />
+                  <SectionEmpty label={PRODUCTS.testSeries} />
                 ) : (
                   testSeries.map((s) => {
                     const cat = s.categoryId
@@ -151,7 +152,7 @@ export default async function CoursesPage() {
                               )}
                             </div>
                             <Link
-                              href="/testhub"
+                              href={ROUTES.testHub}
                               className="text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors"
                             >
                               {isFree ? "Start Free" : "View Tests"}
@@ -171,7 +172,7 @@ export default async function CoursesPage() {
             <div className="mb-12">
               <h2 className="text-xl font-bold text-[#2D1B69] mb-4 flex items-center gap-2">
                 <span className="w-1 h-5 rounded-full bg-red-400 inline-block" />
-                PDFs
+                {PRODUCTS.pdfs}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {pdfAssets.map((pdf) => {
@@ -188,7 +189,7 @@ export default async function CoursesPage() {
                   return (
                     <Link
                       key={pdf.id}
-                      href="/learn/pdfs"
+                      href={ROUTES.pdfs}
                       className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4 flex flex-col gap-2"
                     >
                       <div className="flex items-start gap-3">
@@ -238,7 +239,7 @@ export default async function CoursesPage() {
             <div className="mb-12">
               <h2 className="text-xl font-bold text-[#2D1B69] mb-4 flex items-center gap-2">
                 <span className="w-1 h-5 rounded-full bg-yellow-400 inline-block" />
-                Flashcard Decks
+                {PRODUCTS.flashcards}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {flashcardDecks.map((deck) => {
@@ -249,7 +250,7 @@ export default async function CoursesPage() {
                   return (
                     <Link
                       key={deck.id}
-                      href={`/learn/flashcards/${deck.id}`}
+                      href={`${ROUTES.flashcards}/${deck.id}`}
                       className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4 flex flex-col gap-2"
                     >
                       <div className="flex items-start gap-3">
@@ -302,13 +303,13 @@ export default async function CoursesPage() {
             <div className="mb-12">
               <h2 className="text-xl font-bold text-[#2D1B69] mb-4 flex items-center gap-2">
                 <span className="w-1 h-5 rounded-full bg-green-400 inline-block" />
-                Ebooks
+                {PRODUCTS.ebooks}
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {contentPages.map((cp) => (
                   <Link
                     key={cp.id}
-                    href={`/learn/lessons/${cp.id}`}
+                    href={`${ROUTES.ebooks}/${cp.id}`}
                     className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 p-4 flex items-start gap-3"
                   >
                     <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center shrink-0 group-hover:bg-green-100 transition-colors">

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { ROUTES } from "@/config/terminology";
 
 interface LearnPageShellProps {
   productLabel: string;
@@ -20,7 +21,7 @@ export default function LearnPageShell({
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-2 mb-3">
             <Link
-              href="/dashboard"
+              href={ROUTES.dashboard}
               className="text-gray-400 hover:text-[#6D4BCB] transition-colors"
               aria-label="Back to dashboard"
             >
