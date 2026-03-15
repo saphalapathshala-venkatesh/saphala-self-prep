@@ -24,8 +24,8 @@ export default async function LessonsPage() {
 
   return (
     <LearnPageShell
-      productLabel={PRODUCTS.smartLearning}
-      title="Lesson Notes"
+      productLabel={PRODUCTS.contentLibrary}
+      title="Ebooks"
       description="Concept-based reading material. Pick a lesson and read at your own pace."
     >
       {lessons.length === 0 ? (

@@ -92,9 +92,9 @@ const PRIMARY_NAV = [
   { key: "dashboard", label: "Dashboard", href: "/dashboard", icon: "home" },
   { key: "testhub", label: "TestHub", href: "/testhub", icon: "clipboard" },
   { key: "attempts", label: "My Attempts", href: "/dashboard/attempts", icon: "history" },
-  { key: "lessons", label: "Lesson Notes", href: "/learn/lessons", icon: "brain" },
+  { key: "ebooks", label: "Ebooks", href: "/learn/lessons", icon: "brain" },
   { key: "flashcards", label: "Flashcards", href: "/learn/flashcards", icon: "cards" },
-  { key: "preplibrary", label: "Prep Library", href: "/learn/pdfs", icon: "book" },
+  { key: "pdfs", label: "PDFs", href: "/learn/pdfs", icon: "book" },
   { key: "profile", label: "Profile", href: "/dashboard/profile", icon: "user" },
 ] as const;
 

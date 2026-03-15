@@ -55,7 +55,7 @@ const PRODUCT_TYPES = [
     title: "PDF Study Material",
     desc: "Access focused, exam-oriented study material for reading, revision, and offline use.",
     cta: "Browse PDFs",
-    href: ROUTES.prepLibrary,
+    href: ROUTES.pdfs,
   },
   {
     icon: ClipboardCheck,

@@ -37,11 +37,11 @@ The dashboard (`/dashboard`) features a collapsible sidebar and provides an over
 #### Homepage
 The homepage features a dynamic layout with sections for quotes, a hero slider, database-driven exam categories and featured courses, product types, and a contact form. Most content on the homepage is accessible to guests, with content access for learning materials being login-gated.
 
-#### Learn Routes (Student Content Reflection Layer)
-All learning content routes are dynamically generated from the database. These pages live under the `app/(student)/` route group and require login (auth handled by the shared layout). This includes:
-- **Lesson Notes (`/learn/lessons`)**: Login-required listing of published `ContentPage` rows, displaying taxonomy breadcrumbs. Uses `LearnPageShell` for consistent header layout.
-- **PDF Study Materials (`/learn/pdfs`)**: Login-required listing of published `PdfAsset` rows. All logged-in users can download files directly (no guest prompt needed — handled by auth gate). Uses `LearnPageShell`.
-- **Flashcard Decks (`/learn/flashcards`)**: Login-required listing of published `FlashcardDeck` rows with card counts. Uses `LearnPageShell`. Authenticated users can study decks using an interactive flip-card UI.
+#### Content Library (Student Content Reflection Layer)
+All learning content routes are dynamically generated from the database. These pages live under the `app/(student)/` route group and require login (auth handled by the shared layout). **Canonical business terminology**: "Content Library" is the umbrella section label; "Ebooks" refers to HTML materials (`ContentPage`); "PDFs" refers to PDF materials (`PdfAsset`). Do not use "Lesson Notes", "Prep Library", or "Smart Learning" in student-facing UI.
+- **Ebooks (`/learn/lessons`)**: Login-required listing of published `ContentPage` rows, displaying taxonomy breadcrumbs. Uses `LearnPageShell` with "Content Library" product label.
+- **PDFs (`/learn/pdfs`)**: Login-required listing of published `PdfAsset` rows. All logged-in users can download files directly. Uses `LearnPageShell` with "Content Library" product label.
+- **Flashcard Decks (`/learn/flashcards`)**: Login-required listing of published `FlashcardDeck` rows with card counts. Uses `LearnPageShell` with "Content Library" product label. Authenticated users can study decks using an interactive flip-card UI.
 - **Shared shell**: `components/learn/LearnPageShell.tsx` provides a consistent page header (product label, title, description, back-to-dashboard link) and max-width content container for all three listing pages.
 
 #### Course Catalog (`/courses`)

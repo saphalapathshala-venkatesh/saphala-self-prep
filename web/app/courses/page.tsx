@@ -298,12 +298,12 @@ export default async function CoursesPage() {
             </div>
           )}
 
-          {/* ── Lesson Notes ──────────────────────────────────────────── */}
+          {/* ── Ebooks ─────────────────────────────────────────────────── */}
           {contentPages.length > 0 && (
             <div className="mb-12">
               <h2 className="text-xl font-bold text-[#2D1B69] mb-4 flex items-center gap-2">
                 <span className="w-1 h-5 rounded-full bg-green-400 inline-block" />
-                Lesson Notes
+                Ebooks
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
                 {contentPages.map((cp) => (

@@ -10,7 +10,7 @@ export default async function FlashcardsPage() {
 
   return (
     <LearnPageShell
-      productLabel={PRODUCTS.smartLearning}
+      productLabel={PRODUCTS.contentLibrary}
       title="Flashcard Decks"
       description="Rapid-recall study cards. Pick a deck and flip through concepts at exam speed."
     >

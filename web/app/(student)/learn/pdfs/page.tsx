@@ -28,8 +28,8 @@ export default async function PdfsPage() {
 
   return (
     <LearnPageShell
-      productLabel={PRODUCTS.prepLibrary}
-      title="PDF Study Materials"
+      productLabel={PRODUCTS.contentLibrary}
+      title="PDFs"
       description="Download and study curated PDFs for your exam preparation."
     >
       {pdfs.length === 0 ? (

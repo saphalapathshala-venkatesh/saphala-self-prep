@@ -61,15 +61,15 @@ export default async function DashboardPage() {
 
   const liveProducts = [
     {
-      label: PRODUCTS.prepLibrary,
-      sub: "PDFs & study material",
-      href: ROUTES.prepLibrary,
+      label: PRODUCTS.ebooks,
+      sub: "Concept-based reading material",
+      href: ROUTES.ebooks,
       live: true,
     },
     {
-      label: PRODUCTS.smartLearning,
-      sub: "Flashcards & concept notes",
-      href: ROUTES.flashcards,
+      label: PRODUCTS.pdfs,
+      sub: "PDF study materials for download",
+      href: ROUTES.pdfs,
       live: true,
     },
     {
