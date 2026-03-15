@@ -12,7 +12,29 @@ Preferred communication style: Simple, everyday language.
 The frontend is built with **Next.js 16** (App Router, TypeScript, React 19) and styled using **Tailwind CSS 4**, complemented by custom CSS and design tokens. Icons are provided by **lucide-react**. Canonical layout components are centralized in `web/components/layout/`, ensuring consistency. The `app/(student)/layout.tsx` provides server-side authentication and wraps student-facing pages in a dashboard shell. Homepage sections are modular, database-driven where applicable, and responsive design is a core principle. Key terminology and navigation labels are managed in `config/terminology.ts`.
 
 ### Backend & Database
-The backend utilizes **Prisma 7** ORM with **Neon PostgreSQL**. User authentication is cookie-based, with sessions stored in PostgreSQL, secured with `bcrypt` for password hashing. The system supports `STUDENT`, `ADMIN`, and `SUPER_ADMIN` roles. User registration includes `fullName`, `email`, `mobile`, `state`, `gender`, and `password`, with legal acceptance (`legalAccepted`, `legalVersion`) enforced. A "one-device login" feature blocks concurrent logins for users who opt out of multi-device access. Mobile numbers are normalized to 10 digits. XP calculation for TestHub incorporates an `xpMultiplier` based on attempt number.
+The backend utilizes **Prisma 7** ORM with **Neon PostgreSQL** (`divine-butterfly` for dev). User authentication is cookie-based, with sessions stored in PostgreSQL, secured with `bcrypt` for password hashing. The system supports `STUDENT`, `ADMIN`, and `SUPER_ADMIN` roles. User registration includes `fullName`, `email`, `mobile`, `state`, `gender`, and `password`, with legal acceptance (`legalAccepted`, `legalVersion`) enforced. A "one-device login" feature blocks concurrent logins for users who opt out of multi-device access. Mobile numbers are normalized to 10 digits. XP calculation for TestHub incorporates an `xpMultiplier` based on attempt number.
+
+### Schema Governance (CRITICAL)
+The student frontend shares its database with the admin app. The admin app **owns** the schema and is the source of truth.
+
+**RULES — read before any schema changes:**
+1. **NEVER run `prisma db push --accept-data-loss`** against the shared production DB. This drops admin-owned tables/columns and causes irreversible data loss.
+2. The student frontend's `web/prisma/schema.prisma` is a **superset** of the admin schema — it includes all admin fields on shared tables plus student-specific runtime fields. Always keep it in sync.
+3. Admin-only tables (`Course`, `Video`, `Faculty`, `LiveClass`, `UserDevice`, `UserActivity`, etc.) exist in the production DB but are **not listed in the frontend schema** — they are managed exclusively by the admin app. Safe as long as rule 1 is followed.
+4. When the admin app adds new fields to shared tables, they must also be added here (and vice versa).
+5. To add columns safely: run `ALTER TABLE "TableName" ADD COLUMN IF NOT EXISTS ...` SQL first, then update `schema.prisma`, then run `prisma generate`.
+
+**Restored admin fields (after accidental drop):**
+- `Test`: shuffleGroups, shuffleGroupChildren, shuffleOptions, shuffleQuestions, xpEnabled, xpValue, testStartTime, totalQuestions
+- `TestSeries`: thumbnailUrl
+- `TestSection`: targetCount, parentSectionId (self-referential nested sections)
+- `TestQuestion`: marks, negativeMarks
+- `User`: isBlocked, blockedReason, maxWebDevices, deletedAt, infringementWarnings, infringementBlocked, mustChangePassword, legalAcceptedAt, legalVersion
+- `FlashcardDeck`: subtitle, subtopicId, titleTemplate, titleImageUrl, subjectColor, xpEnabled, xpValue
+- `FlashcardCard`: cardType (FlashcardCardType enum), content (Json)
+- `ContentPage`: categoryId, subjectId, topicId, xpEnabled, xpValue
+- `PdfAsset`: isDownloadable
+- `Purchase`: legalAcceptedAt, legalVersion
 
 ### Admin APIs
 Admin functionalities include endpoints for clearing user sessions, toggling multi-device access per user, and retrieving user attempt records.
