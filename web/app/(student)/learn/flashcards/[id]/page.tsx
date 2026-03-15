@@ -1,8 +1,6 @@
-import { redirect, notFound } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { notFound } from "next/navigation";
 import { getDeckById } from "@/lib/contentDb";
-import { Header } from "@/ui-core/Header";
-import { Footer } from "@/ui-core/Footer";
+import { ROUTES, PRODUCTS } from "@/config/terminology";
 import Link from "next/link";
 import FlashcardStudyClient from "@/components/learn/FlashcardStudyClient";
 
@@ -14,11 +12,7 @@ export default async function FlashcardStudyPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [user, deck] = await Promise.all([getCurrentUser(), getDeckById(id)]);
-
-  if (!user) {
-    redirect(`/login?from=${encodeURIComponent(`/learn/flashcards/${id}`)}`);
-  }
+  const deck = await getDeckById(id);
 
   if (!deck) {
     notFound();
@@ -31,13 +25,12 @@ export default async function FlashcardStudyPage({
   ].filter(Boolean);
 
   return (
-    <main className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
-
-      <section className="bg-white py-8 border-b border-gray-100">
-        <div className="container mx-auto px-4">
+    <div>
+      {/* Deck header */}
+      <div className="bg-white py-8 border-b border-gray-100 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 mb-6">
+        <div className="max-w-4xl mx-auto">
           <Link
-            href="/learn/flashcards"
+            href={ROUTES.flashcards}
             className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#6D4BCB] mb-4 transition-colors"
           >
             <svg
@@ -53,7 +46,7 @@ export default async function FlashcardStudyPage({
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            All Decks
+            All {PRODUCTS.flashcards}
           </Link>
 
           {breadcrumbParts.length > 0 && (
@@ -71,11 +64,9 @@ export default async function FlashcardStudyPage({
             {deck.cardCount} card{deck.cardCount !== 1 ? "s" : ""}
           </p>
         </div>
-      </section>
+      </div>
 
       <FlashcardStudyClient deckTitle={deck.title} cards={deck.cards} />
-
-      <Footer />
-    </main>
+    </div>
   );
 }

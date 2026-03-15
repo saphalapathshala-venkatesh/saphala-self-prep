@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Saphala Pathshala — Your Success is Our Focus",
-  description: "Structured learning, smart revision, and exam practice for serious aspirants. Practice tests, flashcards, lesson notes, and more.",
+  description: "Structured learning, smart revision, and exam practice for serious aspirants. Practice tests, flashcards, ebooks, PDFs, and more.",
 };
 
 export default function RootLayout({

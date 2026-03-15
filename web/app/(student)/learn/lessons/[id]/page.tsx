@@ -1,8 +1,6 @@
-import { redirect, notFound } from "next/navigation";
-import { getCurrentUser } from "@/lib/auth";
+import { notFound } from "next/navigation";
 import { getLessonById } from "@/lib/contentDb";
-import { Header } from "@/ui-core/Header";
-import { Footer } from "@/ui-core/Footer";
+import { ROUTES, PRODUCTS } from "@/config/terminology";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -13,11 +11,7 @@ export default async function LessonReaderPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [user, lesson] = await Promise.all([getCurrentUser(), getLessonById(id)]);
-
-  if (!user) {
-    redirect(`/login?from=${encodeURIComponent(`/learn/lessons/${id}`)}`);
-  }
+  const lesson = await getLessonById(id);
 
   if (!lesson) {
     notFound();
@@ -31,13 +25,11 @@ export default async function LessonReaderPage({
   ].filter(Boolean);
 
   return (
-    <main className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
-
-      <div className="container mx-auto px-4 py-8 flex-grow max-w-4xl">
+    <div className="py-8">
+      <div className="max-w-4xl mx-auto">
         {/* Back */}
         <Link
-          href="/learn/lessons"
+          href={ROUTES.ebooks}
           className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#6D4BCB] mb-6 transition-colors"
         >
           <svg
@@ -53,7 +45,7 @@ export default async function LessonReaderPage({
               d="M15 19l-7-7 7-7"
             />
           </svg>
-          All Lessons
+          All {PRODUCTS.ebooks}
         </Link>
 
         <article className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -85,21 +77,19 @@ export default async function LessonReaderPage({
         {/* Footer nav */}
         <div className="mt-6 flex justify-between items-center">
           <Link
-            href="/learn/lessons"
+            href={ROUTES.ebooks}
             className="text-sm text-gray-500 hover:text-[#6D4BCB] transition-colors"
           >
-            ← Back to lessons
+            ← Back to {PRODUCTS.ebooks}
           </Link>
           <Link
-            href="/learn/flashcards"
+            href={ROUTES.flashcards}
             className="text-sm text-[#6D4BCB] font-medium hover:underline"
           >
-            Try flashcards →
+            Try {PRODUCTS.flashcards} →
           </Link>
         </div>
       </div>
-
-      <Footer />
-    </main>
+    </div>
   );
 }

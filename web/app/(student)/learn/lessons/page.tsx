@@ -32,7 +32,7 @@ export default async function LessonsPage() {
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-20 text-center">
           <p className="text-gray-400 font-medium mb-1">No lessons published yet</p>
           <p className="text-gray-400 text-sm">
-            New lesson notes are being prepared. Check back soon.
+            New ebooks are being prepared. Check back soon.
           </p>
         </div>
       ) : (
