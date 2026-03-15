@@ -1,14 +1,11 @@
 import { Suspense } from "react";
 import { getCurrentUser } from "@/lib/auth";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import DashboardShell from "@/components/dashboard/DashboardShell";
-import LoginSuccessToast from "./LoginSuccessToast";
+import LoginSuccessToast from "@/components/dashboard/LoginSuccessToast";
 import { getDashboardData } from "@/lib/dashboardData";
+import { PRODUCTS, ROUTES } from "@/config/terminology";
 
 export const dynamic = "force-dynamic";
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatDate(d: Date | null): string {
   if (!d) return "—";
@@ -28,9 +25,7 @@ function formatMemberSince(d: Date): string {
 
 function ScoreBadge({ correct, wrong, total }: { correct: number; wrong: number; total: number }) {
   if (correct === 0 && wrong === 0) {
-    return (
-      <span className="text-xs text-gray-400 italic">Score pending</span>
-    );
+    return <span className="text-xs text-gray-400 italic">Score pending</span>;
   }
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
   const color =
@@ -46,15 +41,12 @@ function ScoreBadge({ correct, wrong, total }: { correct: number; wrong: number;
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
-
 export default async function DashboardPage() {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  if (!user) return null;
 
   const data = await getDashboardData(user.id);
 
-  // Greeting
   const salutation =
     user.gender === "Male" ? "Mr. " : user.gender === "Female" ? "Ms. " : "";
   const firstName = user.fullName?.split(" ")[0] ?? user.fullName ?? null;
@@ -63,23 +55,38 @@ export default async function DashboardPage() {
     : "Welcome back";
 
   const displayName = user.fullName ?? user.email ?? user.mobile ?? "Student";
-
-  // XP display
   const xpDisplay = data.xpTotal > 0 ? String(data.xpTotal) : "0";
-
-  // Accuracy display
-  const accuracyDisplay =
-    data.accuracyPct !== null ? `${data.accuracyPct}%` : "—";
-
+  const accuracyDisplay = data.accuracyPct !== null ? `${data.accuracyPct}%` : "—";
   const hasAttempts = data.attemptCount > 0;
 
+  const liveProducts = [
+    {
+      label: PRODUCTS.prepLibrary,
+      sub: "PDFs & study material",
+      href: ROUTES.prepLibrary,
+      live: true,
+    },
+    {
+      label: PRODUCTS.smartLearning,
+      sub: "Flashcards & concept notes",
+      href: ROUTES.flashcards,
+      live: true,
+    },
+    {
+      label: PRODUCTS.pathshala,
+      sub: "Video lessons by faculty",
+      href: null,
+      live: false,
+    },
+  ];
+
   return (
-    <DashboardShell userName={displayName}>
+    <>
       <Suspense>
         <LoginSuccessToast displayName={displayName} />
       </Suspense>
 
-      {/* ── Hero ──────────────────────────────────────────────────────────── */}
+      {/* Hero */}
       <section className="bg-gradient-to-br from-[#2D1B69] via-[#4A2E9E] to-[#6D4BCB] text-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
           <p className="text-purple-300 text-xs font-semibold uppercase tracking-widest mb-1">
@@ -93,7 +100,6 @@ export default async function DashboardPage() {
               ? "Every test you attempt brings you closer to your goal. Keep going."
               : "Start your first practice test today and build your exam confidence."}
           </p>
-
           <div className="flex flex-wrap gap-3">
             {data.activeAttempt ? (
               <Link
@@ -108,7 +114,7 @@ export default async function DashboardPage() {
               </Link>
             ) : (
               <Link
-                href="/testhub"
+                href={ROUTES.testHub}
                 className="inline-flex items-center gap-2 bg-white text-[#2D1B69] font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-purple-50 transition-colors shadow-sm"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -118,7 +124,7 @@ export default async function DashboardPage() {
               </Link>
             )}
             <Link
-              href="/testhub"
+              href={ROUTES.testHub}
               className="inline-flex items-center gap-2 border border-purple-400 text-purple-100 hover:border-purple-200 hover:text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
             >
               Browse Free Tests
@@ -129,7 +135,7 @@ export default async function DashboardPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
-        {/* ── Metric cards ────────────────────────────────────────────────── */}
+        {/* Metric cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <MetricCard
             label="Tests Attempted"
@@ -142,11 +148,7 @@ export default async function DashboardPage() {
           <MetricCard
             label="XP Earned"
             value={xpDisplay}
-            subtitle={
-              data.xpTotal > 0
-                ? "Keep attempting to earn more"
-                : "Earn XP by completing tests"
-            }
+            subtitle={data.xpTotal > 0 ? "Keep attempting to earn more" : "Earn XP by completing tests"}
             icon="star"
             color="amber"
             isReal={data.xpHasLedger}
@@ -175,7 +177,7 @@ export default async function DashboardPage() {
           />
         </div>
 
-        {/* ── Resume card (if active attempt) ─────────────────────────────── */}
+        {/* Resume card */}
         {data.activeAttempt && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-4">
             <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -205,17 +207,17 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* ── Main grid: Recent Attempts + Sidebar cards ───────────────────── */}
+        {/* Main grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-          {/* Left: Recent Attempts */}
+          {/* Left: Recent Attempts + Motivational card */}
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
                 <h2 className="text-base font-bold text-[#2D1B69]">Recent Attempts</h2>
                 {hasAttempts && (
                   <Link
-                    href="/dashboard/attempts"
+                    href={ROUTES.attempts}
                     className="text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
                   >
                     View All
@@ -229,10 +231,7 @@ export default async function DashboardPage() {
                     const total =
                       attempt.correctCount + attempt.wrongCount + attempt.unansweredCount;
                     return (
-                      <div
-                        key={attempt.id}
-                        className="flex items-center gap-3 px-5 py-3.5"
-                      >
+                      <div key={attempt.id} className="flex items-center gap-3 px-5 py-3.5">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-semibold text-[#2D1B69] truncate">
                             {attempt.testTitle}
@@ -243,11 +242,7 @@ export default async function DashboardPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <ScoreBadge
-                            correct={attempt.correctCount}
-                            wrong={attempt.wrongCount}
-                            total={total || attempt.correctCount + attempt.wrongCount + attempt.unansweredCount}
-                          />
+                          <ScoreBadge correct={attempt.correctCount} wrong={attempt.wrongCount} total={total} />
                           <Link
                             href={`/testhub/tests/${attempt.testId}/review?attemptId=${attempt.id}`}
                             className="text-xs font-medium text-[#6D4BCB] hover:underline"
@@ -271,7 +266,7 @@ export default async function DashboardPage() {
                     Your test history will appear here once you complete your first exam.
                   </p>
                   <Link
-                    href="/testhub"
+                    href={ROUTES.testHub}
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-white bg-[#6D4BCB] hover:bg-[#5C3DB5] px-4 py-2 rounded-xl transition-colors"
                   >
                     Start a Free Test
@@ -297,7 +292,7 @@ export default async function DashboardPage() {
                   : "The first step is always the hardest. Take your first practice test today — it is the foundation of all future success."}
               </p>
               <Link
-                href="/testhub"
+                href={ROUTES.testHub}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
               >
                 {hasAttempts ? "Continue Practice" : "Take First Test"}
@@ -308,7 +303,7 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* Right: Profile card + Coming soon */}
+          {/* Right: Profile card + Products */}
           <div className="space-y-4">
             {/* Profile card */}
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
@@ -349,44 +344,68 @@ export default async function DashboardPage() {
                 </div>
               </div>
               <Link
-                href="/dashboard/profile"
+                href={ROUTES.profile}
                 className="mt-4 block text-center text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
               >
                 View Full Profile
               </Link>
             </div>
 
-            {/* Coming Soon teaser */}
-            <div className="bg-gray-50 border border-dashed border-gray-200 rounded-2xl p-5">
+            {/* Products quick-access */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-5">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
-                More Coming Soon
+                Study Tools
               </p>
-              <div className="space-y-2.5">
-                {[
-                  { label: "Pathshala", sub: "Video lessons by faculty" },
-                  { label: "Prep Library", sub: "PDFs & study material" },
-                  { label: "Smart Learning", sub: "Flashcards & concept maps" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3">
-                    <div className="w-1.5 h-1.5 rounded-full bg-purple-300 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs font-medium text-gray-500">{item.label}</p>
-                      <p className="text-[10px] text-gray-400">{item.sub}</p>
+              <div className="space-y-2">
+                {liveProducts.map((item) =>
+                  item.live && item.href ? (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className="flex items-center gap-3 group"
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-[#6D4BCB] flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-semibold text-[#2D1B69] group-hover:text-[#6D4BCB] transition-colors">
+                          {item.label}
+                        </p>
+                        <p className="text-[10px] text-gray-400">{item.sub}</p>
+                      </div>
+                      <svg
+                        className="w-3 h-3 text-gray-300 group-hover:text-[#6D4BCB] transition-colors ml-auto flex-shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  ) : (
+                    <div key={item.label} className="flex items-center gap-3 opacity-50">
+                      <div className="w-1.5 h-1.5 rounded-full bg-purple-300 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-500">{item.label}</p>
+                        <p className="text-[10px] text-gray-400">{item.sub}</p>
+                      </div>
+                      <span className="text-[9px] font-semibold text-gray-300 uppercase tracking-wider ml-auto">
+                        Soon
+                      </span>
                     </div>
-                  </div>
-                ))}
+                  )
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* ── Free Tests section ────────────────────────────────────────────── */}
+        {/* Free Tests */}
         {data.freeTests.length > 0 && (
           <section>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-bold text-[#2D1B69]">Recommended Free Tests</h2>
               <Link
-                href="/testhub"
+                href={ROUTES.testHub}
                 className="text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
               >
                 View All
@@ -432,26 +451,14 @@ export default async function DashboardPage() {
           </section>
         )}
       </div>
-    </DashboardShell>
+    </>
   );
 }
 
-// ── MetricCard ────────────────────────────────────────────────────────────────
-
 function MetricCard({
-  label,
-  value,
-  subtitle,
-  icon,
-  color,
-  isReal,
+  label, value, subtitle, icon, color, isReal,
 }: {
-  label: string;
-  value: string;
-  subtitle: string;
-  icon: string;
-  color: string;
-  isReal: boolean;
+  label: string; value: string; subtitle: string; icon: string; color: string; isReal: boolean;
 }) {
   const colorMap: Record<string, { bg: string; text: string }> = {
     purple: { bg: "bg-purple-100", text: "text-[#6D4BCB]" },
@@ -460,7 +467,6 @@ function MetricCard({
     orange: { bg: "bg-orange-100", text: "text-orange-500" },
   };
   const { bg, text } = colorMap[color] ?? colorMap.purple;
-
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-4 relative overflow-hidden">
       <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 ${bg} ${text}`}>
@@ -484,32 +490,13 @@ function MetricIcon({ name }: { name: string }) {
   const cn = "w-4 h-4";
   switch (name) {
     case "star":
-      return (
-        <svg className={cn} fill="currentColor" viewBox="0 0 24 24">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-        </svg>
-      );
+      return <svg className={cn} fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>;
     case "flame":
-      return (
-        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
-        </svg>
-      );
+      return <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" /><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" /></svg>;
     case "check":
-      return (
-        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      );
+      return <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
     case "target":
-      return (
-        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <circle cx="12" cy="12" r="10" />
-          <circle cx="12" cy="12" r="6" />
-          <circle cx="12" cy="12" r="2" />
-        </svg>
-      );
+      return <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="2" /></svg>;
     default:
       return null;
   }

@@ -38,10 +38,11 @@ The dashboard (`/dashboard`) features a collapsible sidebar and provides an over
 The homepage features a dynamic layout with sections for quotes, a hero slider, database-driven exam categories and featured courses, product types, and a contact form. Most content on the homepage is accessible to guests, with content access for learning materials being login-gated.
 
 #### Learn Routes (Student Content Reflection Layer)
-All learning content routes are dynamically generated from the database. This includes:
-- **Lesson Notes (`/learn/lessons`)**: A public listing of published `ContentPage` rows, displaying taxonomy breadcrumbs. Authenticated users can view individual lessons with HTML content.
-- **PDF Study Materials (`/learn/pdfs`)**: A public listing of published `PdfAsset` rows. Logged-in users can download files directly, while guests are prompted to log in.
-- **Flashcard Decks (`/learn/flashcards`)**: A public listing of published `FlashcardDeck` rows with card counts. Authenticated users can study decks using an interactive flip-card UI.
+All learning content routes are dynamically generated from the database. These pages live under the `app/(student)/` route group and require login (auth handled by the shared layout). This includes:
+- **Lesson Notes (`/learn/lessons`)**: Login-required listing of published `ContentPage` rows, displaying taxonomy breadcrumbs. Uses `LearnPageShell` for consistent header layout.
+- **PDF Study Materials (`/learn/pdfs`)**: Login-required listing of published `PdfAsset` rows. All logged-in users can download files directly (no guest prompt needed — handled by auth gate). Uses `LearnPageShell`.
+- **Flashcard Decks (`/learn/flashcards`)**: Login-required listing of published `FlashcardDeck` rows with card counts. Uses `LearnPageShell`. Authenticated users can study decks using an interactive flip-card UI.
+- **Shared shell**: `components/learn/LearnPageShell.tsx` provides a consistent page header (product label, title, description, back-to-dashboard link) and max-width content container for all three listing pages.
 
 #### Course Catalog (`/courses`)
 A database-driven server component that dynamically queries and displays published content from `TestSeries`, `PdfAsset`, `FlashcardDeck`, and `ContentPage`, organized by product type. It replaces previous hardcoded course listings.

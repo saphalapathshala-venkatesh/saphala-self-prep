@@ -9,6 +9,7 @@
 export const PRODUCTS = {
   testHub: "TestHub",
   selfPrep: "Self Prep",
+  smartLearning: "Smart Learning",
   pathshala: "Pathshala",
   prepLibrary: "Prep Library",
   flashcards: "Flashcards",
@@ -47,6 +48,8 @@ export const ROUTES = {
   flashcards: "/learn/flashcards",
   prepLibrary: "/learn/pdfs",
   dashboard: "/dashboard",
+  attempts: "/dashboard/attempts",
+  profile: "/dashboard/profile",
   login: "/login",
   register: "/register",
   contact: "/contact",
