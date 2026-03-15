@@ -84,9 +84,16 @@ Preferred communication style: Simple, everyday language.
 - **Quote + Kalam Strip**: 60/40 layout — daily quote left, Dr. Kalam photo (Wikipedia Commons) + dedication right; quote stable for the full calendar day
 - **Exam Categories**: 16:9 thumbnail cards in horizontal scroll; fetched from DB — auto-reflects admin changes; fallback to Saphala logo
 - **Product Types**: 8 hardcoded learning-approach cards (Free Demo, Complete Packs, Video, Self Prep, PDF, Test Series, Flashcards, Current Affairs)
-- **Featured Courses**: 4 exam-oriented placeholder cards with ₹ pricing; login-gated access note
+- **Featured Courses**: DB-driven — queries up to 4 published `TestSeries` rows (newest first); joins `Category` table for label; shows "coming soon" gracefully when DB is empty. Removed hardcoded placeholder cards.
 - **Footer**: 5-column dark navy — Brand/Contact, Explore (10 links), Student, Support (FAQ/Privacy/Terms/Refund), Community (social links)
 - Guest browsing allowed for all homepage sections; content access is login-gated
+
+### Course Catalog (`/courses`)
+- DB-driven server component (`force-dynamic`) — queries all four published content types in parallel: `TestSeries`, `PdfAsset`, `FlashcardDeck`, `ContentPage`.
+- Joins `Category` table for labels on each item.
+- Renders a section per product type; each section only appears if that type has data. Shows a unified "no content yet" state when all four types are empty.
+- Replaced the previous page which read from `config/courses.ts` (6 hardcoded Western exam courses — completely wrong content).
+- Deleted `config/courses.ts`, `config/featuredCourses.ts`, and dead `ui-core/CourseCarousel.tsx`.
 
 ### APIs
 - **Public APIs**: `/api/public/quote-of-the-day` (daily Kalam quote, 12 rotating by day-of-year), `/api/public/categories` (live DB categories), `/api/public/contact` (validated contact form — logs submission)

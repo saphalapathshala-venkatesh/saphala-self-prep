@@ -1,69 +1,30 @@
 import Link from "next/link";
-
-interface CourseCard {
-  id: string;
-  title: string;
-  exam: string;
-  examColor: string;
-  type: string;
-  price: number;
-  originalPrice?: number;
-  thumbnail: string;
-  href: string;
-}
-
-// Exam-oriented placeholder cards — replace with real DB data when available
-const FEATURED_COURSES: CourseCard[] = [
-  {
-    id: "c1",
-    title: "APPSC Group-1 Complete Prep Pack",
-    exam: "APPSC",
-    examColor: "bg-purple-100 text-purple-700",
-    type: "Complete Pack",
-    price: 1499,
-    originalPrice: 2499,
-    thumbnail: "https://images.unsplash.com/photo-1516979187457-637abb4f9353?auto=format&fit=crop&q=80&w=600&h=338",
-    href: "/courses/appsc-group1-complete",
-  },
-  {
-    id: "c2",
-    title: "APPSC Group-2 Video Course",
-    exam: "APPSC",
-    examColor: "bg-purple-100 text-purple-700",
-    type: "Video Course",
-    price: 999,
-    originalPrice: 1599,
-    thumbnail: "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&q=80&w=600&h=338",
-    href: "/courses/appsc-group2-video",
-  },
-  {
-    id: "c3",
-    title: "AP Police Constable Test Series",
-    exam: "AP Police",
-    examColor: "bg-blue-100 text-blue-700",
-    type: "Test Series",
-    price: 399,
-    originalPrice: 699,
-    thumbnail: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&q=80&w=600&h=338",
-    href: "/testhub",
-  },
-  {
-    id: "c4",
-    title: "Banking & SSC Current Affairs Pack",
-    exam: "Banking",
-    examColor: "bg-green-100 text-green-700",
-    type: "Current Affairs",
-    price: 299,
-    thumbnail: "https://images.unsplash.com/photo-1454165833767-027ffea9e77b?auto=format&fit=crop&q=80&w=600&h=338",
-    href: "/courses/banking-current-affairs",
-  },
-];
+import { prisma } from "@/lib/db";
 
 function formatPrice(paise: number): string {
-  return `₹${paise.toLocaleString("en-IN")}`;
+  return `₹${(paise / 100).toLocaleString("en-IN")}`;
 }
 
-export default function FeaturedCoursesSection() {
+export default async function FeaturedCoursesSection() {
+  const [rawSeries, categories] = await Promise.all([
+    prisma.testSeries.findMany({
+      where: { isPublished: true },
+      orderBy: { createdAt: "desc" },
+      take: 4,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        pricePaise: true,
+        discountPaise: true,
+        categoryId: true,
+      },
+    }),
+    prisma.category.findMany({ select: { id: true, name: true } }),
+  ]);
+
+  const catMap = new Map(categories.map((c) => [c.id, c.name]));
+
   return (
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
@@ -77,69 +38,84 @@ export default function FeaturedCoursesSection() {
             </p>
           </div>
           <Link
-            href="/courses"
+            href="/testhub"
             className="shrink-0 ml-4 bg-white border-2 border-[#8050C0] text-[#8050C0] hover:bg-[#F6F2FF] hover:text-[#6D3DB0] text-sm font-semibold px-4 py-2 rounded-xl transition-colors duration-150"
           >
-            View All Courses
+            Browse All Tests
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {FEATURED_COURSES.map((course) => (
-            <div
-              key={course.id}
-              className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col"
-            >
-              {/* Thumbnail (16:9) */}
-              <div className="relative w-full aspect-video overflow-hidden bg-gray-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={course.thumbnail}
-                  alt={course.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <span
-                  className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${course.examColor}`}
+        {rawSeries.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-14 text-center">
+            <p className="text-gray-400 text-sm">
+              New courses being added soon. Check back shortly.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {rawSeries.map((s) => {
+              const catName = s.categoryId
+                ? (catMap.get(s.categoryId) ?? null)
+                : null;
+              const price = s.pricePaise;
+              const originalPrice =
+                s.discountPaise > 0 ? price + s.discountPaise : undefined;
+              const isFree = price === 0;
+
+              return (
+                <div
+                  key={s.id}
+                  className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col"
                 >
-                  {course.exam}
-                </span>
-              </div>
+                  <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] h-32 flex items-center justify-center px-5">
+                    <h3 className="text-white font-bold text-sm text-center leading-snug line-clamp-3">
+                      {s.title}
+                    </h3>
+                  </div>
 
-              {/* Content */}
-              <div className="p-4 flex flex-col flex-1">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
-                  {course.type}
-                </span>
-                <h3 className="text-sm font-bold text-[#2D1B69] mb-3 leading-snug flex-1">
-                  {course.title}
-                </h3>
-
-                <div className="flex items-center justify-between mt-auto">
-                  <div>
-                    <span className="text-lg font-bold text-[#2D1B69]">
-                      {formatPrice(course.price)}
-                    </span>
-                    {course.originalPrice && (
-                      <span className="text-xs text-gray-400 line-through ml-1.5">
-                        {formatPrice(course.originalPrice)}
+                  <div className="p-4 flex flex-col flex-1">
+                    {catName && (
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
+                        {catName}
                       </span>
                     )}
+                    {s.description && (
+                      <p className="text-xs text-gray-500 mb-3 line-clamp-2 flex-1">
+                        {s.description}
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between mt-auto">
+                      <div>
+                        <span className="text-lg font-bold text-[#2D1B69]">
+                          {isFree ? "Free" : formatPrice(price)}
+                        </span>
+                        {originalPrice !== undefined && (
+                          <span className="text-xs text-gray-400 line-through ml-1.5">
+                            {formatPrice(originalPrice)}
+                          </span>
+                        )}
+                      </div>
+                      <Link
+                        href="/testhub"
+                        className="text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors"
+                      >
+                        {isFree ? "Start Free" : "View Tests"}
+                      </Link>
+                    </div>
                   </div>
-                  <Link
-                    href={course.href}
-                    className="text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors"
-                  >
-                    {course.price > 0 ? "Buy Now" : "Start Free"}
-                  </Link>
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
 
         <p className="text-center text-xs text-gray-400 mt-6">
           Login required to access course content.{" "}
-          <Link href="/register" className="text-[#6D4BCB] hover:underline font-medium">
+          <Link
+            href="/register"
+            className="text-[#6D4BCB] hover:underline font-medium"
+          >
             Create a free account →
           </Link>
         </p>
