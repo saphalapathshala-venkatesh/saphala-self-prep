@@ -1,0 +1,71 @@
+IMPORTANT — SHARED DATABASE SAFETY (READ BEFORE ANY CHANGE)
+
+This project uses TWO separate applications connected to ONE shared production database:
+
+1. Admin Saphala Self Prep
+2. Saphala Self Prep Student Frontend
+
+Both apps connect to the same Neon PostgreSQL database.
+
+STRICT RULES (DO NOT VIOLATE):
+
+1. NEVER run destructive schema operations.
+2. NEVER use --accept-data-loss.
+3. NEVER drop columns or tables automatically.
+4. NEVER remove “unused” columns unless explicitly instructed.
+5. Only ADDITIVE schema changes are allowed.
+6. If a column exists in the database but is not referenced in code, PRESERVE it.
+7. Always assume the other app may depend on that column.
+8. Production database structure must remain stable.
+
+SAFE PRACTICES:
+• Prefer ALTER TABLE ADD COLUMN IF NOT EXISTS
+• Never perform automatic cleanup of “orphan” columns
+• Never modify schema without checking both apps
+
+-------------------------------------
+
+APP CONTEXT
+This prompt is for the **Saphala Self Prep Student Frontend app**.
+
+TASK — Mobile UI improvement on test completion screen
+
+Problem:
+On the test completion page (after finishing a test), there are two large action buttons displayed side-by-side. On mobile devices, this layout feels cramped.
+
+Goal:
+On mobile screens only, stack these two buttons vertically (one below the other), while keeping the existing horizontal layout on tablet and desktop screens.
+
+Requirements:
+1. Locate the component/page that renders the test completion actions (likely inside TestAttemptClient, ReviewClient, or a similar test result component).
+2. Find the container wrapping the two buttons.
+3. Update the layout using responsive Tailwind classes so that:
+
+   - Mobile layout → buttons stacked vertically
+   - Tablet/Desktop → buttons remain side-by-side
+
+Example approach:
+Use a responsive flex layout such as:
+
+flex flex-col sm:flex-row gap-4
+
+This means:
+- mobile → flex-col (vertical)
+- sm and above → flex-row (horizontal)
+
+4. Do NOT change:
+   - button styling
+   - spacing between elements beyond what is needed
+   - text labels
+   - click behavior
+   - navigation logic
+
+5. Ensure the buttons still take full width on mobile if that was already intended.
+
+Deliverables:
+A. Exact file where the layout was updated
+B. Exact class changes made
+C. Confirmation that:
+   - Mobile shows buttons stacked vertically
+   - Desktop/tablet still shows buttons side-by-side
+   - No other UI was modified

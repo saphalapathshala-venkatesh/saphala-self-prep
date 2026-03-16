@@ -30,20 +30,19 @@ The student frontend shares its database with the admin app. The admin app **own
 - Student-frontend runtime fields on `Test`: `code`, `languageAvailable`, `marksPerQuestion`, `negativeMarksPerQuestion`, `attemptsAllowed`, `subjectIds`, `syllabusTags` — these are in the DB and schema.
 - Bilingual fields on `Question` (`stemEn`, `stemTe`, `explanationEn`, `explanationTe`) and `QuestionOption` (`textEn`, `textTe`) are nullable; `getDbQuestionsForTest` falls back to `stem`/`text` when null.
 
-**Restored fields (after accidental drop):**
-- `User`: state, gender, isBlocked, blockedReason, maxWebDevices, deletedAt, infringementWarnings, infringementBlocked, mustChangePassword, legalAcceptedAt, legalVersion
-- `Test`: shuffleGroups, shuffleGroupChildren, shuffleOptions, shuffleQuestions, xpEnabled, xpValue, testStartTime, totalQuestions; code, languageAvailable (enum), marksPerQuestion, negativeMarksPerQuestion, attemptsAllowed, subjectIds, syllabusTags
-- `TestSeries`: thumbnailUrl, isFree
-- `TestSection`: targetCount, parentSectionId (self-referential nested sections)
-- `TestQuestion`: marks, negativeMarks
-- `Attempt`: status (AttemptStatus enum), attemptNumber, language (LanguageAvailable enum), endsAt, lockedSessionToken, totalTimeUsedMs
-- `AttemptAnswer`: selectedOptionId, isMarkedForReview, timeSpentMs, savedAt, updatedAt
-- `FlashcardDeck`: subtitle, subtopicId, titleTemplate, titleImageUrl, subjectColor, xpEnabled, xpValue
-- `FlashcardCard`: cardType (FlashcardCardType enum), content (Json)
-- `ContentPage`: categoryId, subjectId, topicId, xpEnabled, xpValue
-- `PdfAsset`: isDownloadable
-- `Purchase`: legalAcceptedAt, legalVersion
-**Enums added to DB (after accidental drop):** `AttemptStatus` (IN_PROGRESS, SUBMITTED), `LanguageAvailable` (EN, TE, BOTH)
+**DB column audit (verified 2026-03-16 against divine-butterfly Neon):**
+The production DB was audited directly via psql (not the Replit local DB — the `executeSql` tool connects to a DIFFERENT DB than the app uses). Confirmed all columns exist:
+- `User`: all 22 fields present (state, gender restored)
+- `Test`: all 32 columns present including code, languageAvailable, attemptsAllowed, subjectIds, syllabusTags
+- `Attempt`: all 17 columns present including status (AttemptStatus enum), attemptNumber, language (LanguageAvailable enum), endsAt, lockedSessionToken, totalTimeUsedMs
+- `AttemptAnswer`: all 11 columns present including selectedOptionId, isMarkedForReview, timeSpentMs, savedAt, updatedAt
+- `AttemptStatus` and `LanguageAvailable` enum types confirmed in DB
+- `TestSeries`: thumbnailUrl, isFree confirmed present
+- `TestQuestion`: marks, negativeMarks confirmed present
+
+**IMPORTANT — DB querying note:** Always use `psql "postgresql://neondb_owner:...@ep-divine-butterfly-a1q63q5z-pooler..."` for schema audits. The `executeSql` code_execution tool connects to the Replit LOCAL database (prisma+postgres://localhost:51213), NOT the divine-butterfly Neon DB used by the app. These are completely different databases.
+
+**Enums in DB:** `AttemptStatus` (IN_PROGRESS, SUBMITTED), `LanguageAvailable` (EN, TE, BOTH)
 
 ### Admin APIs
 Admin functionalities include endpoints for clearing user sessions, toggling multi-device access per user, and retrieving user attempt records.
