@@ -156,6 +156,8 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
   const questionStartTime = useRef<number>(Date.now());
   const autoSubmitTriggered = useRef(false);
+  // Stores sectionTimeLeft at the moment of pause so resume can continue from that point
+  const frozenSectionTimeRef = useRef<number | null>(null);
 
   // ── Initial data load ──────────────────────────────────────────────────────
 
@@ -314,15 +316,34 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   useEffect(() => {
     if (sectionTimerRef.current) clearInterval(sectionTimerRef.current);
 
-    if (!testConfig?.sectionsEnabled || testConfig.timerMode === "TOTAL" || !currentSectionId || isPaused) {
+    if (!testConfig?.sectionsEnabled || testConfig.timerMode === "TOTAL" || !currentSectionId) {
       setSectionTimeLeft(null);
+      return;
+    }
+
+    if (isPaused) {
+      // Paused: stop the interval but keep sectionTimeLeft visible for the overlay
       return;
     }
 
     const section = sections.find((s) => s.id === currentSectionId);
     if (!section?.durationSec) { setSectionTimeLeft(null); return; }
 
-    let remaining = section.durationSec;
+    // Resume from frozen value if available (pause/resume), otherwise start fresh.
+    // Clamp to totalDuration to prevent section timer exceeding total timer.
+    const maxAllowed = testConfig?.totalDurationSec ?? section.durationSec;
+    const freshStart = Math.min(section.durationSec, maxAllowed);
+    let remaining = frozenSectionTimeRef.current !== null
+      ? Math.min(frozenSectionTimeRef.current, timeLeft)
+      : freshStart;
+    frozenSectionTimeRef.current = null; // Consume the frozen value
+
+    if (section.durationSec > maxAllowed) {
+      console.warn(
+        `[TestHub] Section "${section.title}" duration (${section.durationSec}s) exceeds test total duration (${maxAllowed}s). Clamping.`
+      );
+    }
+
     setSectionTimeLeft(remaining);
 
     sectionTimerRef.current = setInterval(() => {
@@ -336,7 +357,8 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     return () => {
       if (sectionTimerRef.current) clearInterval(sectionTimerRef.current);
     };
-  }, [currentSectionId, testConfig?.sectionsEnabled, testConfig?.timerMode, isPaused, sections]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentSectionId, testConfig?.sectionsEnabled, testConfig?.timerMode, testConfig?.totalDurationSec, isPaused, sections]);
 
   // ── Time recording ─────────────────────────────────────────────────────────
 
@@ -465,6 +487,10 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     setPausing(true);
     setPauseError(null);
     recordTimeForCurrent(); // Snapshot time before pausing
+    // Preserve section timer so resume can continue from this point
+    if (sectionTimeLeft !== null) {
+      frozenSectionTimeRef.current = sectionTimeLeft;
+    }
 
     try {
       const res = await fetch(`/api/student/attempts/${attemptMeta.attemptId}/pause`, {
@@ -752,21 +778,28 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     <div>
       {testConfig?.sectionsEnabled && sections.length > 0 && (
         <div className="mb-3">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Jump to section</p>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Sections</p>
           <div className="flex flex-wrap gap-1">
-            {sections.map((sec) => (
+            {sections.map((sec) => {
+              const secQs = questions.filter((q) => q.sectionId === sec.id);
+              const secAnswered = secQs.filter((q) => questionStates.get(q.id)?.savedOptionId !== null).length;
+              return (
               <button
                 key={sec.id}
                 onClick={() => { navigateToSection(sec.id); setPaletteOpen(false); }}
-                className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                title={`${sec.title} — ${secAnswered}/${secQs.length} answered`}
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-medium transition-colors border ${
                   sec.id === currentSectionId
-                    ? "bg-[#2D1B69] text-white"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    ? "bg-[#2D1B69] text-white border-[#2D1B69]"
+                    : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
                 }`}
               >
                 {sec.title}
+                <span className={`ml-1 ${sec.id === currentSectionId ? "text-purple-200" : "text-gray-400"}`}>
+                  {secAnswered}/{secQs.length}
+                </span>
               </button>
-            ))}
+            )})}
           </div>
         </div>
       )}
@@ -854,9 +887,18 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             <div className="flex items-center gap-2">
               {testConfig?.sectionsEnabled && sectionTimeLeft !== null && testConfig.timerMode !== "TOTAL" && (
                 <div className="flex flex-col items-center">
-                  <div className={`font-mono text-xs font-bold px-2 py-0.5 rounded-lg ${sectionTimeLeft <= 120 ? "bg-orange-500/30 text-orange-200" : "bg-white/10"}`}>
-                    {isPaused ? "—:——" : formatTime(sectionTimeLeft)}
-                  </div>
+                  {(() => {
+                    // Clamp displayed section time to remaining total time to prevent display mismatch
+                    const clampedSec = Math.min(sectionTimeLeft, timeLeft);
+                    if (!isPaused && sectionTimeLeft > timeLeft) {
+                      console.warn(`[TestHub] Section timer (${sectionTimeLeft}s) exceeds total timer (${timeLeft}s) — clamping display.`);
+                    }
+                    return (
+                      <div className={`font-mono text-xs font-bold px-2 py-0.5 rounded-lg ${clampedSec <= 120 ? "bg-orange-500/30 text-orange-200" : "bg-white/10"}`}>
+                        {isPaused ? "—:——" : formatTime(clampedSec)}
+                      </div>
+                    );
+                  })()}
                   <span className="text-[8px] text-purple-300 mt-0.5">Section</span>
                 </div>
               )}
@@ -941,27 +983,45 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
               dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText ?? "") }}
             />
 
-            <div className="space-y-3">
+            <div className="space-y-2.5" role="radiogroup">
               {renderedOptions.map((opt) => {
                 const isSelected = currentState?.draftOptionId === opt.id;
                 return (
-                  <button
+                  <div
                     key={opt.id}
-                    onClick={() => selectOption(opt.id)}
-                    disabled={isPaused}
-                    className={`w-full text-left p-3.5 rounded-xl border-2 transition-all text-sm disabled:cursor-default ${
+                    role="radio"
+                    aria-checked={isSelected}
+                    onClick={() => !isPaused && selectOption(opt.id)}
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all ${
+                      isPaused
+                        ? "cursor-default opacity-70"
+                        : "cursor-pointer"
+                    } ${
                       isSelected
-                        ? "border-purple-400 bg-purple-50/50"
-                        : "border-gray-150 hover:border-gray-300 bg-white"
+                        ? "border-[#6D4BCB] bg-purple-50/60"
+                        : "border-gray-200 hover:border-gray-300 bg-white"
                     }`}
                   >
-                    <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold mr-3 flex-shrink-0 ${
-                      isSelected ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-600"
+                    {/* Radio ring */}
+                    <span className={`mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isSelected
+                        ? "border-[#6D4BCB] bg-[#6D4BCB]"
+                        : "border-gray-300 bg-white"
+                    }`}>
+                      {isSelected && <span className="w-[7px] h-[7px] rounded-full bg-white" />}
+                    </span>
+                    {/* Option letter */}
+                    <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold flex-shrink-0 ${
+                      isSelected ? "bg-[#6D4BCB] text-white" : "bg-gray-100 text-gray-600"
                     }`}>
                       {opt.label}
                     </span>
-                    <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text ?? "") }} />
-                  </button>
+                    {/* Option text */}
+                    <span
+                      className="flex-grow text-sm text-gray-800 leading-relaxed pt-0.5"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text ?? "") }}
+                    />
+                  </div>
                 );
               })}
             </div>

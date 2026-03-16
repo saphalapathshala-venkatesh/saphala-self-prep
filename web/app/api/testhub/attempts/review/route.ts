@@ -4,6 +4,7 @@ import {
   getAnswersForAttempt,
   getDbTestById,
   getDbQuestionsForTest,
+  getTestSectionsForAttempt,
   getAllSubmittedAnswersForQuestion,
 } from "@/lib/testhubDb";
 import { hasRealContent } from "@/lib/sanitizeHtml";
@@ -41,8 +42,11 @@ export async function GET(request: Request) {
     return Response.json({ error: "Test not found" }, { status: 404 });
   }
 
-  const questions = await getDbQuestionsForTest(test.id);
-  const answers = await getAnswersForAttempt(attemptId);
+  const [questions, answers, sections] = await Promise.all([
+    getDbQuestionsForTest(test.id),
+    getAnswersForAttempt(attemptId),
+    getTestSectionsForAttempt(test.id),
+  ]);
   const answerMap = new Map(answers.map((a) => [a.questionId, a]));
 
   const reviewQuestions = await Promise.all(
@@ -74,6 +78,7 @@ export async function GET(request: Request) {
       return {
         questionId: q.id,
         order: q.order,
+        sectionId: q.sectionId ?? null,
         subjectName: q.subjectName || "General",
         questionText_en: q.questionText_en,
         questionText_te: q.questionText_te,
@@ -117,6 +122,7 @@ export async function GET(request: Request) {
       language: attempt.language,
       submittedAt: attempt.submittedAt,
     },
+    sections: sections.map((s) => ({ id: s.id, title: s.title, sortOrder: s.sortOrder })),
     questions: reviewQuestions,
   });
 }

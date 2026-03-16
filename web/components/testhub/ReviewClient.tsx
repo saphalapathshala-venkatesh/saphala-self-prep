@@ -10,9 +10,16 @@ interface OptionData {
   text: string;
 }
 
+interface ReviewSection {
+  id: string;
+  title: string;
+  sortOrder: number;
+}
+
 interface ReviewQuestion {
   questionId: string;
   order: number;
+  sectionId: string | null;
   subjectName: string;
   questionText_en: string;
   questionText_te: string;
@@ -42,6 +49,7 @@ interface ReviewData {
     language: "EN" | "TE";
     submittedAt: string;
   };
+  sections: ReviewSection[];
   questions: ReviewQuestion[];
 }
 
@@ -233,6 +241,24 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
     { key: "unattempted", label: "Unattempted", count: counts.unattempted },
   ];
 
+  const hasSections = (data?.sections?.length ?? 0) > 0;
+
+  function paletteButton(q: ReviewQuestion, filteredIdx: number) {
+    let color: string;
+    if (q.userSelectedOption === null) color = "bg-gray-200 text-gray-600";
+    else if (q.userSelectedOption === q.correctOption) color = "bg-green-500 text-white";
+    else color = "bg-red-400 text-white";
+    return (
+      <button
+        key={q.questionId}
+        onClick={() => navigateTo(filteredIdx)}
+        className={`w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${color} ${filteredIdx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
+      >
+        {q.order + 1}
+      </button>
+    );
+  }
+
   const paletteContent = (
     <div>
       <div className="space-y-1.5 text-[11px] font-medium mb-4">
@@ -253,24 +279,37 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
           </div>
         </div>
       </div>
-      <div className="grid grid-cols-5 gap-2">
-        {filteredQuestions.map((q, filteredIdx) => {
-          let color: string;
-          if (q.userSelectedOption === null) color = "bg-gray-200 text-gray-600";
-          else if (q.userSelectedOption === q.correctOption) color = "bg-green-500 text-white";
-          else color = "bg-red-400 text-white";
 
-          return (
-            <button
-              key={q.questionId}
-              onClick={() => navigateTo(filteredIdx)}
-              className={`w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${color} ${filteredIdx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
-            >
-              {q.order + 1}
-            </button>
-          );
-        })}
-      </div>
+      {hasSections ? (
+        // Section-grouped palette
+        <div className="space-y-4">
+          {(data?.sections ?? []).map((sec) => {
+            const secQs = filteredQuestions.filter((q) => q.sectionId === sec.id);
+            if (secQs.length === 0) return null;
+            const isCurrentSection = currentQ?.sectionId === sec.id;
+            return (
+              <div key={sec.id}>
+                <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${
+                  isCurrentSection ? "text-[#6D4BCB]" : "text-gray-400"
+                }`}>
+                  {sec.title}
+                </p>
+                <div className="grid grid-cols-5 gap-2">
+                  {secQs.map((q) => {
+                    const filteredIdx = filteredQuestions.indexOf(q);
+                    return paletteButton(q, filteredIdx);
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        // Flat palette (no sections)
+        <div className="grid grid-cols-5 gap-2">
+          {filteredQuestions.map((q, filteredIdx) => paletteButton(q, filteredIdx))}
+        </div>
+      )}
     </div>
   );
 

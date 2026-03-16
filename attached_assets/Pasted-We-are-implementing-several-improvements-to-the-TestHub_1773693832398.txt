@@ -1,0 +1,156 @@
+We are implementing several improvements to the TestHub test panel in the Saphala Self Prep STUDENT FRONTEND.
+
+IMPORTANT
+Frontend changes only unless explicitly required.
+Do not modify database schema.
+Audit first before implementing.
+
+--------------------------------------------------
+
+FEATURE SET
+
+1. Radio Button Options UI
+Replace the current A/B/C/D card style options with proper radio button rows.
+
+Requirements:
+- Only one option selectable.
+- Clicking anywhere on the option row selects it.
+- Maintain bilingual rendering (English + Telugu).
+- Preserve existing answer-save API behaviour.
+- Do not change backend payload structure.
+
+--------------------------------------------------
+
+2. Section Timer Validation Display
+
+Currently the UI allows a situation where:
+
+Section timer > Total timer
+
+Example shown in production:
+Section = 04:00
+Total = 01:42
+
+This is logically impossible.
+
+Frontend must enforce display sanity:
+
+Rules:
+- If sectionDuration > totalDuration → show warning
+- Clamp section timer display to remaining total time
+- Prevent UI countdown mismatch
+
+Timers must follow:
+
+Total timer ≥ sum(section timers)
+
+If mismatch detected, show console warning but keep UI stable.
+
+--------------------------------------------------
+
+3. Pause Test Feature Fix
+
+The UI currently shows:
+
+"Failed to pause. Please try again."
+
+Tasks:
+
+Audit pause implementation:
+- pause button handler
+- pause API call
+- pause route response handling
+
+Requirements:
+- pause button must call pause API
+- display paused overlay on success
+- freeze all timers during pause
+- disable option selection while paused
+- resume must restore timers using server "endsAt"
+
+If backend route missing or misnamed, handle gracefully and log error.
+
+--------------------------------------------------
+
+4. Section-Aware Question Palette
+
+Palette must behave section-wise.
+
+Current behaviour:
+All questions visible globally.
+
+Correct behaviour:
+- When sections enabled, palette shows only questions of current section.
+- Section switcher pills must appear above palette.
+- Question numbering remains global (1…n) but filtering is section-based.
+
+--------------------------------------------------
+
+5. Section-Wise Review Page
+
+The review page must display answers grouped by section.
+
+Instead of:
+
+1 2 3 4 5 6 7 8 9 10
+
+It must show:
+
+SECTION: Polity
+1 2 3 4 5
+
+SECTION: Geography
+6 7 8 9 10
+
+Requirements:
+- retain colour coding (correct/wrong/unattempted)
+- section headers clearly visible
+- clicking number scrolls to that question
+
+--------------------------------------------------
+
+PHASE 1 — AUDIT
+
+Before editing:
+
+Read:
+- TestAttemptClient
+- Review page
+- Question palette component
+- Timer logic
+- Pause button handler
+
+Report:
+- where timers calculated
+- where pause API called
+- where palette filtering implemented
+
+--------------------------------------------------
+
+PHASE 2 — IMPLEMENT
+
+Implement all 5 features with minimal disruption.
+
+--------------------------------------------------
+
+PHASE 3 — TEST
+
+Verify:
+
+- option radio buttons work
+- pause/resume works
+- timers consistent
+- palette section filter works
+- review page grouped by section
+- bilingual rendering intact
+
+--------------------------------------------------
+
+OUTPUT
+
+Return:
+1. files changed
+2. components updated
+3. timer validation logic
+4. pause fix summary
+5. review page changes
