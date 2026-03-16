@@ -37,7 +37,7 @@ The student frontend shares its database with the admin app. The admin app **own
 
 **DB column audit (verified 2026-03-16 against divine-butterfly Neon):**
 The production DB was audited directly via psql (not the Replit local DB — the `executeSql` tool connects to a DIFFERENT DB than the app uses). Confirmed all columns exist:
-- `User`: all 22 fields present (state, gender restored)
+- `User`: all 22 fields present. NOTE: `state` and `gender` were MISSING from the production DB until 2026-03-16 when they were re-added via `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS`. They are now confirmed present.
 - `Test`: all 32 columns present including code, languageAvailable, attemptsAllowed, subjectIds, syllabusTags
 - `Attempt`: all 17 columns present including status (AttemptStatus enum), attemptNumber, language (LanguageAvailable enum), endsAt, lockedSessionToken, totalTimeUsedMs
 - `AttemptAnswer`: all 11 columns present including selectedOptionId, isMarkedForReview, timeSpentMs, savedAt, updatedAt
