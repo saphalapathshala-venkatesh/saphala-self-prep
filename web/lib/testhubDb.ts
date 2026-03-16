@@ -474,7 +474,7 @@ export async function getPublishedTestsForStudent(userId?: string): Promise<Stud
     for (const a of userAttempts) {
       if (a.status === "SUBMITTED") {
         completedMap.set(a.testId, (completedMap.get(a.testId) ?? 0) + 1);
-      } else if (a.status === "IN_PROGRESS" && (!a.endsAt || a.endsAt > now)) {
+      } else if ((a.status === "IN_PROGRESS" || a.status === "PAUSED") && (!a.endsAt || a.endsAt > now)) {
         activeSet.add(a.testId);
       }
     }
@@ -536,7 +536,7 @@ export async function getAttemptsForUserTest(userId: string, testId: string) {
 
 export async function getActiveAttempt(userId: string, testId: string) {
   return prisma.attempt.findFirst({
-    where: { userId, testId, status: "IN_PROGRESS" },
+    where: { userId, testId, status: { in: ["IN_PROGRESS", "PAUSED"] } },
   });
 }
 

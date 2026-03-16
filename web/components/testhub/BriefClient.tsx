@@ -42,15 +42,17 @@ export default function BriefClient({ test }: BriefClientProps) {
           credentials: "include",
         });
         if (res.ok) {
-          const data = await res.json();
-          setAttemptsUsed(data.attemptsUsed);
+          const data = await res.json().catch(() => ({}));
+          setAttemptsUsed(data.attemptsUsed ?? 0);
           if (data.summary) setSummary(data.summary);
           if (data.activeAttempt) {
             setActiveAttempt(data.activeAttempt);
-            setLanguage(data.activeAttempt.language);
+            setLanguage(data.activeAttempt.language ?? "EN");
           }
         }
+        // Non-OK (401, 500, etc.): silently continue — UI shows default start state
       } catch {
+        // Network error: silently continue — user can still proceed to start
       } finally {
         setCheckingAttempt(false);
       }

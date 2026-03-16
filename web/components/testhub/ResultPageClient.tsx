@@ -104,6 +104,7 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
 
   const fetchResult = useCallback(async () => {
     const res = await fetch(`/api/testhub/attempts/result?attemptId=${attemptId}`);
+    if (res.status === 401) throw new Error("Session expired. Please log in again.");
     if (res.status === 404) {
       const genRes = await fetch('/api/testhub/attempts/generate-result', {
         method: 'POST',
@@ -111,16 +112,19 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
         body: JSON.stringify({ attemptId }),
       });
       if (!genRes.ok) {
-        const err = await genRes.json();
+        const err = await genRes.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to generate result');
       }
       const fetchAgain = await fetch(`/api/testhub/attempts/result?attemptId=${attemptId}`);
-      if (!fetchAgain.ok) throw new Error('Failed to fetch result after generation');
+      if (!fetchAgain.ok) {
+        const err2 = await fetchAgain.json().catch(() => ({}));
+        throw new Error(err2.error || 'Failed to fetch result after generation');
+      }
       return fetchAgain.json();
     }
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to fetch result');
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to fetch result (${res.status})`);
     }
     return res.json();
   }, [attemptId]);

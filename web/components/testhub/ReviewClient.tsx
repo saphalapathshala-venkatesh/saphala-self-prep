@@ -118,8 +118,11 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
   const fetchReview = useCallback(async () => {
     const res = await fetch(`/api/testhub/attempts/review?attemptId=${attemptId}`);
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || "Failed to load review");
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 401) throw new Error("Session expired. Please log in again.");
+      if (res.status === 403) throw new Error("You do not have access to this review.");
+      if (res.status === 404) throw new Error("Review not found. The attempt may not have been submitted yet.");
+      throw new Error(err.error || `Failed to load review (${res.status})`);
     }
     return res.json();
   }, [attemptId]);

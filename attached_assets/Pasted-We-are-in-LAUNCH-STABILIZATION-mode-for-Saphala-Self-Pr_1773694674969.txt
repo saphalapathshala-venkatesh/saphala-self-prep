@@ -1,0 +1,145 @@
+We are in LAUNCH STABILIZATION mode for Saphala Self Prep. Do NOT add new features in this pass. This is a FRONTEND SANITY CHECK to verify that the student frontend is fully in sync with the current backend APIs and data contracts, especially around TestHub and auth-related student flows.
+
+GOAL
+Perform a full frontend sanity audit and fix any FE ↔ BE mismatch that could cause recurring production issues.
+
+IMPORTANT
+- Frontend app only
+- No unnecessary schema changes
+- No UI redesign
+- No speculative refactors
+- Audit first, then only make minimal fixes required for stability
+- Focus on preventing recurring breakages, stale assumptions, and contract mismatches
+
+SCOPE
+Check these areas for FE ↔ BE sync:
+1. Login / auth flow
+2. Public categories loading
+3. Dashboard load path
+4. TestHub test list
+5. Test attempt page
+6. Pause/resume
+7. Section cards / section palette / review page
+8. Question rendering (bilingual fields)
+9. Results / review page
+10. Course content pages if they use any recently changed contracts
+
+PHASE 1 — FULL AUDIT FIRST
+Read all relevant frontend files before changing anything:
+- login page and LoginForm
+- any auth/session helpers used by FE
+- homepage/public categories fetch usage
+- dashboard page and key dashboard components
+- TestHub list page
+- test attempt page
+- TestAttemptClient
+- review page / ReviewClient
+- any FE types/interfaces used for:
+  - test brief payload
+  - attempt payload
+  - review payload
+  - public categories payload
+- any fetch wrappers/helpers
+- any pause/resume handlers
+- any section/timer/palette logic
+- any bilingual mapping assumptions in FE
+
+Before implementing, provide a short report:
+- which FE screens call which backend routes
+- any routes FE still calls that are old/stale/duplicated
+- any payload fields FE expects that backend may not send anymore
+- any field names that still reflect old schema assumptions
+- whether FE has fallback handling for optional/missing fields
+- whether any page can still white-screen if data shape changes slightly
+
+PHASE 2 — ROUTE CONTRACT SANITY CHECK
+Verify FE uses the correct current backend routes and not stale ones.
+
+At minimum check:
+- auth routes
+- /api/public/categories
+- current student test routes
+- attempt routes
+- review/results routes
+
+For each, confirm:
+- expected response shape
+- status handling
+- error fallback handling
+- whether FE incorrectly assumes success-only responses
+
+If old routes still exist in FE usage, flag and replace them with the current official route where safe.
+
+PHASE 3 — FIELD / PAYLOAD SANITY CHECK
+Audit FE assumptions for current backend field names.
+
+Especially verify no stale references remain to old names like:
+- stemEn / stemTe / explanationEn / explanationTe
+- textEn / textTe
+if FE should now be using mapped payload fields instead
+
+Also verify:
+- sectionId exists where review/attempt code expects it
+- pauseAllowed / strictSectionMode / timerMode / sectionsEnabled / subsectionsEnabled are handled safely
+- selectedOptionId tracking is consistent everywhere
+- nullable numeric fields are handled safely in FE
+
+PHASE 4 — FAIL-SOFT AUDIT
+Find screens that can still crash if:
+- array is empty
+- optional field is missing
+- route returns 400/404/409/500/503
+- section metadata is absent
+- pause metadata is absent
+- bilingual secondary text is missing
+
+For each such case, add minimal safe fallback handling instead of page crash.
+
+PHASE 5 — TEST PANEL SANITY CHECK
+Specifically verify FE behavior is aligned with current BE contract for:
+- section cards
+- section timer clamping
+- total timer
+- pause/resume flow
+- section-aware palette
+- section-wise review
+- radio-button options if implemented
+- section submit flow if already exposed by BE
+- strict section mode flag handling if already exposed by BE
+
+Make sure:
+- FE does not invent logic that conflicts with backend
+- FE uses server values as source of truth where applicable
+- no stale timer math remains
+- no old route assumptions remain
+
+PHASE 6 — AUTH / ERROR-HANDLING SANITY CHECK
+Verify FE:
+- distinguishes 401 / 403 / 409 / 500 / 503 where relevant
+- shows clear messages for login failures
+- does not collapse all backend failures into the same message
+- handles non-JSON or malformed responses safely
+- does not white-screen on auth/session issues
+
+PHASE 7 — MINIMAL FIXES ONLY
+After audit, implement only the minimal fixes needed to restore sync and robustness.
+Do NOT add new features.
+Do NOT redesign components.
+Do NOT change backend contracts from frontend.
+
+PHASE 8 — VERIFICATION
+After fixes:
+- run TypeScript check
+- verify app builds cleanly
+- verify no obvious stale route/field references remain
+- verify key FE screens fail softly
+- summarize whether FE is now in sync with BE
+
+FINAL OUTPUT REQUIRED
+1. exact FE ↔ BE mismatches found
+2. files changed
+3. routes still in use by FE
+4. payload fields that were corrected or guarded
+5. any pages made fail-soft
+6. any remaining risks or areas not fully verifiable from FE alone
+7. final verdict: is FE in sync with current BE or not

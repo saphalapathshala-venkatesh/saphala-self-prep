@@ -63,7 +63,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     prisma.attempt.findFirst({
       where: {
         userId,
-        status: "IN_PROGRESS",
+        status: { in: ["IN_PROGRESS", "PAUSED"] },
         endsAt: { gt: new Date() },
       },
       orderBy: { startedAt: "desc" },
