@@ -43,43 +43,55 @@ export default function LoginForm() {
     setIsSubmitting(true);
     setErrors({});
 
+    let response: Response;
     try {
-      const response = await fetch("/api/auth/login", {
+      response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
         credentials: "include",
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.code === "ACTIVE_SESSION_EXISTS") {
-          setActiveSessionBlock(true);
-          setErrors({});
-        } else if (data.code === "ACCOUNT_BLOCKED") {
-          setErrors({ general: "Your account has been blocked. Please contact support." });
-        } else if (data.code === "ACCOUNT_INACTIVE") {
-          setErrors({ general: "Your account is inactive. Please contact support." });
-        } else {
-          setErrors({ general: data.error || "Login failed. Please try again in a moment." });
-        }
-        setIsSubmitting(false);
-        return;
-      }
-
-      setLoginSuccess(true);
-
-      const dest = new URL(from, window.location.origin);
-      dest.searchParams.set("login", "success");
-
-      setTimeout(() => {
-        router.replace(dest.pathname + dest.search);
-      }, 900);
     } catch {
+      // fetch() itself threw — network offline or DNS failure
       setIsSubmitting(false);
-      setErrors({ general: "Login failed. Please check your connection and try again." });
+      setErrors({ general: "Unable to reach the server. Please check your internet connection and try again." });
+      return;
     }
+
+    // Parse JSON safely — server may return HTML on 502/503/gateway errors
+    let data: { error?: string; code?: string; success?: boolean; redirectTo?: string } = {};
+    try {
+      data = await response.json();
+    } catch {
+      // Non-JSON body (e.g. Next.js HTML error page)
+      data = {};
+    }
+
+    if (!response.ok) {
+      if (response.status === 503 || response.status === 502) {
+        setErrors({ general: "Login service is temporarily unavailable. Please try again in a moment." });
+      } else if (data.code === "ACTIVE_SESSION_EXISTS") {
+        setActiveSessionBlock(true);
+        setErrors({});
+      } else if (data.code === "ACCOUNT_BLOCKED") {
+        setErrors({ general: "Your account has been blocked. Please contact support." });
+      } else if (data.code === "ACCOUNT_INACTIVE") {
+        setErrors({ general: "Your account is inactive. Please contact support." });
+      } else {
+        setErrors({ general: data.error || "Login failed. Please try again in a moment." });
+      }
+      setIsSubmitting(false);
+      return;
+    }
+
+    setLoginSuccess(true);
+
+    const dest = new URL(from, window.location.origin);
+    dest.searchParams.set("login", "success");
+
+    setTimeout(() => {
+      router.replace(dest.pathname + dest.search);
+    }, 900);
   }
 
   // ── Success state ─────────────────────────────────────────────────────────

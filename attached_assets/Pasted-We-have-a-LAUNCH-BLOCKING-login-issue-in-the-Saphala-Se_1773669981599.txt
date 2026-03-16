@@ -1,0 +1,97 @@
+We have a LAUNCH-BLOCKING login issue in the Saphala Self Prep student frontend app. Do not do any feature work. Do not work on Quiz, content, forgot-password, or UI polish. Focus only on making login work reliably and exposing the exact failure reason.
+
+PROBLEM
+The same login issue is still repeating in the frontend app. This is unacceptable for launch. We need the true root cause and a safe fix TODAY.
+
+GOAL
+1. Identify the exact login failure point
+2. Make login work reliably
+3. Ensure frontend shows the true failure reason
+4. Verify session cookie is set and honored correctly
+5. Prevent silent/generic login failure where possible
+
+PHASE 1 — FULL LOGIN PATH AUDIT
+Read all relevant files before editing:
+- app/api/auth/login/route.ts
+- app/api/auth/logout/route.ts
+- app/api/auth/me/route.ts
+- lib/auth.ts
+- lib/sessionStore.ts
+- lib/prisma.ts
+- lib/validation.ts
+- login page + LoginForm
+- student layout auth checks
+- proxy.ts
+- any cookie/session constants
+- any session creation function
+- any session read/update function
+- any retry/DB wrapper used by login
+
+Report clearly:
+- exact login request flow
+- exact session creation flow
+- cookie name/options
+- what happens after successful login
+- how frontend decides success vs failure
+- where generic fallback is triggered
+- whether stale/revoked sessions can still interfere
+- whether login can succeed but session fail immediately after
+
+PHASE 2 — ADD TEMPORARY HIGH-VALUE DEBUGGING
+Add safe temporary logging around the full login path:
+- identifier normalization result type (not raw password)
+- user found or not
+- blocked/inactive/deleted outcome
+- password match result
+- one-device block result
+- session creation success/failure
+- cookie set attempt
+- final response status/code
+- any thrown exception stack in server logs
+
+Do NOT log raw passwords.
+Do NOT log password hashes.
+Do NOT log full sensitive tokens unless absolutely necessary; mask if needed.
+
+PHASE 3 — FRONTEND RESPONSE HARDENING
+In LoginForm:
+- distinguish fetch/network failure vs 401/403/409/500/503
+- if response is non-JSON, handle that explicitly
+- if status is 503, show “Login service is temporarily unavailable. Please try again.”
+- if fetch fails, show “Unable to reach the server. Please check your internet and try again.”
+- keep explicit messages for INVALID_CREDENTIALS / ACTIVE_SESSION_EXISTS / ACCOUNT_BLOCKED / ACCOUNT_INACTIVE
+- only use a final generic fallback if nothing else is available
+
+PHASE 4 — SESSION / COOKIE VERIFICATION
+Audit and verify:
+- session is actually created in DB
+- cookie is actually being set on login response
+- cookie path/domain/sameSite/httpOnly settings are correct for current app
+- getCurrentUser can immediately read the session after login
+- revokedAt and expiry logic are correct
+- stale cookies do not cause broken auth loops
+
+PHASE 5 — SAFE FIXES ONLY
+Apply only the minimum safe fixes required to make login work.
+Do not refactor broadly.
+Do not change unrelated auth architecture unless the bug requires it.
+
+PHASE 6 — VERIFICATION
+After fixes:
+- run TypeScript check
+- restart app
+- test login with valid credentials
+- test wrong password
+- test one-device block
+- test blocked/inactive case
+- test logout
+- test login again after logout
+- verify protected page access works after login
+
+FINAL OUTPUT REQUIRED
+1. exact root cause found
+2. exact file(s) changed
+3. what the login failure actually was
+4. whether it was backend, frontend, cookie, session, or DB related
+5. what logs proved it
+6. what remains risky, if anything
