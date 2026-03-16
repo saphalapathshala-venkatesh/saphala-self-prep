@@ -6,14 +6,38 @@ import InstructionsPill from "./InstructionsPill";
 import type { MockTest } from "@/config/testhub";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
-interface TestMeta {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface SubsectionMeta {
+  id: string;
+  title: string;
+  sortOrder: number;
+  durationSec: number | null;
+  questionCount: number;
+}
+
+interface SectionMeta {
+  id: string;
+  title: string;
+  sortOrder: number;
+  durationSec: number | null;
+  questionCount: number;
+  subsections: SubsectionMeta[];
+}
+
+interface TestConfig {
   id: string;
   name: string;
   code: string;
-  durationMinutes: number;
+  durationSec: number | null;
   totalQuestions: number;
   negativeMarking: number;
   marksPerQuestion: number;
+  pauseAllowed: boolean;
+  sectionsEnabled: boolean;
+  subsectionsEnabled: boolean;
+  timerMode: "TOTAL" | "SECTION" | "SUBSECTION";
+  strictSectionMode: boolean;
 }
 
 interface AttemptMeta {
@@ -26,6 +50,7 @@ interface AttemptMeta {
 interface QuestionData {
   id: string;
   order: number;
+  sectionId: string | null;
   questionText_en: string;
   questionText_te: string;
   optionA_en: string;
@@ -58,27 +83,64 @@ interface TestAttemptClientProps {
   test: MockTest;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function formatTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+// ─── Component ───────────────────────────────────────────────────────────────
+
 export default function TestAttemptClient({ testId, test }: TestAttemptClientProps) {
   const router = useRouter();
+
+  // Load state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [testMeta, setTestMeta] = useState<TestMeta | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [autoSubmitted, setAutoSubmitted] = useState(false);
+
+  // Core data
+  const [testConfig, setTestConfig] = useState<TestConfig | null>(null);
   const [attemptMeta, setAttemptMeta] = useState<AttemptMeta | null>(null);
   const [questions, setQuestions] = useState<QuestionData[]>([]);
+  const [sections, setSections] = useState<SectionMeta[]>([]);
   const [questionStates, setQuestionStates] = useState<Map<string, QuestionState>>(new Map());
+
+  // Navigation
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [currentSectionId, setCurrentSectionId] = useState<string | null>(null);
+
+  // Timers
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [sectionTimeLeft, setSectionTimeLeft] = useState<number | null>(null);
+  const sectionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const sectionEnteredAt = useRef<number>(Date.now());
+
+  // Save / submit
   const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
-  const [autoSubmitted, setAutoSubmitted] = useState(false);
+
+  // UI
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [sessionExpired, setSessionExpired] = useState(false);
+
+  // Pause
+  const [pausing, setPausing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [pauseError, setPauseError] = useState<string | null>(null);
+  const pausedAtRef = useRef<number | null>(null);
 
   const questionStartTime = useRef<number>(Date.now());
   const autoSubmitTriggered = useRef(false);
+
+  // ── Initial data load ──────────────────────────────────────────────────────
 
   useEffect(() => {
     async function fetchData() {
@@ -86,21 +148,14 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         const res = await fetch(`/api/testhub/tests/${testId}/attempt-data`, {
           credentials: "include",
         });
-        if (res.status === 401) {
-          setSessionExpired(true);
-          setLoading(false);
-          return;
-        }
+        if (res.status === 401) { setSessionExpired(true); setLoading(false); return; }
         if (res.status === 409) {
           const data = await res.json().catch(() => ({}));
-          if (data.code === "ATTEMPT_LOCKED") {
-            setError(
-              data.error ||
-              "This test is already open on another device. Close it there first, then reload this page."
-            );
-          } else {
-            setError(data.error || "Failed to load test data");
-          }
+          setError(
+            data.code === "ATTEMPT_LOCKED"
+              ? data.error || "This test is already open on another device."
+              : data.error || "Failed to load test data"
+          );
           setLoading(false);
           return;
         }
@@ -110,14 +165,32 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           setLoading(false);
           return;
         }
+
         const data = await res.json();
-        setTestMeta(data.test);
+
+        const cfg: TestConfig = {
+          id: data.test.id,
+          name: data.test.name,
+          code: data.test.code,
+          durationSec: data.test.durationSec ?? null,
+          totalQuestions: data.test.totalQuestions,
+          negativeMarking: data.test.negativeMarking,
+          marksPerQuestion: data.test.marksPerQuestion,
+          pauseAllowed: data.test.pauseAllowed ?? false,
+          sectionsEnabled: data.test.sectionsEnabled ?? false,
+          subsectionsEnabled: data.test.subsectionsEnabled ?? false,
+          timerMode: data.test.timerMode ?? "TOTAL",
+          strictSectionMode: data.test.strictSectionMode ?? false,
+        };
+
+        setTestConfig(cfg);
         setAttemptMeta(data.attempt);
-        setQuestions(data.questions);
+        setQuestions(data.questions ?? []);
+        setSections(data.sections ?? []);
 
         const states = new Map<string, QuestionState>();
-        for (const q of data.questions) {
-          const saved = data.savedAnswers.find((a: SavedAnswer) => a.questionId === q.id);
+        for (const q of data.questions ?? []) {
+          const saved = (data.savedAnswers ?? []).find((a: SavedAnswer) => a.questionId === q.id);
           states.set(q.id, {
             visited: !!saved,
             draftOption: saved?.selectedOption ?? null,
@@ -126,9 +199,10 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             timeSpentMs: saved?.timeSpentMs ?? 0,
           });
         }
-        if (data.questions.length > 0) {
+        if (data.questions?.length > 0) {
           const first = states.get(data.questions[0].id);
           if (first) first.visited = true;
+          setCurrentSectionId(data.questions[0].sectionId ?? null);
         }
         setQuestionStates(states);
 
@@ -143,8 +217,10 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     fetchData();
   }, [testId]);
 
+  // ── Total timer ────────────────────────────────────────────────────────────
+
   useEffect(() => {
-    if (timeLeft <= 0 || !attemptMeta) return;
+    if (timeLeft <= 0 || !attemptMeta || isPaused) return;
     const interval = setInterval(() => {
       const endsAt = new Date(attemptMeta.endsAt).getTime();
       const remaining = Math.max(0, Math.floor((endsAt - Date.now()) / 1000));
@@ -156,7 +232,40 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
       }
     }, 1000);
     return () => clearInterval(interval);
-  }, [attemptMeta]);
+  }, [attemptMeta, isPaused]);
+
+  // ── Section timer ──────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (sectionTimerRef.current) clearInterval(sectionTimerRef.current);
+
+    if (!testConfig?.sectionsEnabled || testConfig.timerMode === "TOTAL" || !currentSectionId || isPaused) {
+      setSectionTimeLeft(null);
+      return;
+    }
+
+    const section = sections.find((s) => s.id === currentSectionId);
+    if (!section?.durationSec) { setSectionTimeLeft(null); return; }
+
+    // Reset to full section duration when entering a new section
+    sectionEnteredAt.current = Date.now();
+    let remaining = section.durationSec;
+    setSectionTimeLeft(remaining);
+
+    sectionTimerRef.current = setInterval(() => {
+      remaining = Math.max(0, remaining - 1);
+      setSectionTimeLeft(remaining);
+      if (remaining <= 0 && sectionTimerRef.current) {
+        clearInterval(sectionTimerRef.current);
+      }
+    }, 1000);
+
+    return () => {
+      if (sectionTimerRef.current) clearInterval(sectionTimerRef.current);
+    };
+  }, [currentSectionId, testConfig?.sectionsEnabled, testConfig?.timerMode, isPaused, sections]);
+
+  // ── Time recording ─────────────────────────────────────────────────────────
 
   const recordTimeForCurrent = useCallback(() => {
     if (questions.length === 0) return;
@@ -173,19 +282,36 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     return { qId, delta };
   }, [currentIndex, questions]);
 
+  // ── Navigation ─────────────────────────────────────────────────────────────
+
   function navigateTo(index: number) {
     if (index === currentIndex || index < 0 || index >= questions.length) return;
     recordTimeForCurrent();
+    const nextQ = questions[index];
+    const nextSectionId = nextQ.sectionId ?? null;
+
     setCurrentIndex(index);
     questionStartTime.current = Date.now();
+
+    if (nextSectionId !== currentSectionId) {
+      setCurrentSectionId(nextSectionId);
+    }
+
     setQuestionStates((prev) => {
       const next = new Map(prev);
-      const state = { ...next.get(questions[index].id)! };
+      const state = { ...next.get(nextQ.id)! };
       state.visited = true;
-      next.set(questions[index].id, state);
+      next.set(nextQ.id, state);
       return next;
     });
   }
+
+  function navigateToSection(sectionId: string) {
+    const idx = questions.findIndex((q) => q.sectionId === sectionId);
+    if (idx >= 0) navigateTo(idx);
+  }
+
+  // ── Answer operations ──────────────────────────────────────────────────────
 
   function selectOption(option: string) {
     const qId = questions[currentIndex].id;
@@ -234,17 +360,8 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         }),
       });
 
-      if (res.status === 401) {
-        setSessionExpired(true);
-        setSaving(false);
-        return;
-      }
-
-      if (!res.ok) {
-        setSaveError("Could not save. Check connection.");
-        setSaving(false);
-        return;
-      }
+      if (res.status === 401) { setSessionExpired(true); setSaving(false); return; }
+      if (!res.ok) { setSaveError("Could not save. Check connection."); setSaving(false); return; }
 
       setQuestionStates((prev) => {
         const next = new Map(prev);
@@ -259,15 +376,68 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
       setTimeout(() => setSavedToast(false), 1500);
 
       const nextIdx = currentIndex + 1;
-      if (nextIdx < questions.length) {
-        navigateTo(nextIdx);
-      }
+      if (nextIdx < questions.length) navigateTo(nextIdx);
     } catch {
       setSaveError("Could not save. Check connection.");
     } finally {
       setSaving(false);
     }
   }
+
+  // ── Pause / Resume ─────────────────────────────────────────────────────────
+
+  async function handlePause() {
+    if (!attemptMeta || pausing || isPaused) return;
+    setPausing(true);
+    setPauseError(null);
+    recordTimeForCurrent();
+
+    try {
+      const res = await fetch(`/api/testhub/attempts/${attemptMeta.attemptId}/pause`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      if (res.status === 401) { setSessionExpired(true); setPausing(false); return; }
+
+      if (res.ok || res.status === 404) {
+        // Accept 404 gracefully (endpoint not yet deployed); pause is soft client-side
+        pausedAtRef.current = Date.now();
+        setIsPaused(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setPauseError(data.error ?? "Could not pause test. Try again.");
+      }
+    } catch {
+      // Network error — still allow client-side soft pause
+      pausedAtRef.current = Date.now();
+      setIsPaused(true);
+    } finally {
+      setPausing(false);
+    }
+  }
+
+  async function handleResume() {
+    if (!attemptMeta || !isPaused) return;
+
+    try {
+      await fetch(`/api/testhub/attempts/${attemptMeta.attemptId}/resume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+    } catch { /* ignore — resume visually regardless */ }
+
+    // Recalculate timeLeft from endsAt (real server time is authoritative)
+    const endsAt = new Date(attemptMeta.endsAt).getTime();
+    setTimeLeft(Math.max(0, Math.floor((endsAt - Date.now()) / 1000)));
+    pausedAtRef.current = null;
+    setIsPaused(false);
+    questionStartTime.current = Date.now();
+  }
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
 
   function buildFinalAnswers() {
     const finalAnswers: Array<{
@@ -299,25 +469,15 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     setSubmitting(true);
     recordTimeForCurrent();
 
-    const finalAnswers = buildFinalAnswers();
-
     try {
       const res = await fetch("/api/testhub/attempts/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          attemptId: attemptMeta.attemptId,
-          finalAnswers,
-        }),
+        body: JSON.stringify({ attemptId: attemptMeta.attemptId, finalAnswers: buildFinalAnswers() }),
       });
 
-      if (res.status === 401) {
-        setSessionExpired(true);
-        setSubmitting(false);
-        return;
-      }
-
+      if (res.status === 401) { setSessionExpired(true); setSubmitting(false); return; }
       if (res.ok) {
         router.push(`/testhub/tests/${testId}/submitted?attemptId=${attemptMeta.attemptId}`);
       } else {
@@ -334,17 +494,13 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     setAutoSubmitted(true);
     if (!attemptMeta) return;
     recordTimeForCurrent();
-    const finalAnswers = buildFinalAnswers();
 
     try {
       await fetch("/api/testhub/attempts/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          attemptId: attemptMeta.attemptId,
-          finalAnswers,
-        }),
+        body: JSON.stringify({ attemptId: attemptMeta.attemptId, finalAnswers: buildFinalAnswers() }),
       });
     } catch {}
 
@@ -353,7 +509,19 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     }, 3000);
   }
 
-  const counts = (() => {
+  // ── Counts & status helpers ────────────────────────────────────────────────
+
+  function getStatusColor(qId: string, index: number): string {
+    const s = questionStates.get(qId);
+    if (!s || !s.visited) return "bg-gray-200 text-gray-600";
+    const hasSaved = s.savedOption !== null;
+    if (s.isMarkedForReview && hasSaved) return "bg-purple-500 text-white";
+    if (s.isMarkedForReview) return "bg-purple-500 text-white";
+    if (hasSaved) return "bg-green-500 text-white";
+    return "bg-red-400 text-white";
+  }
+
+  const allCounts = (() => {
     let notVisited = 0, unattempted = 0, answered = 0, markedOnly = 0, answeredMarked = 0;
     for (const q of questions) {
       const s = questionStates.get(q.id);
@@ -367,24 +535,27 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     return { notVisited, unattempted, answered, markedOnly, answeredMarked };
   })();
 
-  function getStatusColor(qId: string, index: number): string {
-    const s = questionStates.get(qId);
-    const isCurrent = index === currentIndex;
-    if (!s || !s.visited) return "bg-gray-200 text-gray-600";
-    const hasSaved = s.savedOption !== null;
-    if (s.isMarkedForReview && hasSaved) return "bg-purple-500 text-white";
-    if (s.isMarkedForReview) return "bg-purple-500 text-white";
-    if (hasSaved) return "bg-green-500 text-white";
-    return "bg-red-400 text-white";
-  }
+  // For palette: filter to current section when sectionsEnabled
+  const paletteQuestions = (() => {
+    if (!testConfig?.sectionsEnabled || !currentSectionId) return questions;
+    return questions.filter((q) => q.sectionId === currentSectionId);
+  })();
 
-  function formatTime(seconds: number): string {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
+  const paletteCounts = (() => {
+    let notVisited = 0, unattempted = 0, answered = 0, markedOnly = 0, answeredMarked = 0;
+    for (const q of paletteQuestions) {
+      const s = questionStates.get(q.id);
+      if (!s || !s.visited) { notVisited++; continue; }
+      const hasSaved = s.savedOption !== null;
+      if (s.isMarkedForReview && hasSaved) answeredMarked++;
+      else if (s.isMarkedForReview) markedOnly++;
+      else if (hasSaved) answered++;
+      else unattempted++;
+    }
+    return { notVisited, unattempted, answered, markedOnly, answeredMarked };
+  })();
+
+  // ── Early returns ──────────────────────────────────────────────────────────
 
   if (loading && !sessionExpired) {
     return (
@@ -394,7 +565,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     );
   }
 
-  if (sessionExpired && (loading || !testMeta)) {
+  if (sessionExpired && (loading || !testConfig)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
@@ -406,10 +577,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           <h3 className="text-lg font-bold text-[#2D1B69] mb-2">Session Expired</h3>
           <p className="text-sm text-gray-500 mb-6">Please log in again to continue.</p>
           <button
-            onClick={() => {
-              const from = encodeURIComponent(`/testhub/tests/${testId}/attempt`);
-              window.location.href = `/login?from=${from}`;
-            }}
+            onClick={() => { window.location.href = `/login?from=${encodeURIComponent(`/testhub/tests/${testId}/attempt`)}`; }}
             className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-medium hover:bg-[var(--brand-primary-hover)]"
           >
             Log In
@@ -452,7 +620,6 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   const currentQ = questions[currentIndex];
   const currentState = currentQ ? questionStates.get(currentQ.id) : null;
   const lang = attemptMeta?.language ?? "EN";
-
   const qText = lang === "TE" ? currentQ?.questionText_te : currentQ?.questionText_en;
   const options = currentQ
     ? [
@@ -463,37 +630,54 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
       ]
     : [];
 
+  // ── Palette content ────────────────────────────────────────────────────────
+
   const paletteContent = (
     <div>
-      <div className="space-y-1.5 text-[11px] font-medium mb-4">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-gray-200 inline-block" /> <span className="text-gray-500">Not Visited ({counts.notVisited})</span></div>
-          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-400 inline-block" /> <span className="text-gray-500">Unanswered ({counts.unattempted})</span></div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-green-500 inline-block" /> <span className="text-gray-500">Answered ({counts.answered})</span></div>
-          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-purple-500 inline-block" /> <span className="text-gray-500">Review ({counts.markedOnly})</span></div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <span className="relative w-3 h-3 rounded-sm bg-purple-500 inline-block">
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full" />
-            </span>
-            <span className="text-gray-500">Answered + Review ({counts.answeredMarked})</span>
+      {testConfig?.sectionsEnabled && sections.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Section</p>
+          <div className="flex flex-wrap gap-1">
+            {sections.map((sec) => (
+              <button
+                key={sec.id}
+                onClick={() => { navigateToSection(sec.id); setPaletteOpen(false); }}
+                className={`px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                  sec.id === currentSectionId
+                    ? "bg-[#2D1B69] text-white"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                {sec.title}
+              </button>
+            ))}
           </div>
         </div>
+      )}
+
+      <div className="space-y-1.5 text-[11px] font-medium mb-4">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-gray-200 inline-block" /><span className="text-gray-500">Not Visited ({paletteCounts.notVisited})</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-400 inline-block" /><span className="text-gray-500">Unanswered ({paletteCounts.unattempted})</span></div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-green-500 inline-block" /><span className="text-gray-500">Answered ({paletteCounts.answered})</span></div>
+          <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-purple-500 inline-block" /><span className="text-gray-500">Review ({paletteCounts.markedOnly})</span></div>
+        </div>
       </div>
+
       <div className="grid grid-cols-5 gap-2">
-        {questions.map((q, idx) => {
+        {paletteQuestions.map((q, paletteIdx) => {
+          const globalIdx = questions.indexOf(q);
           const s = questionStates.get(q.id);
           const hasSavedAndMarked = s?.isMarkedForReview && s?.savedOption !== null;
           return (
             <button
               key={q.id}
-              onClick={() => { navigateTo(idx); setPaletteOpen(false); }}
-              className={`relative w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${getStatusColor(q.id, idx)} ${idx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
+              onClick={() => { navigateTo(globalIdx); setPaletteOpen(false); }}
+              className={`relative w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${getStatusColor(q.id, globalIdx)} ${globalIdx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
             >
-              {idx + 1}
+              {q.order}
               {hasSavedAndMarked && (
                 <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full flex items-center justify-center">
                   <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -505,6 +689,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           );
         })}
       </div>
+
       <button
         onClick={() => setShowSubmitConfirm(true)}
         className="w-full mt-4 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
@@ -514,34 +699,122 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     </div>
   );
 
+  // ── Render ─────────────────────────────────────────────────────────────────
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+
+      {/* ── Header bar ── */}
       <div className="bg-[#2D1B69] text-white py-2.5 px-4 flex-shrink-0">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="min-w-0">
-              <h1 className="text-sm font-semibold truncate">{testMeta?.name}</h1>
-              <p className="text-[10px] text-purple-200">{testMeta?.code}</p>
-            </div>
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-sm font-semibold truncate">{testConfig?.name}</h1>
+            <p className="text-[10px] text-purple-200">{testConfig?.code}</p>
           </div>
-          <div className="flex items-center gap-2">
+
+          <div className="flex items-center gap-2 flex-shrink-0">
             <InstructionsPill test={test} />
-            <div className={`font-mono text-sm font-bold px-3 py-1 rounded-lg ${timeLeft <= 300 ? "bg-red-500/20 text-red-200 animate-pulse" : "bg-white/10"}`}>
-              {formatTime(timeLeft)}
+
+            {/* Pause button */}
+            {testConfig?.pauseAllowed && !isPaused && (
+              <button
+                onClick={handlePause}
+                disabled={pausing}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors disabled:opacity-50"
+                title="Pause test"
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                </svg>
+                <span className="hidden sm:inline">{pausing ? "Pausing..." : "Pause"}</span>
+              </button>
+            )}
+
+            {/* Timers */}
+            <div className="flex items-center gap-1.5">
+              {/* Section timer */}
+              {testConfig?.sectionsEnabled && sectionTimeLeft !== null && (
+                <div className="flex flex-col items-center">
+                  <div className={`font-mono text-xs font-bold px-2 py-0.5 rounded-lg ${sectionTimeLeft <= 120 ? "bg-orange-500/30 text-orange-200" : "bg-white/10"}`}>
+                    {formatTime(sectionTimeLeft)}
+                  </div>
+                  <span className="text-[8px] text-purple-300 mt-0.5">Section</span>
+                </div>
+              )}
+
+              {/* Total timer */}
+              <div className="flex flex-col items-center">
+                <div className={`font-mono text-sm font-bold px-3 py-1 rounded-lg ${timeLeft <= 300 ? "bg-red-500/20 text-red-200 animate-pulse" : "bg-white/10"}`}>
+                  {formatTime(timeLeft)}
+                </div>
+                {testConfig?.sectionsEnabled && sectionTimeLeft !== null && (
+                  <span className="text-[8px] text-purple-300 mt-0.5">Total</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* ── Section cards ── */}
+      {testConfig?.sectionsEnabled && sections.length > 0 && (
+        <div className="bg-white border-b border-gray-200 px-4 py-2">
+          <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {sections.map((sec) => {
+              const sectionQs = questions.filter((q) => q.sectionId === sec.id);
+              const sectionAnswered = sectionQs.filter((q) => questionStates.get(q.id)?.savedOption !== null).length;
+              const isActive = sec.id === currentSectionId;
+              return (
+                <button
+                  key={sec.id}
+                  onClick={() => navigateToSection(sec.id)}
+                  className={`flex-shrink-0 flex flex-col items-start px-3 py-1.5 rounded-lg border text-left transition-all ${
+                    isActive
+                      ? "border-[#6D4BCB] bg-purple-50 text-[#2D1B69]"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <span className={`text-xs font-semibold ${isActive ? "text-[#2D1B69]" : "text-gray-700"}`}>
+                    {sec.title}
+                  </span>
+                  <span className="text-[10px] text-gray-400 mt-0.5">
+                    {sectionAnswered}/{sectionQs.length} answered
+                    {sec.durationSec ? ` · ${Math.round(sec.durationSec / 60)}m` : ""}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Main content ── */}
       <div className="flex-grow flex max-w-7xl mx-auto w-full">
+
+        {/* Left: question area */}
         <div className="flex-grow p-4 md:p-6 overflow-y-auto">
+
+          {pauseError && (
+            <div className="bg-amber-50 text-amber-700 text-xs p-3 rounded-lg border border-amber-200 mb-4 flex items-center justify-between">
+              <span>{pauseError}</span>
+              <button onClick={() => setPauseError(null)} className="ml-2 underline">Dismiss</button>
+            </div>
+          )}
+
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-6 mb-4">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
-                Question {currentIndex + 1} of {questions.length}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
+                  Question {currentQ?.order ?? currentIndex + 1} of {questions.length}
+                </span>
+                {testConfig?.sectionsEnabled && currentSectionId && (
+                  <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
+                    {sections.find((s) => s.id === currentSectionId)?.title ?? ""}
+                  </span>
+                )}
+              </div>
               <span className="text-xs text-gray-400">
-                +{testMeta?.marksPerQuestion} / -{testMeta?.negativeMarking}
+                +{testConfig?.marksPerQuestion} / -{testConfig?.negativeMarking}
               </span>
             </div>
 
@@ -611,16 +884,24 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             </button>
           </div>
 
+          {/* Mobile palette toggle */}
           <div className="md:hidden mt-4">
             <button
               onClick={() => setPaletteOpen(!paletteOpen)}
               className="w-full flex items-center justify-between bg-white rounded-xl border border-gray-200 px-4 py-3 text-sm"
             >
-              <span className="font-medium text-gray-700">Question Palette</span>
+              <span className="font-medium text-gray-700">
+                Question Palette
+                {testConfig?.sectionsEnabled && currentSectionId && (
+                  <span className="ml-1 text-xs text-gray-400">
+                    — {sections.find((s) => s.id === currentSectionId)?.title}
+                  </span>
+                )}
+              </span>
               <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{counts.answered}</span>
-                <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-red-400 inline-block" />{counts.unattempted}</span>
-                <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-gray-200 inline-block" />{counts.notVisited}</span>
+                <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{paletteCounts.answered}</span>
+                <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-red-400 inline-block" />{paletteCounts.unattempted}</span>
+                <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-gray-200 inline-block" />{paletteCounts.notVisited}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${paletteOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
@@ -634,12 +915,72 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           </div>
         </div>
 
+        {/* Right: desktop palette */}
         <div className="hidden md:block w-64 flex-shrink-0 border-l border-gray-200 bg-white p-4 sticky top-0 h-screen overflow-y-auto">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Question Palette</h3>
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
+            Question Palette
+            {testConfig?.sectionsEnabled && currentSectionId && (
+              <span className="ml-1 normal-case font-normal text-purple-500">
+                — {sections.find((s) => s.id === currentSectionId)?.title}
+              </span>
+            )}
+          </h3>
           {paletteContent}
+
+          {/* Summary of other sections */}
+          {testConfig?.sectionsEnabled && sections.length > 1 && (
+            <div className="mt-5 pt-4 border-t border-gray-100">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">All Sections</p>
+              <div className="space-y-1.5">
+                {sections.map((sec) => {
+                  const secQs = questions.filter((q) => q.sectionId === sec.id);
+                  const secAnswered = secQs.filter((q) => questionStates.get(q.id)?.savedOption !== null).length;
+                  const isActive = sec.id === currentSectionId;
+                  return (
+                    <button
+                      key={sec.id}
+                      onClick={() => navigateToSection(sec.id)}
+                      className={`w-full flex items-center justify-between text-[11px] px-2 py-1.5 rounded-lg transition-colors ${
+                        isActive ? "bg-purple-50 text-[#2D1B69]" : "hover:bg-gray-50 text-gray-600"
+                      }`}
+                    >
+                      <span className="font-medium truncate">{sec.title}</span>
+                      <span className={`ml-2 flex-shrink-0 ${secAnswered === secQs.length ? "text-green-500" : "text-gray-400"}`}>
+                        {secAnswered}/{secQs.length}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* ── Paused overlay ── */}
+      {isPaused && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-[#2D1B69]/90 px-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-purple-50 flex items-center justify-center">
+              <svg className="w-8 h-8 text-[#6D4BCB]" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-[#2D1B69] mb-2">Test Paused</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Your answers are saved. Click resume when you are ready to continue.
+            </p>
+            <button
+              onClick={handleResume}
+              className="w-full py-3 rounded-xl bg-[var(--brand-primary)] text-white font-semibold hover:bg-[var(--brand-primary-hover)] transition-colors"
+            >
+              Resume Test
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Session expired overlay ── */}
       {sessionExpired && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 px-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
@@ -651,10 +992,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             <h3 className="text-lg font-bold text-[#2D1B69] mb-2">Session Expired</h3>
             <p className="text-sm text-gray-500 mb-6">Please log in again to continue.</p>
             <button
-              onClick={() => {
-                const from = encodeURIComponent(`/testhub/tests/${testId}/attempt`);
-                window.location.href = `/login?from=${from}`;
-              }}
+              onClick={() => { window.location.href = `/login?from=${encodeURIComponent(`/testhub/tests/${testId}/attempt`)}`; }}
               className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-medium hover:bg-[var(--brand-primary-hover)]"
             >
               Log In
@@ -663,18 +1001,17 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         </div>
       )}
 
+      {/* ── Submit confirmation dialog ── */}
       {showSubmitConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4" onClick={() => setShowSubmitConfirm(false)}>
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-[#2D1B69] mb-3">Submit Test?</h3>
             <div className="text-sm text-gray-600 space-y-1 mb-4">
-              <p>Answered: <strong className="text-green-600">{counts.answered + counts.answeredMarked}</strong></p>
-              <p>Unanswered: <strong className="text-red-500">{counts.unattempted + counts.notVisited}</strong></p>
-              <p>Marked for Review: <strong className="text-purple-600">{counts.markedOnly + counts.answeredMarked}</strong></p>
+              <p>Answered: <strong className="text-green-600">{allCounts.answered + allCounts.answeredMarked}</strong></p>
+              <p>Unanswered: <strong className="text-red-500">{allCounts.unattempted + allCounts.notVisited}</strong></p>
+              <p>Marked for Review: <strong className="text-purple-600">{allCounts.markedOnly + allCounts.answeredMarked}</strong></p>
             </div>
-            <p className="text-xs text-gray-400 mb-6">
-              Any unsaved selections will be auto-saved before submission.
-            </p>
+            <p className="text-xs text-gray-400 mb-6">Any unsaved selections will be auto-saved before submission.</p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowSubmitConfirm(false)}

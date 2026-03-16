@@ -1,0 +1,140 @@
+Let me run the full Phase 1 audit in parallel across all relevant files before touching anything:
+
+Good picture of the schema. Now read the student-facing test routes and the attempt API to understand the current data contract:
+
+Let me also read the schema enums and check for any existing student test APIs or pause logic:
+
+Read the user-login route to understand student session setup:
+
+Now I have everything I need for the full audit report. Let me write the session plan and implement:
+
+AUDIT FINDINGS:
+
+Test.allowPause ✅ already in schema
+TestSection.parentSectionId ✅ subsection hierarchy modeled in DB
+TestQuestion.sectionId ✅ points to section (top-level or subsection)
+AttemptStatus ❌ only IN_PROGRESS/SUBMITTED — no PAUSED
+No pause/resume endpoints exist anywhere
+No student-facing test or attempt APIs exist — only admin-gated routes
+Attempt model is FROZEN — will use a new AttemptPause model for pause tracking
+T001 — Schema changes:
+
+Now let me find the exact Attempt model lines to add the relation:
+
+Apply all schema changes in parallel — enum value, virtual relation on Attempt, and new AttemptPause model:
+
+Now add the AttemptPause model right after AttemptAnswer:
+
+Push schema to DB and regenerate Prisma client:
+
+The DB has a column not in schema. Let me inspect what it is before deciding what to do:
+
+The DB has two extra columns (endsAt, lockedSessionToken) not in our schema. I'll add them back to preserve them:
+
+DB synced. Regenerate Prisma client, then start building all routes in parallel:
+
+Client regenerated. Now build all 8 new files in parallel:
+
+All 8 files written. Now run TypeScript check:
+
+Zero errors. Restart the app and update the docs simultaneously:
+
+Clean up session plan:
+
+Let me verify the app started cleanly:
+
+App running clean. Here is the complete output report:
+
+Phase 1 — Audit Findings
+Test structure source of truth: DB-modeled. Test → TestSection (self-referential via parentSectionId for subsections) → TestQuestion (with sectionId pointing to any level of section).
+
+Sections/subsections: Fully DB-modeled. Top-level sections have parentSectionId = null; subsections have parentSectionId pointing to a top-level section. Both carry the same durationSec field.
+
+Pause already in schema: Test.allowPause Boolean @default(false) ✅ — but AttemptStatus had no PAUSED value, and no pause/resume endpoints or AttemptPause table existed.
+
+Timer model: Test.durationSec (total), TestSection.durationSec (per-section or per-subsection, optional).
+
+Bonus find: Two live DB columns (endsAt DateTime?, lockedSessionToken String?) were not in schema.prisma. Both reconciled into the schema to prevent accidental future loss.
+
+Changes Made
+Schema (prisma/schema.prisma)
+Change	Type
+AttemptStatus.PAUSED added	Additive enum value
+Attempt.endsAt DateTime? added	Reconciled from live DB
+Attempt.lockedSessionToken String? added	Reconciled from live DB
+Attempt.pauseEvents AttemptPause[] (virtual relation)	No DB column on Attempt table
+New AttemptPause model	New table: id, attemptId, pausedAt, resumedAt?
+New files (all net-new, no existing files modified)
+File	Purpose
+lib/studentAuth.ts	getStudentUserFromRequest() — validates session cookie for STUDENT or ADMIN type
+app/api/student/tests/[id]/route.ts	Full test brief for student FE
+app/api/student/attempts/route.ts	Start or resume attempt
+app/api/student/attempts/[id]/route.ts	Get attempt state + answers + pause events
+app/api/student/attempts/[id]/answer/route.ts	Upsert a question answer
+app/api/student/attempts/[id]/pause/route.ts	Pause attempt
+app/api/student/attempts/[id]/resume/route.ts	Resume attempt
+app/api/student/attempts/[id]/submit/route.ts	Submit + score computation
+Exact Student-Facing Payload (GET /api/student/tests/[id])
+{
+  "data": {
+    "id": "...",
+    "title": "...",
+    "instructions": "...",
+    "mode": "SECTIONAL",
+    "isTimed": true,
+    "totalDurationSec": 3600,
+    "pauseAllowed": true,
+    "strictSectionMode": false,
+    "sectionsEnabled": true,
+    "subsectionsEnabled": false,
+    "timerMode": "SECTION",        // "TOTAL" | "SECTION" | "SUBSECTION"
+    "languageAvailable": "BOTH",
+    "attemptsAllowed": 2,
+    "sections": [
+      {
+        "id": "sec-1",
+        "title": "Physics",
+        "sortOrder": 1,
+        "durationSec": 1200,
+        "questionCount": 30,
+        "directQuestionIds": ["q1", "q2"],
+        "subsections": []           // or populated if subsectionsEnabled
+      }
+    ],
+    "questions": [
+      {
+        "testQuestionId": "tq-1",
+        "questionId": "q-1",
+        "sectionId": "sec-1",
+        "subsectionId": null,
+        "displayOrder": 1,
+        "displayOrderWithinSection": 1,
+        "marks": 4,
+        "negativeMarks": 1,
+        "type": "MCQ",
+        "stem": "...",
+        "stemSecondary": null,
+        "options": [{ "id": "o1", "text": "...", "order": 1 }]
+        // isCorrect intentionally omitted
+      }
+    ]
+  }
+}
+How Pause is Persisted
+POST /api/student/attempts/[id]/pause — validates Test.allowPause = true and status = IN_PROGRESS, then in a single DB transaction: creates AttemptPause { pausedAt: now } and sets Attempt.status = PAUSED.
+POST /api/student/attempts/[id]/resume — finds the latest AttemptPause with resumedAt = null, sets its resumedAt = now, and sets Attempt.status = IN_PROGRESS.
+On submit — any open pause event is force-closed with resumedAt = now so time accounting is always complete.
+GET /api/student/attempts/[id] returns totalPausedMs computed server-side from all pause event durations.
+How Timer Metadata is Exposed
+timerMode in the test brief tells the FE exactly which timers to render:
+
+"TOTAL" — only totalDurationSec matters
+"SECTION" — render total timer + per-section durationSec
+"SUBSECTION" — render total + section + subsection durationSec
+Each section and subsection carries its own durationSec in the payload. The FE never needs to infer durations.
+
+Deferred / Out of Scope
+XP award on submit (not touched — existing XP engine can hook into the submit endpoint later)
+Result report page (scoring foundation is in place via correctCount/wrongCount/scorePct on Attempt)
+Student-app UI rendering (explicitly out of scope per the prompt)
+Device/session locking during test (lockedSessionToken field preserved; logic not implemented)

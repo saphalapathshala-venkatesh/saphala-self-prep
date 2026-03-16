@@ -5,11 +5,24 @@ import {
   getDbQuestionsForTest,
   getActiveAttempt,
   getAnswersForAttempt,
+  getTestSectionsForAttempt,
   lockAttemptSession,
   optionIdToLetter,
+  type DbTestSection,
 } from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
+
+function computeTimerMode(sections: DbTestSection[]): "TOTAL" | "SECTION" | "SUBSECTION" {
+  if (sections.length === 0) return "TOTAL";
+  const hasSubsectionTimers = sections.some(
+    (s) => s.subsections.length > 0 && s.subsections.some((sub) => sub.durationSec != null)
+  );
+  if (hasSubsectionTimers) return "SUBSECTION";
+  const hasSectionTimers = sections.some((s) => s.durationSec != null);
+  if (hasSectionTimers) return "SECTION";
+  return "TOTAL";
+}
 
 export async function GET(
   request: Request,
@@ -22,7 +35,12 @@ export async function GET(
   const { user, sessionToken } = auth;
 
   const { testId } = await params;
-  const test = await getDbTestById(testId);
+
+  const [test, sections] = await Promise.all([
+    getDbTestById(testId),
+    getTestSectionsForAttempt(testId),
+  ]);
+
   if (!test) {
     return Response.json({ error: "Test not found" }, { status: 404 });
   }
@@ -58,15 +76,25 @@ export async function GET(
     questions.map((q) => [q.id, q.options.map((o) => ({ id: o.id }))])
   );
 
+  const timerMode = computeTimerMode(sections);
+  const sectionsEnabled = sections.length > 0;
+  const subsectionsEnabled = sections.some((s) => s.subsections.length > 0);
+
   return Response.json({
     test: {
       id: test.id,
       name: test.title,
       code: test.code,
       durationMinutes: test.durationMinutes,
+      durationSec: test.durationSec,
       totalQuestions: test.totalQuestions,
       negativeMarking: test.negativeMarks,
       marksPerQuestion: test.marksPerQuestion,
+      pauseAllowed: test.allowPause,
+      strictSectionMode: test.strictSectionMode,
+      sectionsEnabled,
+      subsectionsEnabled,
+      timerMode,
     },
     attempt: {
       attemptId: attempt.id,
@@ -74,9 +102,11 @@ export async function GET(
       endsAt: attempt.endsAt,
       status: attempt.status,
     },
+    sections,
     questions: questions.map((q) => ({
       id: q.id,
       order: q.order,
+      sectionId: q.sectionId,
       questionText_en: q.questionText_en,
       questionText_te: q.questionText_te,
       optionA_en: q.options[0]?.textEn || null,

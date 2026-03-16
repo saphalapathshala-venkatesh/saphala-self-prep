@@ -64,6 +64,7 @@ export interface DbTest {
   // Display / scheduling
   category: string | null;
   durationMinutes: number;
+  durationSec: number | null;
   totalQuestions: number;
   difficulty: string;
   marksPerQuestion: number;
@@ -71,6 +72,8 @@ export interface DbTest {
   attemptsAllowed: number;
   languageAvailable: "EN" | "TE" | "BOTH";
   instructions: string | null;
+  allowPause: boolean;
+  strictSectionMode: boolean;
   subjectIds: string[];
   publishedAt: Date | null;
   isPublished: boolean;
@@ -78,9 +81,25 @@ export interface DbTest {
   scheduledUntil: string | null;
 }
 
+export interface DbTestSection {
+  id: string;
+  title: string;
+  sortOrder: number;
+  durationSec: number | null;
+  questionCount: number;
+  subsections: {
+    id: string;
+    title: string;
+    sortOrder: number;
+    durationSec: number | null;
+    questionCount: number;
+  }[];
+}
+
 export interface DbQuestion {
   id: string;
   order: number;
+  sectionId: string | null;
   subjectId: string | null;
   subjectName: string | null;
   correctOptionOrder: number;
@@ -133,6 +152,8 @@ function mapToDbTest(
     instructions: string | null;
     durationSec: number | null;
     isFree: boolean;
+    allowPause: boolean;
+    strictSectionMode: boolean;
     marksPerQuestion: number;
     negativeMarksPerQuestion: number;
     attemptsAllowed: number;
@@ -181,6 +202,7 @@ function mapToDbTest(
     accessType: (isFreeByS || isFreeByTest) ? "FREE" : "LOCKED",
     category: categoryName,
     durationMinutes: test.durationSec ? Math.round(test.durationSec / 60) : 0,
+    durationSec: test.durationSec,
     totalQuestions: test.questions.length,
     difficulty: deriveDifficulty(qDiffs),
     marksPerQuestion: effectiveMarksPerQ,
@@ -188,6 +210,8 @@ function mapToDbTest(
     attemptsAllowed: test.attemptsAllowed,
     languageAvailable: test.languageAvailable as "EN" | "TE" | "BOTH",
     instructions: test.instructions,
+    allowPause: test.allowPause,
+    strictSectionMode: test.strictSectionMode,
     subjectIds: test.subjectIds,
     publishedAt: test.publishedAt,
     isPublished: test.isPublished,
@@ -299,6 +323,7 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
     return {
       id: q.id,
       order: tq.order,
+      sectionId: tq.sectionId ?? null,
       subjectId: q.subjectId,
       subjectName: q.subjectId
         ? (subjectNameMap.get(q.subjectId) ?? q.subjectId.charAt(0).toUpperCase() + q.subjectId.slice(1))
@@ -317,6 +342,41 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
       })),
     };
   });
+}
+
+// ============================================================
+// QUERIES — sections for a test
+// ============================================================
+
+export async function getTestSectionsForAttempt(testId: string): Promise<DbTestSection[]> {
+  const sections = await prisma.testSection.findMany({
+    where: { testId, parentSectionId: null },
+    orderBy: { order: "asc" },
+    include: {
+      subsections: {
+        orderBy: { order: "asc" },
+        include: {
+          questions: { select: { id: true } },
+        },
+      },
+      questions: { select: { id: true } },
+    },
+  });
+
+  return sections.map((sec) => ({
+    id: sec.id,
+    title: sec.title,
+    sortOrder: sec.order,
+    durationSec: sec.durationSec ?? null,
+    questionCount: sec.questions.length,
+    subsections: sec.subsections.map((sub) => ({
+      id: sub.id,
+      title: sub.title,
+      sortOrder: sub.order,
+      durationSec: sub.durationSec ?? null,
+      questionCount: sub.questions.length,
+    })),
+  }));
 }
 
 // ============================================================

@@ -54,3 +54,11 @@ body {
 .exam-scroll::-webkit-scrollbar {
   display: none;
 }
+
+/* ── Hide scrollbar utility (sections bar) ── */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

@@ -1,0 +1,150 @@
+We are improving the Saphala Self Prep STUDENT FRONTEND test panel. This prompt is for the STUDENT FRONTEND APP only.
+
+IMPORTANT
+- Do not modify admin-side test builder here
+- Assume backend/attempt-data API now returns section/subsection/timer/pause metadata
+- Keep all changes scoped to the test panel only
+- Audit first before editing anything
+
+FEATURE GOALS
+1. Show clean section cards at the top of the test panel when sections are enabled
+2. In the question palette, show ONLY current section questions
+3. If subsections are enabled, respect current subsection context cleanly
+4. Show pause button when backend says pause is enabled
+5. Show:
+   - only total timer when no sections
+   - total + section timer when sections enabled
+   - total + section + subsection timer when subsections enabled
+6. Keep the test-taking experience clean, exam-like, and stable
+
+PHASE 1 — AUDIT FIRST
+Read and audit all relevant frontend files before editing:
+- student test attempt page
+- question palette component
+- timer component(s)
+- instruction modal if relevant
+- test state management hooks/store
+- section/question navigation logic
+- attempt submission logic
+- pause/resume handling if anything already exists
+- any types/interfaces for student test payload
+- any bilingual rendering option component
+
+Before implementing, provide a short report:
+- current attempt page structure
+- current palette logic
+- how question navigation works now
+- how timer is currently computed/rendered
+- whether sections/subsections are already partially present
+- safest files/components to update
+
+PHASE 2 — SECTION CARDS UI
+If sectionsEnabled is true:
+- render clean section cards near the title/header area
+- show all section titles as neat cards/tabs/chips
+- highlight current section clearly
+- clicking a section should navigate to its first question or switch current section safely if allowed by current behavior
+
+Suggested section card content:
+- section title
+- optional question count
+- current/active visual state
+
+Keep layout clean and mobile-friendly.
+
+PHASE 3 — QUESTION PALETTE FILTERING
+Update the question palette so:
+- when sections are enabled, it shows only questions belonging to the CURRENT section
+- not all test questions at once
+
+If subsections are enabled:
+- within the current section, palette behavior should remain consistent with current navigation rules
+- if current product logic needs only current section filtering, keep subsection visualization simple unless backend explicitly supports subsection grouping
+
+Important:
+- palette status colors/counts must still work correctly
+- question numbers displayed should remain test-order numbers, not restart at 1 per section unless current UX explicitly requires that
+- do not break answered/review/unanswered state
+
+PHASE 4 — MULTIPLE TIMERS
+Render timer logic based on payload:
+
+CASE 1 — no sections:
+- show Total Time only
+
+CASE 2 — sections enabled:
+- show Total Time
+- show Current Section Time
+
+CASE 3 — subsections enabled:
+- show Total Time
+- show Current Section Time
+- show Current Subsection Time
+
+Requirements:
+- timers should be visually clear and premium
+- all timers must update in real time
+- labels should be explicit:
+  - Total Time
+  - Section Time
+  - Subsection Time
+- if timer values come from backend state, do not invent them on FE
+- fail gracefully if any optional timer value is missing
+
+PHASE 5 — PAUSE BUTTON
+If payload says pauseAllowed = true:
+- show a Pause Test button in the test panel
+- button should be visible but not visually cluttered
+- clicking should call pause attempt API
+- after pause success, show a paused state and allow resume if product flow supports it
+
+Requirements:
+- if pauseAllowed = false, no pause button
+- if API rejects pause, show a clear message
+- pausing must not lose answers already selected
+- resume should restore the same attempt safely
+
+PHASE 6 — CLEAN EXAM PANEL UX
+Keep the panel exam-grade and uncluttered.
+Suggested hierarchy:
+- test title
+- section cards
+- timers row
+- question body
+- options
+- right palette
+- submit button
+
+Do not redesign whole branding. Keep changes focused.
+
+PHASE 7 — OPTION RENDERING (if already pending)
+If options are still using A/B/C/D block layout, convert only if already safe in this code area. Otherwise do not mix this feature request with new risky option component changes unless it is very low-risk.
+
+PHASE 8 — DEFENSIVE HANDLING
+Do not let missing optional fields crash the page.
+If:
+- sections metadata missing
+- subsection timer missing
+- pause flag absent
+
+then fall back gracefully to current test behavior.
+
+PHASE 9 — TESTING
+After implementation:
+- run TypeScript check
+- verify tests with no sections still render correctly
+- verify section cards render when sections enabled
+- verify palette shows only current section questions
+- verify total/section/subsection timers display correctly
+- verify pause button shows only when enabled
+- verify pause/resume flow works
+- verify submit still works
+
+FINAL OUTPUT REQUIRED
+1. files changed
+2. components changed
+3. how section cards work
+4. how palette filtering works
+5. how timer rendering works
+6. how pause button behavior works
+7. any limitations or deferred cases
