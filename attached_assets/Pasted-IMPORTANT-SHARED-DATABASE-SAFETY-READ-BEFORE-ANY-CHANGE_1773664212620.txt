@@ -1,0 +1,122 @@
+IMPORTANT — SHARED DATABASE SAFETY (READ BEFORE ANY CHANGE)
+
+This project uses TWO separate applications connected to ONE shared production database:
+
+1. Admin Saphala Self Prep
+2. Saphala Self Prep Student Frontend
+
+Both apps connect to the same Neon PostgreSQL database.
+
+STRICT RULES (DO NOT VIOLATE):
+1. NEVER run destructive schema operations.
+2. NEVER use --accept-data-loss.
+3. NEVER drop columns or tables automatically.
+4. NEVER remove “unused” columns unless explicitly instructed.
+5. Only ADDITIVE schema changes are allowed.
+6. If a column exists in the database but is not referenced in code, PRESERVE it.
+7. Always assume the other app may depend on that column.
+8. Production database structure must remain stable.
+
+SAFE PRACTICES:
+- Prefer ALTER TABLE ADD COLUMN IF NOT EXISTS
+- Never perform automatic cleanup of “orphan” columns
+- Never modify schema without checking both apps
+- Protect production stability above refactoring or aesthetics
+
+-------------------------------------
+
+APP CONTEXT
+This prompt is for the Saphala Self Prep Student Frontend app.
+
+TASK — One-device-only login enforcement with transparent signup/login notice
+
+Goal:
+Implement one-device-only student access cleanly and transparently.
+
+Business rule:
+- By default, a student account can be used on only one device/browser at a time
+- If the student tries to log in from another device/browser, login must be blocked
+- Do NOT silently replace the existing device
+- Show a clear warning message
+- Keep the implementation understandable and user-friendly
+
+Important context:
+- Admin-side device fields and controls may already exist in the shared schema
+- Frontend must enforce the rule properly through auth/session logic
+- The checkbox on signup/login is only acknowledgment, not the enforcement itself
+
+REQUIRED WORK
+
+PART A — Audit existing device logic
+1. Inspect current schema fields and auth logic related to:
+   - maxWebDevices
+   - allowMultiDevice
+   - sessions
+   - any stored device fingerprint / token / user-agent logic
+   - admin reset-device logic if already present
+
+2. Identify what already exists vs what is missing for proper one-device enforcement.
+
+PART B — Implement actual enforcement
+1. On first successful login:
+   - bind the account to the current device/browser identity
+
+2. On later login attempts:
+   - if same device/browser → allow login
+   - if different device/browser and user is restricted to one device → block login
+
+3. Do not silently revoke the old device.
+4. Do not allow second-device login by default.
+5. Keep admin-reset compatibility intact.
+
+Important:
+- Use a clean and deterministic device identity strategy already compatible with the project where possible
+- Do not implement a weak cosmetic-only frontend check
+- Enforcement must happen in backend/auth logic, not just UI
+
+PART C — Signup and login page transparency
+Add a small colored informational card to both:
+- signup page
+- login page
+
+Inside the card, show simple-language policy text about one-device-only usage.
+
+Add a checkbox:
+- label: “I understand the one-device policy.”
+
+Behavior:
+- user must check it before submitting signup/login
+- style should be small, clean, visible, not aggressive
+- no major page redesign
+
+Suggested copy (can improve wording slightly):
+Signup:
+“I understand that my account can be used on only one device at a time. If I log in on another device, access may be blocked until reset by admin.”
+
+Login:
+“This account supports one device only. If this account is already active on another device, login will be blocked.”
+
+PART D — Error/warning UX
+When blocked due to another device:
+- show a clean and explicit user-facing message
+- do not expose internal technical details
+- make it understandable and fair
+
+Suggested meaning:
+“This account is already active on another device. For security and fair usage, only one device is allowed at a time. Please continue on your original device or contact support/admin.”
+
+PART E — Safety and compatibility
+1. Do not break existing login for the current valid device
+2. Do not break admin login behavior unless explicitly needed
+3. Preserve current session/auth stability
+4. Keep changes production-safe and minimal
+5. If any DB addition is truly required, make it additive only and explain why
+
+DELIVERABLES
+A. Exact existing device-control logic found
+B. Exact files changed
+C. Exact enforcement rule implemented
+D. Exact login-block behavior for second device
+E. Exact signup/login UI card and checkbox behavior
+F. Any schema additions required, if any
+G. Confirmation that one-device-only login is now enforced cleanly

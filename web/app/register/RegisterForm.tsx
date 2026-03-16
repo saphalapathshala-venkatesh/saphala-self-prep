@@ -28,6 +28,7 @@ interface FormErrors {
   password?: string;
   confirmPassword?: string;
   legalAccepted?: string;
+  devicePolicy?: string;
   general?: string;
 }
 
@@ -37,6 +38,7 @@ export default function RegisterForm() {
   const from = searchParams?.get("from") || "/dashboard";
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [legalAccepted, setLegalAccepted] = useState(false);
+  const [devicePolicyAccepted, setDevicePolicyAccepted] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -98,6 +100,11 @@ export default function RegisterForm() {
     if (!legalAccepted) {
       newErrors.legalAccepted =
         "Please accept the Terms & Conditions and Refund Policy to continue.";
+    }
+
+    if (!devicePolicyAccepted) {
+      newErrors.devicePolicy =
+        "Please confirm you understand the one-device policy to continue.";
     }
 
     setErrors(newErrors);
@@ -336,9 +343,40 @@ export default function RegisterForm() {
           )}
         </div>
 
+        {/* One-device policy notice */}
+        <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 space-y-3">
+          <div className="flex items-start gap-2.5">
+            <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <p className="text-xs text-blue-800 leading-relaxed">
+              <span className="font-semibold">One-device policy:</span> Your account can be used on only one device at a time. If you log in on another device, access may be blocked until reset by an admin.
+            </p>
+          </div>
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={devicePolicyAccepted}
+              onChange={(e) => {
+                setDevicePolicyAccepted(e.target.checked);
+                if (errors.devicePolicy) {
+                  setErrors((prev) => ({ ...prev, devicePolicy: undefined }));
+                }
+              }}
+              className="mt-0.5 w-4 h-4 shrink-0 accent-purple-600 cursor-pointer"
+            />
+            <span className="text-xs text-blue-700 leading-relaxed">
+              I understand that my account can be used on only one device at a time.
+            </span>
+          </label>
+          {errors.devicePolicy && (
+            <p className="text-red-500 text-xs ml-6">{errors.devicePolicy}</p>
+          )}
+        </div>
+
         <button
           type="submit"
-          disabled={isSubmitting || !legalAccepted}
+          disabled={isSubmitting || !legalAccepted || !devicePolicyAccepted}
           className="btn-glossy-primary w-full py-4 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? "Creating Account..." : "Create Account"}
