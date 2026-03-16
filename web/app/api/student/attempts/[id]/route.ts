@@ -6,6 +6,8 @@ import {
   lockAttemptSession,
   optionIdToLetter,
   getDbQuestionsForTest,
+  getPauseEvents,
+  computeTotalPausedMs,
 } from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
@@ -29,8 +31,8 @@ export async function GET(
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  // Concurrent access check
-  if (attempt.lockedSessionToken && attempt.lockedSessionToken !== sessionToken) {
+  // Concurrent access check — only enforce for IN_PROGRESS attempts
+  if (attempt.status === "IN_PROGRESS" && attempt.lockedSessionToken && attempt.lockedSessionToken !== sessionToken) {
     const lockingSession = await prisma.session.findFirst({
       where: { id: attempt.lockedSessionToken, expiresAt: { gt: new Date() } },
       select: { id: true },
@@ -43,15 +45,30 @@ export async function GET(
     }
   }
 
-  // Acquire / refresh session lock for IN_PROGRESS attempts
+  // Acquire / refresh session lock for in-flight attempts only
   if (attempt.status === "IN_PROGRESS") {
     await lockAttemptSession(attemptId, sessionToken);
   }
 
-  const [savedAnswers, questions] = await Promise.all([
+  const [savedAnswers, questions, pauseEvents] = await Promise.all([
     getAnswersForAttempt(attemptId),
     getDbQuestionsForTest(attempt.testId),
+    getPauseEvents(attemptId),
   ]);
+
+  const now = new Date();
+  const currentlyPaused = attempt.status === "PAUSED";
+
+  // Sum all CLOSED pause events; if currently paused, include live running duration too
+  const totalPausedMs = computeTotalPausedMs(
+    pauseEvents,
+    currentlyPaused ? now : undefined
+  );
+
+  // If currently paused, find the open pause event's timestamp
+  const openEvent = currentlyPaused
+    ? pauseEvents.find((e) => e.resumedAt === null)
+    : null;
 
   const optionsByQuestion = new Map(
     questions.map((q) => [q.id, q.options.map((o) => ({ id: o.id }))])
@@ -65,7 +82,9 @@ export async function GET(
     startedAt: attempt.startedAt,
     endsAt: attempt.endsAt,
     submittedAt: attempt.submittedAt,
-    totalPausedMs: 0, // Will be computed from AttemptPause events when schema merges
+    currentlyPaused,
+    totalPausedMs,
+    lastPausedAt: openEvent?.pausedAt?.toISOString() ?? null,
     answers: savedAnswers.map((a) => {
       const opts = optionsByQuestion.get(a.questionId) ?? [];
       return {

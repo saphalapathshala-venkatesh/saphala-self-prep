@@ -58,8 +58,10 @@ interface QuestionData {
 interface AttemptMeta {
   attemptId: string;
   language: "EN" | "TE";
-  endsAt: string;
+  endsAt: string;           // ISO — updated after each resume
   status: string;
+  currentlyPaused: boolean;
+  lastPausedAt: string | null; // ISO — null when not paused
 }
 
 interface QuestionState {
@@ -90,6 +92,25 @@ function indexToLetter(index: number): string {
   return String.fromCharCode(65 + index);
 }
 
+/**
+ * Compute remaining seconds given current endsAt.
+ * Safe even when endsAt is null (returns 0).
+ */
+function remainingSeconds(endsAtIso: string | null): number {
+  if (!endsAtIso) return 0;
+  return Math.max(0, Math.floor((new Date(endsAtIso).getTime() - Date.now()) / 1000));
+}
+
+/**
+ * Compute the frozen remaining seconds at the moment of pause.
+ * = endsAt - lastPausedAt (both server timestamps)
+ */
+function frozenRemainingSeconds(endsAtIso: string, lastPausedAtIso: string): number {
+  const endsAt = new Date(endsAtIso).getTime();
+  const pausedAt = new Date(lastPausedAtIso).getTime();
+  return Math.max(0, Math.floor((endsAt - pausedAt) / 1000));
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function TestAttemptClient({ testId, test }: TestAttemptClientProps) {
@@ -112,7 +133,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   const [currentIndex, setCurrentIndex] = useState(0);
   const [currentSectionId, setCurrentSectionId] = useState<string | null>(null);
 
-  // Timers
+  // Timers — stored as seconds
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [sectionTimeLeft, setSectionTimeLeft] = useState<number | null>(null);
   const sectionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -129,6 +150,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
   // Pause
   const [pausing, setPausing] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
 
@@ -140,7 +162,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   useEffect(() => {
     async function fetchData() {
       try {
-        // Step 1 + 2: fetch test data and start/resume attempt in parallel
+        // Step 1 + 2 in parallel: test brief + start/resume attempt
         const [testRes, startRes] = await Promise.all([
           fetch(`/api/student/tests/${testId}`, { credentials: "include" }),
           fetch("/api/student/attempts", {
@@ -152,56 +174,39 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         ]);
 
         if (testRes.status === 401 || startRes.status === 401) {
-          setSessionExpired(true);
-          setLoading(false);
-          return;
+          setSessionExpired(true); setLoading(false); return;
         }
         if (startRes.status === 409) {
-          const data = await startRes.json().catch(() => ({}));
-          if (data.code === "ATTEMPT_LOCKED") {
-            setError(data.error || "This test is already open on another device. Close it there first.");
-          } else {
-            setError(data.error || "Failed to start test");
-          }
-          setLoading(false);
-          return;
+          const d = await startRes.json().catch(() => ({}));
+          setError(d.error || "This test is already open on another device. Close it there first.");
+          setLoading(false); return;
         }
         if (!testRes.ok) {
-          const data = await testRes.json().catch(() => ({}));
-          setError(data.error || "Failed to load test data");
-          setLoading(false);
-          return;
+          const d = await testRes.json().catch(() => ({}));
+          setError(d.error || "Failed to load test data"); setLoading(false); return;
         }
         if (!startRes.ok) {
-          const data = await startRes.json().catch(() => ({}));
-          setError(data.error || "Failed to start test");
-          setLoading(false);
-          return;
+          const d = await startRes.json().catch(() => ({}));
+          setError(d.error || "Failed to start test"); setLoading(false); return;
         }
 
         const [testData, startData] = await Promise.all([testRes.json(), startRes.json()]);
         const { attemptId, language } = startData as { attemptId: string; language: "EN" | "TE" };
 
-        // Step 3: fetch attempt state (saved answers + endsAt)
+        // Step 3: fetch attempt state (answers + pause state + endsAt)
         const attemptRes = await fetch(`/api/student/attempts/${attemptId}`, {
           credentials: "include",
         });
-        if (attemptRes.status === 401) {
-          setSessionExpired(true);
-          setLoading(false);
-          return;
-        }
+        if (attemptRes.status === 401) { setSessionExpired(true); setLoading(false); return; }
         if (attemptRes.status === 409) {
-          const data = await attemptRes.json().catch(() => ({}));
-          setError(data.error || "This test is already open on another device.");
-          setLoading(false);
-          return;
+          const d = await attemptRes.json().catch(() => ({}));
+          setError(d.error || "This test is already open on another device.");
+          setLoading(false); return;
         }
         if (!attemptRes.ok) {
-          const data = await attemptRes.json().catch(() => ({}));
-          setError(data.error || "Failed to load attempt data");
-          setLoading(false);
-          return;
+          const d = await attemptRes.json().catch(() => ({}));
+          setError(d.error || "Failed to load attempt data");
+          setLoading(false); return;
         }
 
         const attemptData = await attemptRes.json();
@@ -221,11 +226,20 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           strictSectionMode: testData.strictSectionMode ?? false,
         };
 
-        const qs: QuestionData[] = (testData.questions ?? []).map((q: QuestionData) => q);
+        const qs: QuestionData[] = testData.questions ?? [];
         const secs: SectionMeta[] = testData.sections ?? [];
 
+        const meta: AttemptMeta = {
+          attemptId,
+          language,
+          endsAt: attemptData.endsAt,
+          status: attemptData.status,
+          currentlyPaused: attemptData.currentlyPaused ?? false,
+          lastPausedAt: attemptData.lastPausedAt ?? null,
+        };
+
         setTestConfig(cfg);
-        setAttemptMeta({ attemptId, language, endsAt: attemptData.endsAt, status: attemptData.status });
+        setAttemptMeta(meta);
         setQuestions(qs);
         setSections(secs);
 
@@ -257,9 +271,16 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         }
         setQuestionStates(states);
 
-        // Set initial timer from attempt endsAt
-        const endsAt = new Date(attemptData.endsAt).getTime();
-        setTimeLeft(Math.max(0, Math.floor((endsAt - Date.now()) / 1000)));
+        // Set initial timer
+        // If currently paused: freeze at (endsAt - lastPausedAt)
+        // If running: live countdown from endsAt
+        if (meta.currentlyPaused && meta.lastPausedAt) {
+          setTimeLeft(frozenRemainingSeconds(meta.endsAt, meta.lastPausedAt));
+          setIsPaused(true);
+        } else {
+          setTimeLeft(remainingSeconds(meta.endsAt));
+        }
+
         setLoading(false);
       } catch {
         setError("Failed to load test data. Please check your connection.");
@@ -269,22 +290,24 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     fetchData();
   }, [testId]);
 
-  // ── Total timer ────────────────────────────────────────────────────────────
+  // ── Total timer tick ───────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (timeLeft <= 0 || !attemptMeta || isPaused) return;
+    if (!attemptMeta || isPaused) return;
+
     const interval = setInterval(() => {
-      const endsAt = new Date(attemptMeta.endsAt).getTime();
-      const remaining = Math.max(0, Math.floor((endsAt - Date.now()) / 1000));
-      setTimeLeft(remaining);
-      if (remaining <= 0 && !autoSubmitTriggered.current) {
+      const rem = remainingSeconds(attemptMeta.endsAt);
+      setTimeLeft(rem);
+      if (rem <= 0 && !autoSubmitTriggered.current) {
         autoSubmitTriggered.current = true;
         clearInterval(interval);
         handleAutoSubmit();
       }
     }, 1000);
+
     return () => clearInterval(interval);
-  }, [attemptMeta, isPaused]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attemptMeta?.endsAt, isPaused]);
 
   // ── Section timer ──────────────────────────────────────────────────────────
 
@@ -341,9 +364,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     const nextSectionId = nextQ.sectionId ?? null;
     setCurrentIndex(index);
     questionStartTime.current = Date.now();
-    if (nextSectionId !== currentSectionId) {
-      setCurrentSectionId(nextSectionId);
-    }
+    if (nextSectionId !== currentSectionId) setCurrentSectionId(nextSectionId);
     setQuestionStates((prev) => {
       const next = new Map(prev);
       const state = { ...next.get(nextQ.id)! };
@@ -361,6 +382,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   // ── Answer operations ──────────────────────────────────────────────────────
 
   function selectOption(optionId: string) {
+    if (isPaused) return; // No changes while paused
     const qId = questions[currentIndex].id;
     setQuestionStates((prev) => {
       const next = new Map(prev);
@@ -372,6 +394,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   }
 
   function clearResponse() {
+    if (isPaused) return;
     const qId = questions[currentIndex].id;
     setQuestionStates((prev) => {
       const next = new Map(prev);
@@ -385,7 +408,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   }
 
   async function saveAnswer(markForReview: boolean) {
-    if (!attemptMeta || saving) return;
+    if (!attemptMeta || saving || isPaused) return;
     setSaving(true);
     setSaveError(null);
 
@@ -408,10 +431,9 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
       if (res.status === 401) { setSessionExpired(true); setSaving(false); return; }
       if (res.status === 409) {
-        const data = await res.json().catch(() => ({}));
-        setSaveError(data.error ?? "Access conflict. Reload the page.");
-        setSaving(false);
-        return;
+        const d = await res.json().catch(() => ({}));
+        setSaveError(d.error ?? "Access conflict. Reload the page.");
+        setSaving(false); return;
       }
       if (!res.ok) { setSaveError("Could not save. Check connection."); setSaving(false); return; }
 
@@ -436,13 +458,13 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     }
   }
 
-  // ── Pause / Resume ─────────────────────────────────────────────────────────
+  // ── Pause ──────────────────────────────────────────────────────────────────
 
   async function handlePause() {
     if (!attemptMeta || pausing || isPaused) return;
     setPausing(true);
     setPauseError(null);
-    recordTimeForCurrent();
+    recordTimeForCurrent(); // Snapshot time before pausing
 
     try {
       const res = await fetch(`/api/student/attempts/${attemptMeta.attemptId}/pause`, {
@@ -450,36 +472,86 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
+
       if (res.status === 401) { setSessionExpired(true); setPausing(false); return; }
 
       if (res.ok) {
+        // Freeze the timer at current displayed value (no need to recompute — already live)
         setIsPaused(true);
+        setAttemptMeta((prev) => prev ? { ...prev, status: "PAUSED", currentlyPaused: true } : prev);
       } else {
-        const data = await res.json().catch(() => ({}));
-        setPauseError(data.error ?? "Could not pause. Try again.");
+        const d = await res.json().catch(() => ({}));
+        if (d.code === "ALREADY_PAUSED") {
+          // Already paused in DB — sync local state
+          setIsPaused(true);
+          setAttemptMeta((prev) => prev ? { ...prev, status: "PAUSED", currentlyPaused: true } : prev);
+        } else {
+          setPauseError(d.error ?? "Could not pause. Try again.");
+        }
       }
     } catch {
-      // Network error — still allow client-side soft pause
+      // Network error — still show pause overlay (test is offline anyway)
       setIsPaused(true);
     } finally {
       setPausing(false);
     }
   }
 
+  // ── Resume ─────────────────────────────────────────────────────────────────
+
   async function handleResume() {
-    if (!attemptMeta || !isPaused) return;
+    if (!attemptMeta || !isPaused || resuming) return;
+    setResuming(true);
+    setPauseError(null);
+
     try {
-      await fetch(`/api/student/attempts/${attemptMeta.attemptId}/resume`, {
+      const res = await fetch(`/api/student/attempts/${attemptMeta.attemptId}/resume`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
-    } catch { /* ignore — resume visually regardless */ }
 
-    const endsAt = new Date(attemptMeta.endsAt).getTime();
-    setTimeLeft(Math.max(0, Math.floor((endsAt - Date.now()) / 1000)));
-    setIsPaused(false);
-    questionStartTime.current = Date.now();
+      if (res.status === 401) { setSessionExpired(true); setResuming(false); return; }
+
+      if (res.ok) {
+        const data = await res.json();
+        // Use the new endsAt returned by the server (already extended by pause duration)
+        const newEndsAt: string = data.endsAt ?? attemptMeta.endsAt;
+        setAttemptMeta((prev) => prev
+          ? { ...prev, status: "IN_PROGRESS", currentlyPaused: false, lastPausedAt: null, endsAt: newEndsAt }
+          : prev
+        );
+        // Recompute timeLeft from new endsAt
+        setTimeLeft(remainingSeconds(newEndsAt));
+        setIsPaused(false);
+        questionStartTime.current = Date.now();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        // If NOT_PAUSED error — DB and FE are out of sync; force-resume locally
+        if (d.error?.includes("not paused") || d.error?.includes("NOT_PAUSED")) {
+          setAttemptMeta((prev) => prev
+            ? { ...prev, status: "IN_PROGRESS", currentlyPaused: false, lastPausedAt: null }
+            : prev
+          );
+          setTimeLeft(remainingSeconds(attemptMeta.endsAt));
+          setIsPaused(false);
+          questionStartTime.current = Date.now();
+        } else {
+          setPauseError(d.error ?? "Could not resume. Please try again.");
+        }
+      }
+    } catch {
+      // Network error — still allow resume locally so student isn't stuck
+      setAttemptMeta((prev) => prev
+        ? { ...prev, status: "IN_PROGRESS", currentlyPaused: false, lastPausedAt: null }
+        : prev
+      );
+      setTimeLeft(remainingSeconds(attemptMeta.endsAt));
+      setIsPaused(false);
+      questionStartTime.current = Date.now();
+    } finally {
+      setResuming(false);
+    }
   }
 
   // ── Submit ─────────────────────────────────────────────────────────────────
@@ -494,9 +566,8 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     for (const q of questions) {
       const state = questionStates.get(q.id);
       if (!state) continue;
-      const hasDraft = state.draftOptionId !== null;
       const draftDiffers = state.draftOptionId !== state.savedOptionId;
-      if (hasDraft && draftDiffers) {
+      if (draftDiffers) {
         out.push({
           questionId: q.id,
           selectedOptionId: state.draftOptionId,
@@ -510,6 +581,13 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
   async function handleSubmit() {
     if (!attemptMeta || submitting) return;
+
+    if (isPaused) {
+      setSaveError("Please resume the test before submitting.");
+      setShowSubmitConfirm(false);
+      return;
+    }
+
     setSubmitting(true);
     recordTimeForCurrent();
 
@@ -522,15 +600,22 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
       });
 
       if (res.status === 401) { setSessionExpired(true); setSubmitting(false); return; }
+
       if (res.ok) {
         router.push(`/testhub/tests/${testId}/submitted?attemptId=${attemptMeta.attemptId}`);
       } else {
+        const d = await res.json().catch(() => ({}));
+        if (d.code === "ATTEMPT_PAUSED") {
+          setSaveError("Resume the test before submitting.");
+          setIsPaused(true);
+        } else {
+          setSaveError(d.error ?? "Failed to submit. Please try again.");
+        }
         setSubmitting(false);
-        setSaveError("Failed to submit. Please try again.");
       }
     } catch {
-      setSubmitting(false);
       setSaveError("Failed to submit. Check connection.");
+      setSubmitting(false);
     }
   }
 
@@ -577,10 +662,9 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     return { notVisited, unattempted, answered, markedOnly, answeredMarked };
   })();
 
-  const paletteQuestions = (() => {
-    if (!testConfig?.sectionsEnabled || !currentSectionId) return questions;
-    return questions.filter((q) => q.sectionId === currentSectionId);
-  })();
+  const paletteQuestions = testConfig?.sectionsEnabled && currentSectionId
+    ? questions.filter((q) => q.sectionId === currentSectionId)
+    : questions;
 
   const paletteCounts = (() => {
     let notVisited = 0, unattempted = 0, answered = 0, markedOnly = 0, answeredMarked = 0;
@@ -598,7 +682,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
   // ── Early returns ──────────────────────────────────────────────────────────
 
-  if (loading && !sessionExpired) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-pulse text-gray-400">Loading test...</div>
@@ -606,7 +690,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     );
   }
 
-  if (sessionExpired && (loading || !testConfig)) {
+  if (sessionExpired) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <SessionExpiredCard testId={testId} />
@@ -662,7 +746,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     ? sections.find((s) => s.id === currentSectionId)?.title
     : null;
 
-  // ── Palette ────────────────────────────────────────────────────────────────
+  // ── Palette content ────────────────────────────────────────────────────────
 
   const paletteContent = (
     <div>
@@ -724,10 +808,14 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
       <button
         onClick={() => setShowSubmitConfirm(true)}
-        className="w-full mt-4 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors"
+        disabled={isPaused}
+        className="w-full mt-4 py-2.5 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Submit Test
       </button>
+      {isPaused && (
+        <p className="text-[10px] text-center text-amber-600 mt-1.5">Resume the test to submit.</p>
+      )}
     </div>
   );
 
@@ -747,7 +835,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           <div className="flex items-center gap-2 flex-shrink-0">
             <InstructionsPill test={test} />
 
-            {/* Pause button */}
+            {/* Pause button — shown only when pauseAllowed and not currently paused */}
             {testConfig?.pauseAllowed && !isPaused && (
               <button
                 onClick={handlePause}
@@ -764,20 +852,24 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
             {/* Timers */}
             <div className="flex items-center gap-2">
-              {/* Section timer (shown when timerMode = SECTION or SUBSECTION) */}
               {testConfig?.sectionsEnabled && sectionTimeLeft !== null && testConfig.timerMode !== "TOTAL" && (
                 <div className="flex flex-col items-center">
                   <div className={`font-mono text-xs font-bold px-2 py-0.5 rounded-lg ${sectionTimeLeft <= 120 ? "bg-orange-500/30 text-orange-200" : "bg-white/10"}`}>
-                    {formatTime(sectionTimeLeft)}
+                    {isPaused ? "—:——" : formatTime(sectionTimeLeft)}
                   </div>
                   <span className="text-[8px] text-purple-300 mt-0.5">Section</span>
                 </div>
               )}
 
-              {/* Total timer */}
               <div className="flex flex-col items-center">
-                <div className={`font-mono text-sm font-bold px-3 py-1 rounded-lg ${timeLeft <= 300 ? "bg-red-500/20 text-red-200 animate-pulse" : "bg-white/10"}`}>
-                  {formatTime(timeLeft)}
+                <div className={`font-mono text-sm font-bold px-3 py-1 rounded-lg ${
+                  isPaused
+                    ? "bg-amber-500/20 text-amber-200"
+                    : timeLeft <= 300
+                    ? "bg-red-500/20 text-red-200 animate-pulse"
+                    : "bg-white/10"
+                }`}>
+                  {isPaused ? "PAUSED" : formatTime(timeLeft)}
                 </div>
                 {testConfig?.sectionsEnabled && sectionTimeLeft !== null && testConfig.timerMode !== "TOTAL" && (
                   <span className="text-[8px] text-purple-300 mt-0.5">Total</span>
@@ -806,9 +898,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
                       : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
                   }`}
                 >
-                  <span className={`text-xs font-semibold ${isActive ? "text-[#2D1B69]" : "text-gray-700"}`}>
-                    {sec.title}
-                  </span>
+                  <span className={`text-xs font-semibold ${isActive ? "text-[#2D1B69]" : "text-gray-700"}`}>{sec.title}</span>
                   <span className="text-[10px] text-gray-400 mt-0.5">
                     {secAnswered}/{secQs.length} answered
                     {sec.durationSec ? ` · ${Math.round(sec.durationSec / 60)}m` : ""}
@@ -833,21 +923,17 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             </div>
           )}
 
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-6 mb-4">
+          <div className={`bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-6 mb-4 transition-opacity ${isPaused ? "opacity-50 pointer-events-none select-none" : ""}`}>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
                   Question {currentQ?.displayOrder ?? currentIndex + 1} of {questions.length}
                 </span>
                 {currentSectionTitle && (
-                  <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
-                    {currentSectionTitle}
-                  </span>
+                  <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full">{currentSectionTitle}</span>
                 )}
               </div>
-              <span className="text-xs text-gray-400">
-                +{testConfig?.marksPerQuestion} / -{testConfig?.negativeMarks}
-              </span>
+              <span className="text-xs text-gray-400">+{testConfig?.marksPerQuestion} / -{testConfig?.negativeMarks}</span>
             </div>
 
             <div
@@ -862,7 +948,8 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
                   <button
                     key={opt.id}
                     onClick={() => selectOption(opt.id)}
-                    className={`w-full text-left p-3.5 rounded-xl border-2 transition-all text-sm ${
+                    disabled={isPaused}
+                    className={`w-full text-left p-3.5 rounded-xl border-2 transition-all text-sm disabled:cursor-default ${
                       isSelected
                         ? "border-purple-400 bg-purple-50/50"
                         : "border-gray-150 hover:border-gray-300 bg-white"
@@ -893,20 +980,20 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             </div>
           )}
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className={`flex items-center gap-2 flex-wrap ${isPaused ? "opacity-40 pointer-events-none" : ""}`}>
             <button onClick={clearResponse} className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
               Clear Response
             </button>
             <button
               onClick={() => saveAnswer(true)}
-              disabled={saving}
+              disabled={saving || isPaused}
               className="px-4 py-2.5 text-sm rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors disabled:opacity-50"
             >
               {saving ? "Saving..." : "Mark for Review & Next"}
             </button>
             <button
               onClick={() => saveAnswer(false)}
-              disabled={saving}
+              disabled={saving || isPaused}
               className="px-4 py-2.5 text-sm rounded-xl bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-hover)] transition-colors disabled:opacity-50"
             >
               {saving ? "Saving..." : "Save & Next"}
@@ -979,7 +1066,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         </div>
       </div>
 
-      {/* ── Paused overlay ── */}
+      {/* ── Paused overlay — blocks entire UI ── */}
       {isPaused && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-[#2D1B69]/90 px-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-8 text-center">
@@ -989,14 +1076,21 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
               </svg>
             </div>
             <h2 className="text-xl font-bold text-[#2D1B69] mb-2">Test Paused</h2>
-            <p className="text-sm text-gray-500 mb-6">
-              Your answers are saved. Click Resume when you are ready to continue.
+            <p className="text-sm text-gray-500 mb-1">
+              Your answers are saved. The timer has stopped.
             </p>
+            <p className="text-sm text-gray-400 mb-6">
+              Remaining time: <strong className="text-[#2D1B69]">{formatTime(timeLeft)}</strong>
+            </p>
+            {pauseError && (
+              <div className="text-xs text-red-500 mb-4 bg-red-50 p-2 rounded-lg">{pauseError}</div>
+            )}
             <button
               onClick={handleResume}
-              className="w-full py-3 rounded-xl bg-[var(--brand-primary)] text-white font-semibold hover:bg-[var(--brand-primary-hover)] transition-colors"
+              disabled={resuming}
+              className="w-full py-3 rounded-xl bg-[var(--brand-primary)] text-white font-semibold hover:bg-[var(--brand-primary-hover)] transition-colors disabled:opacity-50"
             >
-              Resume Test
+              {resuming ? "Resuming..." : "Resume Test"}
             </button>
           </div>
         </div>
@@ -1011,7 +1105,10 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
       {/* ── Submit confirm dialog ── */}
       {showSubmitConfirm && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4" onClick={() => setShowSubmitConfirm(false)}>
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4"
+          onClick={() => setShowSubmitConfirm(false)}
+        >
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-[#2D1B69] mb-3">Submit Test?</h3>
             <div className="text-sm text-gray-600 space-y-1 mb-4">
@@ -1021,7 +1118,10 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             </div>
             <p className="text-xs text-gray-400 mb-6">Any unsaved selections will be flushed before submission.</p>
             <div className="flex gap-3">
-              <button onClick={() => setShowSubmitConfirm(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
+              <button
+                onClick={() => setShowSubmitConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
                 Continue Test
               </button>
               <button

@@ -1,15 +1,8 @@
 import { getStudentSession } from "@/lib/studentAuth";
-import { getAttemptById, getDbTestById } from "@/lib/testhubDb";
+import { getAttemptById, getDbTestById, pauseAttempt } from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Soft-pause endpoint.
- * Full DB-level pause (AttemptStatus.PAUSED + AttemptPause model) requires
- * schema changes from the Admin Agent's branch. Until those merge, this
- * endpoint validates the request and returns success so the frontend
- * can show the paused UI safely.
- */
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -29,16 +22,26 @@ export async function POST(
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
   if (attempt.status !== "IN_PROGRESS") {
-    return Response.json({ error: "Attempt is not in progress" }, { status: 400 });
+    if (attempt.status === "PAUSED") {
+      return Response.json({ error: "Attempt is already paused.", code: "ALREADY_PAUSED" }, { status: 400 });
+    }
+    return Response.json({ error: "Attempt is not in progress." }, { status: 400 });
   }
 
-  // Verify the test allows pause
   const test = await getDbTestById(attempt.testId);
   if (!test?.allowPause) {
     return Response.json({ error: "This test does not allow pausing." }, { status: 400 });
   }
 
-  // TODO: When AttemptStatus.PAUSED enum and AttemptPause model are available,
-  // create an AttemptPause record and set attempt.status = PAUSED here.
-  return Response.json({ success: true, pausedAt: new Date().toISOString() });
+  try {
+    const { pausedAt } = await pauseAttempt(attemptId);
+    return Response.json({ success: true, pausedAt: pausedAt.toISOString() });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg === "ALREADY_PAUSED") {
+      return Response.json({ error: "Attempt is already paused.", code: "ALREADY_PAUSED" }, { status: 400 });
+    }
+    console.error("[pause] unexpected error", err);
+    return Response.json({ error: "Failed to pause. Please try again." }, { status: 500 });
+  }
 }

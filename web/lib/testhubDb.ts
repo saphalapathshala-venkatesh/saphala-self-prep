@@ -566,6 +566,137 @@ export async function getAttemptById(attemptId: string) {
   return prisma.attempt.findUnique({ where: { id: attemptId } });
 }
 
+// ============================================================
+// PAUSE / RESUME OPERATIONS
+// ============================================================
+
+/**
+ * Fetch all pause events for an attempt, ordered by pausedAt asc.
+ */
+export async function getPauseEvents(attemptId: string) {
+  return prisma.attemptPause.findMany({
+    where: { attemptId },
+    orderBy: { pausedAt: "asc" },
+  });
+}
+
+/**
+ * Find the open (not yet resumed) pause event, if any.
+ */
+export async function getOpenPauseEvent(attemptId: string) {
+  return prisma.attemptPause.findFirst({
+    where: { attemptId, resumedAt: null },
+    orderBy: { pausedAt: "desc" },
+  });
+}
+
+/**
+ * Compute total paused milliseconds from a list of pause events.
+ * Only counts CLOSED events (resumedAt != null).
+ * The caller can optionally pass `nowMs` to include an open event's running time.
+ */
+export function computeTotalPausedMs(
+  events: { pausedAt: Date; resumedAt: Date | null }[],
+  includeOpenEventUpTo?: Date
+): number {
+  let total = 0;
+  for (const ev of events) {
+    if (ev.resumedAt) {
+      total += ev.resumedAt.getTime() - ev.pausedAt.getTime();
+    } else if (includeOpenEventUpTo) {
+      total += includeOpenEventUpTo.getTime() - ev.pausedAt.getTime();
+    }
+  }
+  return total;
+}
+
+/**
+ * Pause an attempt:
+ * 1. Verify no open pause event already exists (idempotency guard)
+ * 2. Create AttemptPause row with pausedAt = now
+ * 3. Set Attempt.status = PAUSED
+ * All in one transaction.
+ *
+ * Returns the created pause event.
+ * Throws if attempt is already paused.
+ */
+export async function pauseAttempt(attemptId: string) {
+  return prisma.$transaction(async (tx) => {
+    // Guard: reject if already paused (open event exists)
+    const existing = await tx.attemptPause.findFirst({
+      where: { attemptId, resumedAt: null },
+    });
+    if (existing) {
+      throw new Error("ALREADY_PAUSED");
+    }
+
+    const pausedAt = new Date();
+
+    const [event] = await Promise.all([
+      tx.attemptPause.create({
+        data: { attemptId, pausedAt },
+      }),
+      tx.attempt.update({
+        where: { id: attemptId },
+        data: { status: "PAUSED" },
+      }),
+    ]);
+
+    return { event, pausedAt };
+  });
+}
+
+/**
+ * Resume an attempt:
+ * 1. Find the open pause event
+ * 2. Set resumedAt = now on that event
+ * 3. Extend attempt.endsAt by the paused duration so the countdown stays accurate
+ * 4. Set Attempt.status = IN_PROGRESS
+ * All in one transaction.
+ *
+ * Returns the updated attempt with new endsAt.
+ * Throws if no open pause event.
+ */
+export async function resumeAttempt(attemptId: string) {
+  return prisma.$transaction(async (tx) => {
+    const openEvent = await tx.attemptPause.findFirst({
+      where: { attemptId, resumedAt: null },
+      orderBy: { pausedAt: "desc" },
+    });
+    if (!openEvent) {
+      throw new Error("NOT_PAUSED");
+    }
+
+    const resumedAt = new Date();
+    const pauseDurationMs = resumedAt.getTime() - openEvent.pausedAt.getTime();
+
+    // Extend endsAt so the remaining time is preserved
+    const current = await tx.attempt.findUnique({
+      where: { id: attemptId },
+      select: { endsAt: true },
+    });
+    const newEndsAt = current?.endsAt
+      ? new Date(current.endsAt.getTime() + pauseDurationMs)
+      : null;
+
+    const [, updated] = await Promise.all([
+      tx.attemptPause.update({
+        where: { id: openEvent.id },
+        data: { resumedAt },
+      }),
+      tx.attempt.update({
+        where: { id: attemptId },
+        data: {
+          status: "IN_PROGRESS",
+          ...(newEndsAt ? { endsAt: newEndsAt } : {}),
+        },
+      }),
+    ]);
+
+    return { attempt: updated, pauseDurationMs, resumedAt };
+  });
+}
+
 export async function submitAttempt(attemptId: string) {
   return prisma.attempt.update({
     where: { id: attemptId },

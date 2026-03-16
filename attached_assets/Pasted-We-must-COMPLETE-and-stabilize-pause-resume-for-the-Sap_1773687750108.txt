@@ -1,0 +1,172 @@
+We must COMPLETE and stabilize pause/resume for the Saphala Self Prep student test panel immediately. Right now FE pause UI and student pause/resume endpoints exist, but DB-backed persistence is incomplete / TODO. This is a launch-risk. Fix it now in the safest possible way.
+
+IMPORTANT
+- Focus ONLY on making pause/resume fully DB-persisted, accurate, and stable
+- Do not work on unrelated auth, Quiz, curriculum, or styling
+- Keep changes additive and launch-safe
+- Audit first before editing anything
+- If any part cannot be safely completed today, hide/disable pause rather than shipping a fake pause
+
+GOAL
+1. Make pause/resume truly persisted in DB
+2. Ensure pause survives refresh/reopen/reload
+3. Ensure total paused time is computed correctly
+4. Ensure timers resume accurately
+5. Ensure pause is allowed only when Test.allowPause = true
+6. Ensure no answer loss and no timing corruption
+7. If full correctness cannot be guaranteed, disable pause visibility cleanly
+
+PHASE 1 — FULL AUDIT FIRST
+Read and audit all relevant files before changing anything:
+- prisma/schema.prisma
+- Attempt model
+- AttemptStatus enum
+- any existing AttemptPause model or related table
+- all /api/student/attempts routes
+- any old testhub attempt routes
+- student TestAttemptClient.tsx
+- any timer logic used by the FE
+- any submit logic
+- any attempt-data / test brief route
+- any session-lock logic like lockedSessionToken or endsAt
+- any admin/backend branch changes already brought into this branch
+
+Before implementing, provide a short exact report:
+- current pause FE behavior
+- current pause API behavior
+- whether AttemptPause model exists in THIS branch’s schema
+- whether DB table exists
+- whether AttemptStatus includes PAUSED
+- how current timers are computed
+- what is missing for fully correct persisted pause
+
+PHASE 2 — SCHEMA / DB SAFETY
+If not already present in THIS branch, add the minimum additive schema needed for real pause persistence.
+
+Preferred design:
+- AttemptStatus includes PAUSED
+- AttemptPause model:
+  - id
+  - attemptId
+  - pausedAt
+  - resumedAt?
+  - createdAt if useful
+- Attempt has relation pauseEvents AttemptPause[]
+
+Do NOT remove any existing fields.
+Do NOT break existing attempts.
+
+If live DB already has related columns/tables not in schema, reconcile them safely into schema first before pushing.
+
+After schema changes:
+- apply safest migration / db push
+- regenerate Prisma client
+
+PHASE 3 — BACKEND PAUSE / RESUME AS SOURCE OF TRUTH
+Implement or complete these routes properly:
+
+POST /api/student/attempts/[id]/pause
+POST /api/student/attempts/[id]/resume
+GET /api/student/attempts/[id]
+
+Rules for PAUSE:
+- only owner of attempt can pause
+- test.allowPause must be true
+- attempt.status must be IN_PROGRESS
+- create AttemptPause row with pausedAt = now and resumedAt = null
+- set Attempt.status = PAUSED
+- do this in a DB transaction
+- reject duplicate pause if an open pause event already exists
+
+Rules for RESUME:
+- only owner of attempt can resume
+- attempt.status must be PAUSED
+- find latest AttemptPause with resumedAt = null
+- set resumedAt = now
+- set Attempt.status = IN_PROGRESS
+- do this in a DB transaction
+- reject resume if no open pause event exists
+
+Rules for GET attempt:
+- return attempt status
+- return totalPausedMs computed from all pause events
+- return whether currentlyPaused
+- return lastPausedAt if useful
+- return enough info for FE to restore correctly after refresh
+
+PHASE 4 — TIME ACCOUNTING
+Make pause timing correct.
+
+Define clear server-side timing logic:
+- totalPausedMs = sum(resumedAt - pausedAt) for all closed pause events
+- if currently paused, include now - pausedAt for live display if needed
+- do NOT let paused duration count against available test time
+- if you use endsAt, update or recompute it consistently
+- if endsAt is not reliable, return enough timing metadata for FE to derive remaining time safely from:
+  - startedAt
+  - totalDurationSec
+  - totalPausedMs
+  - now
+  - current section start metadata if needed
+
+Be explicit and consistent. Do not use mixed timing models.
+
+PHASE 5 — FE PAUSE/RESUME CORRECTNESS
+Update TestAttemptClient.tsx so pause uses backend as source of truth.
+
+Requirements:
+- on Pause click → call pause API
+- paused overlay appears only after confirmed API success
+- on Resume click → call resume API
+- after resume, refresh attempt state from GET /api/student/attempts/[id]
+- after browser refresh/reopen, FE must restore paused state correctly from backend
+- preserve selected answers and current question position
+- if pauseAllowed = false, pause button must not render
+- if pause/resume API fails, show clear message and do not fake state
+
+PHASE 6 — SUBMIT SAFETY
+On submit:
+- if there is an open pause event, close it in a consistent way before final scoring OR reject submit while paused and require resume first
+Choose the safest behavior and implement it clearly.
+- ensure submit still computes results correctly
+- ensure no timing corruption from unresolved pause state
+
+PHASE 7 — EDGE CASES
+Handle:
+- pause button double-click
+- resume button double-click
+- refresh while paused
+- attempt already submitted
+- user tries to answer while paused
+- user tries to submit while paused
+- pause not allowed for this test
+- stale frontend state after reconnect
+
+PHASE 8 — IF ANYTHING IS NOT SAFE
+If full DB-backed pause cannot be completed safely in this branch today:
+- remove/hide pause button from FE
+- keep backend returning pauseAllowed but FE must ignore it
+- explicitly state why pause was disabled
+Do NOT leave a fake pause feature exposed.
+
+PHASE 9 — TESTING
+After implementation:
+- run TypeScript check
+- test pause on an in-progress attempt
+- refresh page while paused
+- confirm paused overlay restores
+- resume and confirm timer continues correctly
+- answer questions before/after pause
+- submit attempt
+- verify no crashes and no lost answers
+
+FINAL OUTPUT REQUIRED
+1. exact root cause / missing pieces found
+2. schema changes made
+3. files changed
+4. how pause is persisted
+5. how totalPausedMs is computed
+6. how FE restores paused state after refresh
+7. whether submit while paused is allowed or blocked
+8. any deferred risks
+9. if pause had to be disabled instead, say so clearly

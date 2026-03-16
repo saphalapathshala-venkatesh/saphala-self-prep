@@ -98,6 +98,7 @@ enum LanguageAvailable {
 }
 enum AttemptStatus {
   IN_PROGRESS
+  PAUSED
   SUBMITTED
 }
 // Admin flashcard enum (shared table FlashcardCard uses this)
@@ -427,6 +428,7 @@ model Attempt {
   unansweredCount Int   @default(0)
   rrGenerated  Boolean  @default(false)
   answers      AttemptAnswer[]
+  pauseEvents  AttemptPause[]
   createdAt    DateTime @default(now())
   @@index([userId, startedAt])
   @@index([testId, startedAt])
@@ -451,6 +453,14 @@ model AttemptAnswer {
   @@unique([attemptId, questionId])
   @@index([attemptId])
   @@index([questionId])
+}
+model AttemptPause {
+  id        String   @id @default(cuid())
+  attemptId String
+  attempt   Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  pausedAt  DateTime @default(now())
+  resumedAt DateTime?
+  @@index([attemptId])
 }
 // FLASHCARDS (Deck → Cards)
 model FlashcardDeck {

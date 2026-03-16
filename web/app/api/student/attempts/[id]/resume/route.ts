@@ -1,13 +1,8 @@
 import { getStudentSession } from "@/lib/studentAuth";
-import { getAttemptById } from "@/lib/testhubDb";
+import { getAttemptById, resumeAttempt } from "@/lib/testhubDb";
 
 export const dynamic = "force-dynamic";
 
-/**
- * Resume endpoint.
- * Paired with pause. Until the full AttemptPause schema merges,
- * this validates the attempt and returns success.
- */
 export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -26,7 +21,23 @@ export async function POST(
   if (attempt.userId !== user.id) {
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
+  if (attempt.status !== "PAUSED") {
+    return Response.json({ error: "Attempt is not paused." }, { status: 400 });
+  }
 
-  // TODO: When AttemptPause model is available, close the open pause event here.
-  return Response.json({ success: true, resumedAt: new Date().toISOString() });
+  try {
+    const { attempt: updated, resumedAt } = await resumeAttempt(attemptId);
+    return Response.json({
+      success: true,
+      resumedAt: resumedAt.toISOString(),
+      endsAt: updated.endsAt?.toISOString() ?? null,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "";
+    if (msg === "NOT_PAUSED") {
+      return Response.json({ error: "No open pause event found." }, { status: 400 });
+    }
+    console.error("[resume] unexpected error", err);
+    return Response.json({ error: "Failed to resume. Please try again." }, { status: 500 });
+  }
 }

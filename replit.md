@@ -63,7 +63,9 @@ Legal constants (`LEGAL_VERSION`, `LEGAL_TERMS_URL`, `LEGAL_REFUND_URL`) are def
 Students can reset passwords at `/forgot-password` using registered email/mobile and the last 4 digits of their mobile number. This generates a short-lived HMAC-SHA256 token for password reset, revoking all existing sessions upon successful reset. No email/SMS or dedicated DB table for tokens is used.
 
 ### Student Test Panel
-The TestHub student test panel (`components/testhub/TestAttemptClient.tsx`) uses a 7-route student API layer at `/api/student/`. It supports sections, multiple timer modes (TOTAL, SECTION, SUBSECTION), and pause/resume functionality. Answers are tracked by `selectedOptionId` (DB uuid).
+The TestHub student test panel (`components/testhub/TestAttemptClient.tsx`) uses a 7-route student API layer at `/api/student/`. It supports sections, multiple timer modes (TOTAL, SECTION, SUBSECTION), and fully DB-persisted pause/resume. Answers are tracked by `selectedOptionId` (DB uuid).
+
+**Pause/Resume design**: Pause creates an `AttemptPause` row (`pausedAt`, `resumedAt`) and sets `Attempt.status = PAUSED` atomically. Resume closes the open pause event, extends `Attempt.endsAt` by the paused duration (so remaining time is always accurate), and restores `status = IN_PROGRESS`. On refresh-while-paused, `GET /attempts/[id]` returns `currentlyPaused: true` + `lastPausedAt`, and the FE freezes the timer at `endsAt - lastPausedAt`. Submit while paused is rejected (409); student must resume first. `AttemptStatus` enum: `IN_PROGRESS | PAUSED | SUBMITTED`. `AttemptPause` model: `id, attemptId, pausedAt, resumedAt`.
 
 ### Auth Hardening
 `getSession()` checks `revokedAt: null` to invalidate admin-revoked sessions. `getCurrentUser()` and `getCurrentUserAndSession()` re-check `isBlocked`, `isActive`, `deletedAt`, `infringementBlocked` on every request. Login API returns explicit error codes (`ACCOUNT_BLOCKED`, `ACCOUNT_INACTIVE`, `ACTIVE_SESSION_EXISTS`) for robust error handling in the LoginForm.

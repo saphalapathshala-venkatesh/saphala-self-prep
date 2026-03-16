@@ -26,8 +26,17 @@ export async function POST(
   if (attempt.userId !== user.id) {
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
+
+  // Block submit while paused — require resume first
+  if (attempt.status === "PAUSED") {
+    return Response.json(
+      { error: "Cannot submit while the test is paused. Resume it first.", code: "ATTEMPT_PAUSED" },
+      { status: 400 }
+    );
+  }
+
   if (attempt.status !== "IN_PROGRESS") {
-    return Response.json({ error: "Attempt is not in progress" }, { status: 400 });
+    return Response.json({ error: "Attempt is not in progress." }, { status: 400 });
   }
 
   // Concurrent access check
