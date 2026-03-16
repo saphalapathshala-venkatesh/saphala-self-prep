@@ -1,3 +1,8 @@
+// The homepage fetches live DB data (featured courses) — must be dynamic.
+// Without this, Next.js tries to statically prerender it at build time,
+// which fails because DATABASE_URL is unavailable in the build environment.
+export const dynamic = "force-dynamic";
+
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import QuoteKalamStrip from "@/components/home/QuoteKalamStrip";

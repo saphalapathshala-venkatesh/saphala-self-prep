@@ -6,24 +6,47 @@ function formatPrice(paise: number): string {
 }
 
 export default async function FeaturedCoursesSection() {
-  const [rawSeries, categories] = await Promise.all([
-    prisma.testSeries.findMany({
-      where: { isPublished: true },
-      orderBy: { createdAt: "desc" },
-      take: 4,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        pricePaise: true,
-        discountPaise: true,
-        categoryId: true,
-      },
-    }),
-    prisma.category.findMany({ select: { id: true, name: true } }),
-  ]);
+  // Wrapped in try/catch so a DB failure at runtime returns an empty state
+  // instead of crashing the page render.  The same guard also protects the
+  // build: with `dynamic = "force-dynamic"` on app/page.tsx this component is
+  // never executed at build time, but the try/catch is kept as an extra layer
+  // of defence.
+  let rawSeries: {
+    id: string;
+    title: string;
+    description: string | null;
+    pricePaise: number;
+    discountPaise: number;
+    categoryId: string | null;
+  }[] = [];
 
-  const catMap = new Map(categories.map((c) => [c.id, c.name]));
+  let catMap = new Map<string, string>();
+
+  try {
+    const [series, categories] = await Promise.all([
+      prisma.testSeries.findMany({
+        where: { isPublished: true },
+        orderBy: { createdAt: "desc" },
+        take: 4,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          pricePaise: true,
+          discountPaise: true,
+          categoryId: true,
+        },
+      }),
+      prisma.category.findMany({ select: { id: true, name: true } }),
+    ]);
+
+    rawSeries = series;
+    catMap = new Map(categories.map((c) => [c.id, c.name]));
+  } catch (err) {
+    // Log clearly so the failing query is visible in Vercel / server logs.
+    console.error("[FeaturedCoursesSection] Prisma query failed — rendering empty state.", err);
+    // rawSeries stays [] → the empty-state UI is rendered below.
+  }
 
   return (
     <section className="py-16 bg-white">
