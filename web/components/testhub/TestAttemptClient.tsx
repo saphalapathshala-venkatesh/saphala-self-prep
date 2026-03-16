@@ -27,17 +27,32 @@ interface SectionMeta {
 
 interface TestConfig {
   id: string;
-  name: string;
-  code: string;
-  durationSec: number | null;
-  totalQuestions: number;
-  negativeMarking: number;
+  title: string;
+  code: string | null;
+  totalDurationSec: number | null;
   marksPerQuestion: number;
+  negativeMarks: number;
   pauseAllowed: boolean;
   sectionsEnabled: boolean;
   subsectionsEnabled: boolean;
   timerMode: "TOTAL" | "SECTION" | "SUBSECTION";
   strictSectionMode: boolean;
+}
+
+interface QuestionOption {
+  id: string;
+  textEn: string | null;
+  textTe: string | null;
+  order: number;
+}
+
+interface QuestionData {
+  id: string;
+  sectionId: string | null;
+  displayOrder: number;
+  stemEn: string | null;
+  stemTe: string | null;
+  options: QuestionOption[];
 }
 
 interface AttemptMeta {
@@ -47,33 +62,10 @@ interface AttemptMeta {
   status: string;
 }
 
-interface QuestionData {
-  id: string;
-  order: number;
-  sectionId: string | null;
-  questionText_en: string;
-  questionText_te: string;
-  optionA_en: string;
-  optionA_te: string;
-  optionB_en: string;
-  optionB_te: string;
-  optionC_en: string;
-  optionC_te: string;
-  optionD_en: string;
-  optionD_te: string;
-}
-
-interface SavedAnswer {
-  questionId: string;
-  selectedOption: string | null;
-  isMarkedForReview: boolean;
-  timeSpentMs: number;
-}
-
 interface QuestionState {
   visited: boolean;
-  draftOption: string | null;
-  savedOption: string | null;
+  draftOptionId: string | null;
+  savedOptionId: string | null;
   isMarkedForReview: boolean;
   timeSpentMs: number;
 }
@@ -91,6 +83,11 @@ function formatTime(seconds: number): string {
   const s = seconds % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/** Map option index (0-based) to letter A-D */
+function indexToLetter(index: number): string {
+  return String.fromCharCode(65 + index);
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -119,7 +116,6 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [sectionTimeLeft, setSectionTimeLeft] = useState<number | null>(null);
   const sectionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const sectionEnteredAt = useRef<number>(Date.now());
 
   // Save / submit
   const [saving, setSaving] = useState(false);
@@ -135,7 +131,6 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   const [pausing, setPausing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [pauseError, setPauseError] = useState<string | null>(null);
-  const pausedAtRef = useRef<number | null>(null);
 
   const questionStartTime = useRef<number>(Date.now());
   const autoSubmitTriggered = useRef(false);
@@ -145,68 +140,125 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch(`/api/testhub/tests/${testId}/attempt-data`, {
-          credentials: "include",
-        });
-        if (res.status === 401) { setSessionExpired(true); setLoading(false); return; }
-        if (res.status === 409) {
-          const data = await res.json().catch(() => ({}));
-          setError(
-            data.code === "ATTEMPT_LOCKED"
-              ? data.error || "This test is already open on another device."
-              : data.error || "Failed to load test data"
-          );
+        // Step 1 + 2: fetch test data and start/resume attempt in parallel
+        const [testRes, startRes] = await Promise.all([
+          fetch(`/api/student/tests/${testId}`, { credentials: "include" }),
+          fetch("/api/student/attempts", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ testId }),
+          }),
+        ]);
+
+        if (testRes.status === 401 || startRes.status === 401) {
+          setSessionExpired(true);
           setLoading(false);
           return;
         }
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
+        if (startRes.status === 409) {
+          const data = await startRes.json().catch(() => ({}));
+          if (data.code === "ATTEMPT_LOCKED") {
+            setError(data.error || "This test is already open on another device. Close it there first.");
+          } else {
+            setError(data.error || "Failed to start test");
+          }
+          setLoading(false);
+          return;
+        }
+        if (!testRes.ok) {
+          const data = await testRes.json().catch(() => ({}));
           setError(data.error || "Failed to load test data");
           setLoading(false);
           return;
         }
+        if (!startRes.ok) {
+          const data = await startRes.json().catch(() => ({}));
+          setError(data.error || "Failed to start test");
+          setLoading(false);
+          return;
+        }
 
-        const data = await res.json();
+        const [testData, startData] = await Promise.all([testRes.json(), startRes.json()]);
+        const { attemptId, language } = startData as { attemptId: string; language: "EN" | "TE" };
 
+        // Step 3: fetch attempt state (saved answers + endsAt)
+        const attemptRes = await fetch(`/api/student/attempts/${attemptId}`, {
+          credentials: "include",
+        });
+        if (attemptRes.status === 401) {
+          setSessionExpired(true);
+          setLoading(false);
+          return;
+        }
+        if (attemptRes.status === 409) {
+          const data = await attemptRes.json().catch(() => ({}));
+          setError(data.error || "This test is already open on another device.");
+          setLoading(false);
+          return;
+        }
+        if (!attemptRes.ok) {
+          const data = await attemptRes.json().catch(() => ({}));
+          setError(data.error || "Failed to load attempt data");
+          setLoading(false);
+          return;
+        }
+
+        const attemptData = await attemptRes.json();
+
+        // Build test config
         const cfg: TestConfig = {
-          id: data.test.id,
-          name: data.test.name,
-          code: data.test.code,
-          durationSec: data.test.durationSec ?? null,
-          totalQuestions: data.test.totalQuestions,
-          negativeMarking: data.test.negativeMarking,
-          marksPerQuestion: data.test.marksPerQuestion,
-          pauseAllowed: data.test.pauseAllowed ?? false,
-          sectionsEnabled: data.test.sectionsEnabled ?? false,
-          subsectionsEnabled: data.test.subsectionsEnabled ?? false,
-          timerMode: data.test.timerMode ?? "TOTAL",
-          strictSectionMode: data.test.strictSectionMode ?? false,
+          id: testData.id,
+          title: testData.title,
+          code: testData.code,
+          totalDurationSec: testData.totalDurationSec ?? null,
+          marksPerQuestion: testData.marksPerQuestion ?? 1,
+          negativeMarks: testData.negativeMarks ?? 0,
+          pauseAllowed: testData.pauseAllowed ?? false,
+          sectionsEnabled: testData.sectionsEnabled ?? false,
+          subsectionsEnabled: testData.subsectionsEnabled ?? false,
+          timerMode: testData.timerMode ?? "TOTAL",
+          strictSectionMode: testData.strictSectionMode ?? false,
         };
 
+        const qs: QuestionData[] = (testData.questions ?? []).map((q: QuestionData) => q);
+        const secs: SectionMeta[] = testData.sections ?? [];
+
         setTestConfig(cfg);
-        setAttemptMeta(data.attempt);
-        setQuestions(data.questions ?? []);
-        setSections(data.sections ?? []);
+        setAttemptMeta({ attemptId, language, endsAt: attemptData.endsAt, status: attemptData.status });
+        setQuestions(qs);
+        setSections(secs);
+
+        // Build question states from saved answers
+        const savedMap = new Map<string, { selectedOptionId: string | null; isMarkedForReview: boolean; timeSpentMs: number }>();
+        for (const a of attemptData.answers ?? []) {
+          savedMap.set(a.questionId, {
+            selectedOptionId: a.selectedOptionId ?? null,
+            isMarkedForReview: a.isMarkedForReview ?? false,
+            timeSpentMs: a.timeSpentMs ?? 0,
+          });
+        }
 
         const states = new Map<string, QuestionState>();
-        for (const q of data.questions ?? []) {
-          const saved = (data.savedAnswers ?? []).find((a: SavedAnswer) => a.questionId === q.id);
+        for (const q of qs) {
+          const saved = savedMap.get(q.id);
           states.set(q.id, {
             visited: !!saved,
-            draftOption: saved?.selectedOption ?? null,
-            savedOption: saved?.selectedOption ?? null,
+            draftOptionId: saved?.selectedOptionId ?? null,
+            savedOptionId: saved?.selectedOptionId ?? null,
             isMarkedForReview: saved?.isMarkedForReview ?? false,
             timeSpentMs: saved?.timeSpentMs ?? 0,
           });
         }
-        if (data.questions?.length > 0) {
-          const first = states.get(data.questions[0].id);
+        if (qs.length > 0) {
+          const first = states.get(qs[0].id);
           if (first) first.visited = true;
-          setCurrentSectionId(data.questions[0].sectionId ?? null);
+          setCurrentSectionId(qs[0].sectionId ?? null);
         }
         setQuestionStates(states);
 
-        const endsAt = new Date(data.attempt.endsAt).getTime();
+        // Set initial timer from attempt endsAt
+        const endsAt = new Date(attemptData.endsAt).getTime();
         setTimeLeft(Math.max(0, Math.floor((endsAt - Date.now()) / 1000)));
         setLoading(false);
       } catch {
@@ -247,8 +299,6 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     const section = sections.find((s) => s.id === currentSectionId);
     if (!section?.durationSec) { setSectionTimeLeft(null); return; }
 
-    // Reset to full section duration when entering a new section
-    sectionEnteredAt.current = Date.now();
     let remaining = section.durationSec;
     setSectionTimeLeft(remaining);
 
@@ -289,14 +339,11 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     recordTimeForCurrent();
     const nextQ = questions[index];
     const nextSectionId = nextQ.sectionId ?? null;
-
     setCurrentIndex(index);
     questionStartTime.current = Date.now();
-
     if (nextSectionId !== currentSectionId) {
       setCurrentSectionId(nextSectionId);
     }
-
     setQuestionStates((prev) => {
       const next = new Map(prev);
       const state = { ...next.get(nextQ.id)! };
@@ -313,12 +360,12 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
   // ── Answer operations ──────────────────────────────────────────────────────
 
-  function selectOption(option: string) {
+  function selectOption(optionId: string) {
     const qId = questions[currentIndex].id;
     setQuestionStates((prev) => {
       const next = new Map(prev);
       const state = { ...next.get(qId)! };
-      state.draftOption = state.draftOption === option ? null : option;
+      state.draftOptionId = state.draftOptionId === optionId ? null : optionId;
       next.set(qId, state);
       return next;
     });
@@ -329,8 +376,8 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     setQuestionStates((prev) => {
       const next = new Map(prev);
       const state = { ...next.get(qId)! };
-      state.draftOption = null;
-      state.savedOption = null;
+      state.draftOptionId = null;
+      state.savedOptionId = null;
       state.isMarkedForReview = false;
       next.set(qId, state);
       return next;
@@ -347,26 +394,31 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     const state = questionStates.get(qId)!;
 
     try {
-      const res = await fetch("/api/testhub/attempts/save-answer", {
+      const res = await fetch(`/api/student/attempts/${attemptMeta.attemptId}/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          attemptId: attemptMeta.attemptId,
           questionId: qId,
-          selectedOption: state.draftOption,
+          selectedOptionId: state.draftOptionId,
           isMarkedForReview: markForReview,
           timeSpentMsDelta: timeInfo?.delta ?? 0,
         }),
       });
 
       if (res.status === 401) { setSessionExpired(true); setSaving(false); return; }
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        setSaveError(data.error ?? "Access conflict. Reload the page.");
+        setSaving(false);
+        return;
+      }
       if (!res.ok) { setSaveError("Could not save. Check connection."); setSaving(false); return; }
 
       setQuestionStates((prev) => {
         const next = new Map(prev);
         const s = { ...next.get(qId)! };
-        s.savedOption = s.draftOption;
+        s.savedOptionId = s.draftOptionId;
         s.isMarkedForReview = markForReview;
         next.set(qId, s);
         return next;
@@ -393,25 +445,21 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     recordTimeForCurrent();
 
     try {
-      const res = await fetch(`/api/testhub/attempts/${attemptMeta.attemptId}/pause`, {
+      const res = await fetch(`/api/student/attempts/${attemptMeta.attemptId}/pause`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
-
       if (res.status === 401) { setSessionExpired(true); setPausing(false); return; }
 
-      if (res.ok || res.status === 404) {
-        // Accept 404 gracefully (endpoint not yet deployed); pause is soft client-side
-        pausedAtRef.current = Date.now();
+      if (res.ok) {
         setIsPaused(true);
       } else {
         const data = await res.json().catch(() => ({}));
-        setPauseError(data.error ?? "Could not pause test. Try again.");
+        setPauseError(data.error ?? "Could not pause. Try again.");
       }
     } catch {
       // Network error — still allow client-side soft pause
-      pausedAtRef.current = Date.now();
       setIsPaused(true);
     } finally {
       setPausing(false);
@@ -420,19 +468,16 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
   async function handleResume() {
     if (!attemptMeta || !isPaused) return;
-
     try {
-      await fetch(`/api/testhub/attempts/${attemptMeta.attemptId}/resume`, {
+      await fetch(`/api/student/attempts/${attemptMeta.attemptId}/resume`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
       });
     } catch { /* ignore — resume visually regardless */ }
 
-    // Recalculate timeLeft from endsAt (real server time is authoritative)
     const endsAt = new Date(attemptMeta.endsAt).getTime();
     setTimeLeft(Math.max(0, Math.floor((endsAt - Date.now()) / 1000)));
-    pausedAtRef.current = null;
     setIsPaused(false);
     questionStartTime.current = Date.now();
   }
@@ -440,28 +485,27 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   function buildFinalAnswers() {
-    const finalAnswers: Array<{
+    const out: Array<{
       questionId: string;
-      selectedOption: string | null;
+      selectedOptionId: string | null;
       isMarkedForReview: boolean;
       timeSpentMs: number;
     }> = [];
-
     for (const q of questions) {
       const state = questionStates.get(q.id);
       if (!state) continue;
-      const hasDraft = state.draftOption !== null;
-      const draftDiffers = state.draftOption !== state.savedOption;
+      const hasDraft = state.draftOptionId !== null;
+      const draftDiffers = state.draftOptionId !== state.savedOptionId;
       if (hasDraft && draftDiffers) {
-        finalAnswers.push({
+        out.push({
           questionId: q.id,
-          selectedOption: state.draftOption,
+          selectedOptionId: state.draftOptionId,
           isMarkedForReview: state.isMarkedForReview,
           timeSpentMs: state.timeSpentMs,
         });
       }
     }
-    return finalAnswers;
+    return out;
   }
 
   async function handleSubmit() {
@@ -470,11 +514,11 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     recordTimeForCurrent();
 
     try {
-      const res = await fetch("/api/testhub/attempts/submit", {
+      const res = await fetch(`/api/student/attempts/${attemptMeta.attemptId}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ attemptId: attemptMeta.attemptId, finalAnswers: buildFinalAnswers() }),
+        body: JSON.stringify({ finalAnswers: buildFinalAnswers() }),
       });
 
       if (res.status === 401) { setSessionExpired(true); setSubmitting(false); return; }
@@ -494,27 +538,25 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     setAutoSubmitted(true);
     if (!attemptMeta) return;
     recordTimeForCurrent();
-
     try {
-      await fetch("/api/testhub/attempts/submit", {
+      await fetch(`/api/student/attempts/${attemptMeta.attemptId}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ attemptId: attemptMeta.attemptId, finalAnswers: buildFinalAnswers() }),
+        body: JSON.stringify({ finalAnswers: buildFinalAnswers() }),
       });
     } catch {}
-
     setTimeout(() => {
       router.push(`/testhub/tests/${testId}/submitted?attemptId=${attemptMeta?.attemptId ?? ""}`);
     }, 3000);
   }
 
-  // ── Counts & status helpers ────────────────────────────────────────────────
+  // ── Status helpers ─────────────────────────────────────────────────────────
 
-  function getStatusColor(qId: string, index: number): string {
+  function getStatusColor(qId: string, isCurrentIndex: boolean): string {
     const s = questionStates.get(qId);
     if (!s || !s.visited) return "bg-gray-200 text-gray-600";
-    const hasSaved = s.savedOption !== null;
+    const hasSaved = s.savedOptionId !== null;
     if (s.isMarkedForReview && hasSaved) return "bg-purple-500 text-white";
     if (s.isMarkedForReview) return "bg-purple-500 text-white";
     if (hasSaved) return "bg-green-500 text-white";
@@ -526,7 +568,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     for (const q of questions) {
       const s = questionStates.get(q.id);
       if (!s || !s.visited) { notVisited++; continue; }
-      const hasSaved = s.savedOption !== null;
+      const hasSaved = s.savedOptionId !== null;
       if (s.isMarkedForReview && hasSaved) answeredMarked++;
       else if (s.isMarkedForReview) markedOnly++;
       else if (hasSaved) answered++;
@@ -535,7 +577,6 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     return { notVisited, unattempted, answered, markedOnly, answeredMarked };
   })();
 
-  // For palette: filter to current section when sectionsEnabled
   const paletteQuestions = (() => {
     if (!testConfig?.sectionsEnabled || !currentSectionId) return questions;
     return questions.filter((q) => q.sectionId === currentSectionId);
@@ -546,7 +587,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     for (const q of paletteQuestions) {
       const s = questionStates.get(q.id);
       if (!s || !s.visited) { notVisited++; continue; }
-      const hasSaved = s.savedOption !== null;
+      const hasSaved = s.savedOptionId !== null;
       if (s.isMarkedForReview && hasSaved) answeredMarked++;
       else if (s.isMarkedForReview) markedOnly++;
       else if (hasSaved) answered++;
@@ -568,21 +609,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   if (sessionExpired && (loading || !testConfig)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
-          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-50 flex items-center justify-center">
-            <svg className="w-7 h-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-bold text-[#2D1B69] mb-2">Session Expired</h3>
-          <p className="text-sm text-gray-500 mb-6">Please log in again to continue.</p>
-          <button
-            onClick={() => { window.location.href = `/login?from=${encodeURIComponent(`/testhub/tests/${testId}/attempt`)}`; }}
-            className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-medium hover:bg-[var(--brand-primary-hover)]"
-          >
-            Log In
-          </button>
-        </div>
+        <SessionExpiredCard testId={testId} />
       </div>
     );
   }
@@ -620,23 +647,28 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   const currentQ = questions[currentIndex];
   const currentState = currentQ ? questionStates.get(currentQ.id) : null;
   const lang = attemptMeta?.language ?? "EN";
-  const qText = lang === "TE" ? currentQ?.questionText_te : currentQ?.questionText_en;
-  const options = currentQ
-    ? [
-        { key: "A", text: lang === "TE" ? currentQ.optionA_te : currentQ.optionA_en },
-        { key: "B", text: lang === "TE" ? currentQ.optionB_te : currentQ.optionB_en },
-        { key: "C", text: lang === "TE" ? currentQ.optionC_te : currentQ.optionC_en },
-        { key: "D", text: lang === "TE" ? currentQ.optionD_te : currentQ.optionD_en },
-      ]
-    : [];
 
-  // ── Palette content ────────────────────────────────────────────────────────
+  const qText = currentQ
+    ? (lang === "TE" ? currentQ.stemTe : currentQ.stemEn)
+    : "";
+
+  const renderedOptions = currentQ?.options.map((opt, idx) => ({
+    id: opt.id,
+    label: indexToLetter(idx),
+    text: lang === "TE" ? opt.textTe : opt.textEn,
+  })) ?? [];
+
+  const currentSectionTitle = currentSectionId
+    ? sections.find((s) => s.id === currentSectionId)?.title
+    : null;
+
+  // ── Palette ────────────────────────────────────────────────────────────────
 
   const paletteContent = (
     <div>
       {testConfig?.sectionsEnabled && sections.length > 0 && (
         <div className="mb-3">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Section</p>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Jump to section</p>
           <div className="flex flex-wrap gap-1">
             {sections.map((sec) => (
               <button
@@ -667,17 +699,17 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
       </div>
 
       <div className="grid grid-cols-5 gap-2">
-        {paletteQuestions.map((q, paletteIdx) => {
+        {paletteQuestions.map((q) => {
           const globalIdx = questions.indexOf(q);
           const s = questionStates.get(q.id);
-          const hasSavedAndMarked = s?.isMarkedForReview && s?.savedOption !== null;
+          const hasSavedAndMarked = s?.isMarkedForReview && s?.savedOptionId !== null;
           return (
             <button
               key={q.id}
               onClick={() => { navigateTo(globalIdx); setPaletteOpen(false); }}
-              className={`relative w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${getStatusColor(q.id, globalIdx)} ${globalIdx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
+              className={`relative w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${getStatusColor(q.id, globalIdx === currentIndex)} ${globalIdx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
             >
-              {q.order}
+              {q.displayOrder}
               {hasSavedAndMarked && (
                 <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full flex items-center justify-center">
                   <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -708,8 +740,8 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
       <div className="bg-[#2D1B69] text-white py-2.5 px-4 flex-shrink-0">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h1 className="text-sm font-semibold truncate">{testConfig?.name}</h1>
-            <p className="text-[10px] text-purple-200">{testConfig?.code}</p>
+            <h1 className="text-sm font-semibold truncate">{testConfig?.title}</h1>
+            {testConfig?.code && <p className="text-[10px] text-purple-200">{testConfig.code}</p>}
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -720,8 +752,8 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
               <button
                 onClick={handlePause}
                 disabled={pausing}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors disabled:opacity-50"
                 title="Pause test"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-medium transition-colors disabled:opacity-50"
               >
                 <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
@@ -731,9 +763,9 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             )}
 
             {/* Timers */}
-            <div className="flex items-center gap-1.5">
-              {/* Section timer */}
-              {testConfig?.sectionsEnabled && sectionTimeLeft !== null && (
+            <div className="flex items-center gap-2">
+              {/* Section timer (shown when timerMode = SECTION or SUBSECTION) */}
+              {testConfig?.sectionsEnabled && sectionTimeLeft !== null && testConfig.timerMode !== "TOTAL" && (
                 <div className="flex flex-col items-center">
                   <div className={`font-mono text-xs font-bold px-2 py-0.5 rounded-lg ${sectionTimeLeft <= 120 ? "bg-orange-500/30 text-orange-200" : "bg-white/10"}`}>
                     {formatTime(sectionTimeLeft)}
@@ -747,7 +779,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
                 <div className={`font-mono text-sm font-bold px-3 py-1 rounded-lg ${timeLeft <= 300 ? "bg-red-500/20 text-red-200 animate-pulse" : "bg-white/10"}`}>
                   {formatTime(timeLeft)}
                 </div>
-                {testConfig?.sectionsEnabled && sectionTimeLeft !== null && (
+                {testConfig?.sectionsEnabled && sectionTimeLeft !== null && testConfig.timerMode !== "TOTAL" && (
                   <span className="text-[8px] text-purple-300 mt-0.5">Total</span>
                 )}
               </div>
@@ -756,13 +788,13 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         </div>
       </div>
 
-      {/* ── Section cards ── */}
+      {/* ── Section cards bar ── */}
       {testConfig?.sectionsEnabled && sections.length > 0 && (
         <div className="bg-white border-b border-gray-200 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto no-scrollbar">
             {sections.map((sec) => {
-              const sectionQs = questions.filter((q) => q.sectionId === sec.id);
-              const sectionAnswered = sectionQs.filter((q) => questionStates.get(q.id)?.savedOption !== null).length;
+              const secQs = questions.filter((q) => q.sectionId === sec.id);
+              const secAnswered = secQs.filter((q) => questionStates.get(q.id)?.savedOptionId !== null).length;
               const isActive = sec.id === currentSectionId;
               return (
                 <button
@@ -778,7 +810,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
                     {sec.title}
                   </span>
                   <span className="text-[10px] text-gray-400 mt-0.5">
-                    {sectionAnswered}/{sectionQs.length} answered
+                    {secAnswered}/{secQs.length} answered
                     {sec.durationSec ? ` · ${Math.round(sec.durationSec / 60)}m` : ""}
                   </span>
                 </button>
@@ -803,33 +835,33 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-6 mb-4">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
-                  Question {currentQ?.order ?? currentIndex + 1} of {questions.length}
+                  Question {currentQ?.displayOrder ?? currentIndex + 1} of {questions.length}
                 </span>
-                {testConfig?.sectionsEnabled && currentSectionId && (
+                {currentSectionTitle && (
                   <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full">
-                    {sections.find((s) => s.id === currentSectionId)?.title ?? ""}
+                    {currentSectionTitle}
                   </span>
                 )}
               </div>
               <span className="text-xs text-gray-400">
-                +{testConfig?.marksPerQuestion} / -{testConfig?.negativeMarking}
+                +{testConfig?.marksPerQuestion} / -{testConfig?.negativeMarks}
               </span>
             </div>
 
             <div
               className="text-[15px] text-gray-800 leading-relaxed mb-6"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText) }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText ?? "") }}
             />
 
             <div className="space-y-3">
-              {options.map((opt) => {
-                const isSelected = currentState?.draftOption === opt.key;
+              {renderedOptions.map((opt) => {
+                const isSelected = currentState?.draftOptionId === opt.id;
                 return (
                   <button
-                    key={opt.key}
-                    onClick={() => selectOption(opt.key)}
+                    key={opt.id}
+                    onClick={() => selectOption(opt.id)}
                     className={`w-full text-left p-3.5 rounded-xl border-2 transition-all text-sm ${
                       isSelected
                         ? "border-purple-400 bg-purple-50/50"
@@ -839,9 +871,9 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
                     <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold mr-3 flex-shrink-0 ${
                       isSelected ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-600"
                     }`}>
-                      {opt.key}
+                      {opt.label}
                     </span>
-                    <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text) }} />
+                    <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text ?? "") }} />
                   </button>
                 );
               })}
@@ -862,10 +894,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           )}
 
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={clearResponse}
-              className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-            >
+            <button onClick={clearResponse} className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
               Clear Response
             </button>
             <button
@@ -884,7 +913,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             </button>
           </div>
 
-          {/* Mobile palette toggle */}
+          {/* Mobile palette */}
           <div className="md:hidden mt-4">
             <button
               onClick={() => setPaletteOpen(!paletteOpen)}
@@ -892,11 +921,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             >
               <span className="font-medium text-gray-700">
                 Question Palette
-                {testConfig?.sectionsEnabled && currentSectionId && (
-                  <span className="ml-1 text-xs text-gray-400">
-                    — {sections.find((s) => s.id === currentSectionId)?.title}
-                  </span>
-                )}
+                {currentSectionTitle && <span className="ml-1 text-xs text-gray-400">— {currentSectionTitle}</span>}
               </span>
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1 text-xs"><span className="w-2.5 h-2.5 rounded-sm bg-green-500 inline-block" />{paletteCounts.answered}</span>
@@ -919,22 +944,19 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         <div className="hidden md:block w-64 flex-shrink-0 border-l border-gray-200 bg-white p-4 sticky top-0 h-screen overflow-y-auto">
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
             Question Palette
-            {testConfig?.sectionsEnabled && currentSectionId && (
-              <span className="ml-1 normal-case font-normal text-purple-500">
-                — {sections.find((s) => s.id === currentSectionId)?.title}
-              </span>
+            {currentSectionTitle && (
+              <span className="ml-1 normal-case font-normal text-purple-500">— {currentSectionTitle}</span>
             )}
           </h3>
           {paletteContent}
 
-          {/* Summary of other sections */}
           {testConfig?.sectionsEnabled && sections.length > 1 && (
             <div className="mt-5 pt-4 border-t border-gray-100">
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">All Sections</p>
               <div className="space-y-1.5">
                 {sections.map((sec) => {
                   const secQs = questions.filter((q) => q.sectionId === sec.id);
-                  const secAnswered = secQs.filter((q) => questionStates.get(q.id)?.savedOption !== null).length;
+                  const secAnswered = secQs.filter((q) => questionStates.get(q.id)?.savedOptionId !== null).length;
                   const isActive = sec.id === currentSectionId;
                   return (
                     <button
@@ -968,7 +990,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             </div>
             <h2 className="text-xl font-bold text-[#2D1B69] mb-2">Test Paused</h2>
             <p className="text-sm text-gray-500 mb-6">
-              Your answers are saved. Click resume when you are ready to continue.
+              Your answers are saved. Click Resume when you are ready to continue.
             </p>
             <button
               onClick={handleResume}
@@ -983,25 +1005,11 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
       {/* ── Session expired overlay ── */}
       {sessionExpired && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/50 px-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
-            <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-50 flex items-center justify-center">
-              <svg className="w-7 h-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-bold text-[#2D1B69] mb-2">Session Expired</h3>
-            <p className="text-sm text-gray-500 mb-6">Please log in again to continue.</p>
-            <button
-              onClick={() => { window.location.href = `/login?from=${encodeURIComponent(`/testhub/tests/${testId}/attempt`)}`; }}
-              className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-medium hover:bg-[var(--brand-primary-hover)]"
-            >
-              Log In
-            </button>
-          </div>
+          <SessionExpiredCard testId={testId} />
         </div>
       )}
 
-      {/* ── Submit confirmation dialog ── */}
+      {/* ── Submit confirm dialog ── */}
       {showSubmitConfirm && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 px-4" onClick={() => setShowSubmitConfirm(false)}>
           <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6" onClick={(e) => e.stopPropagation()}>
@@ -1011,12 +1019,9 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
               <p>Unanswered: <strong className="text-red-500">{allCounts.unattempted + allCounts.notVisited}</strong></p>
               <p>Marked for Review: <strong className="text-purple-600">{allCounts.markedOnly + allCounts.answeredMarked}</strong></p>
             </div>
-            <p className="text-xs text-gray-400 mb-6">Any unsaved selections will be auto-saved before submission.</p>
+            <p className="text-xs text-gray-400 mb-6">Any unsaved selections will be flushed before submission.</p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setShowSubmitConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50"
-              >
+              <button onClick={() => setShowSubmitConfirm(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50">
                 Continue Test
               </button>
               <button
@@ -1030,6 +1035,30 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function SessionExpiredCard({ testId }: { testId: string }) {
+  return (
+    <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
+      <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-50 flex items-center justify-center">
+        <svg className="w-7 h-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+        </svg>
+      </div>
+      <h3 className="text-lg font-bold text-[#2D1B69] mb-2">Session Expired</h3>
+      <p className="text-sm text-gray-500 mb-6">Please log in again to continue.</p>
+      <button
+        onClick={() => {
+          window.location.href = `/login?from=${encodeURIComponent(`/testhub/tests/${testId}/attempt`)}`;
+        }}
+        className="w-full py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-sm font-medium hover:bg-[var(--brand-primary-hover)]"
+      >
+        Log In
+      </button>
     </div>
   );
 }
