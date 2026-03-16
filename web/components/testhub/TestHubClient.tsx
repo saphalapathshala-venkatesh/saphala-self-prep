@@ -26,7 +26,17 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
       ? tests
       : tests.filter((t) => t.category === selectedCategory);
 
+  function formatScheduledDate(iso: string): string {
+    return new Date(iso).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+
   function handleAttempt(test: StudentTestItem) {
+    if (test.scheduledUntil) return;
+
     if (isAuthed === false) {
       setLoginModalTestId(test.id);
       return;
@@ -61,8 +71,9 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTests.map((test) => {
-            const isLocked = test.accessState === "locked";
-            const isPurchased = test.accessState === "purchased";
+            const isScheduled = !!test.scheduledUntil;
+            const isLocked = !isScheduled && test.accessState === "locked";
+            const isPurchased = !isScheduled && test.accessState === "purchased";
 
             return (
               <div
@@ -77,7 +88,14 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
                       <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
                         {test.category || "General"}
                       </span>
-                      {isLocked ? (
+                      {isScheduled ? (
+                        <span className="flex items-center gap-1 text-xs font-medium text-orange-700 bg-orange-50 px-2.5 py-1 rounded-full">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+                          </svg>
+                          Coming Soon
+                        </span>
+                      ) : isLocked ? (
                         <span className="flex items-center gap-1 text-xs font-medium text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -122,14 +140,16 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
 
                   <button
                     onClick={() => !test.attemptsExhausted && handleAttempt(test)}
-                    disabled={!isLocked && test.attemptsExhausted}
+                    disabled={isScheduled || (!isLocked && test.attemptsExhausted)}
                     className={`w-full text-sm py-2.5 mt-4 btn-glossy-primary ${
-                      !isLocked && test.attemptsExhausted
+                      isScheduled || (!isLocked && test.attemptsExhausted)
                         ? "opacity-50 cursor-not-allowed"
                         : ""
                     }`}
                   >
-                    {isLocked
+                    {isScheduled
+                      ? `Available ${formatScheduledDate(test.scheduledUntil!)}`
+                      : isLocked
                       ? "View Access"
                       : test.attemptsExhausted
                       ? "Attempts Exhausted"
@@ -139,6 +159,11 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
                       ? "Reattempt"
                       : "Start Test"}
                   </button>
+                  {isScheduled && (
+                    <p className="text-center text-xs text-orange-400 mt-2">
+                      Opens on {formatScheduledDate(test.scheduledUntil!)}
+                    </p>
+                  )}
                   {isLocked && (
                     <p className="text-center text-xs text-gray-400 mt-2">Premium plan required</p>
                   )}

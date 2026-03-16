@@ -361,6 +361,7 @@ model Test {
   categoryId               String?
   subjectIds               String[]          @default([])
   syllabusTags             String[]          @default([])
+  unlockAt                 DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   sections     TestSection[]
@@ -468,6 +469,7 @@ model FlashcardDeck {
   subtopicId     String?
   subtopic       Subtopic? @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
   isPublished    Boolean @default(false)
+  unlockAt       DateTime?
   createdById    String
   createdBy      User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt      DateTime @default(now())
@@ -509,6 +511,7 @@ model ContentPage {
   body        String
   isPublished Boolean @default(false)
   publishedAt DateTime?
+  unlockAt    DateTime?
   createdById String
   createdBy   User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt   DateTime @default(now())
@@ -530,6 +533,7 @@ model PdfAsset {
   isDownloadable Boolean @default(true)
   isPublished  Boolean @default(false)
   publishedAt  DateTime?
+  unlockAt     DateTime?
   createdById  String
   createdBy    User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt    DateTime @default(now())

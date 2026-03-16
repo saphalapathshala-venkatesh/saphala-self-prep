@@ -27,6 +27,7 @@ The student frontend shares its database with the admin app. The admin app **own
 **Key schema facts:**
 - `Test.accessType` does **NOT** exist in the DB. The admin app uses `Test.isFree Boolean` instead. `accessType: "FREE" | "LOCKED"` is a DERIVED TypeScript value computed from `Test.isFree` in `testhubDb.ts`. Never add `accessType` back to the Prisma schema.
 - `TestSeries.isFree Boolean @default(false)` controls series-level free access — when true, all published tests in that series are freely accessible.
+- `unlockAt DateTime?` is present on `Test`, `ContentPage`, `FlashcardDeck`, and `PdfAsset`. When set to a future timestamp, the item is treated as "scheduled" and blocked from student access until that date. Tests show a "Coming Soon" / "Available [date]" badge in TestHub and a "Not Yet Available" page at the brief URL. Content library items (ebooks, PDFs, flashcard decks) are filtered out of listings and return null on direct access.
 - Student-frontend runtime fields on `Test`: `code`, `languageAvailable`, `marksPerQuestion`, `negativeMarksPerQuestion`, `attemptsAllowed`, `subjectIds`, `syllabusTags` — these are in the DB and schema.
 - Bilingual fields on `Question` (`stemEn`, `stemTe`, `explanationEn`, `explanationTe`) and `QuestionOption` (`textEn`, `textTe`) are nullable; `getDbQuestionsForTest` falls back to `stem`/`text` when null.
 

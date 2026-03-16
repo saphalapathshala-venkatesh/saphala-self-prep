@@ -36,6 +36,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Test is not available." }, { status: 404 });
   }
 
+  // Guard: test not yet unlocked
+  if (test.scheduledUntil) {
+    return Response.json({ error: "This test is not yet available." }, { status: 403 });
+  }
+
   // Guard: if the test belongs to a series, that series must also be published
   if (test.seriesIsPublished === false) {
     return Response.json({ error: "Test is not available." }, { status: 404 });

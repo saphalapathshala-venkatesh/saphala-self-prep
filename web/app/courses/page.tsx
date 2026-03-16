@@ -34,7 +34,10 @@ export default async function CoursesPage() {
         },
       }),
       prisma.pdfAsset.findMany({
-        where: { isPublished: true },
+        where: {
+          isPublished: true,
+          OR: [{ unlockAt: null }, { unlockAt: { lte: new Date() } }],
+        },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
@@ -44,7 +47,10 @@ export default async function CoursesPage() {
         },
       }),
       prisma.flashcardDeck.findMany({
-        where: { isPublished: true },
+        where: {
+          isPublished: true,
+          OR: [{ unlockAt: null }, { unlockAt: { lte: new Date() } }],
+        },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
@@ -55,7 +61,10 @@ export default async function CoursesPage() {
         },
       }),
       prisma.contentPage.findMany({
-        where: { isPublished: true },
+        where: {
+          isPublished: true,
+          OR: [{ unlockAt: null }, { unlockAt: { lte: new Date() } }],
+        },
         orderBy: { createdAt: "desc" },
         select: {
           id: true,

@@ -30,6 +30,37 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
     );
   }
 
+  // Guard: test not yet available (scheduled unlock)
+  if (test.scheduledUntil) {
+    const openDate = new Date(test.scheduledUntil).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+    return (
+      <main className="min-h-screen flex flex-col bg-gray-50">
+        <Header />
+        <div className="flex-grow flex items-center justify-center py-10 px-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 max-w-lg w-full p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-orange-50 flex items-center justify-center">
+              <svg className="w-8 h-8 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-[#2D1B69] mb-3">Not Yet Available</h2>
+            <p className="text-gray-500 text-sm mb-2">{test.title}</p>
+            <p className="text-gray-400 text-sm mb-8">
+              This test opens on <span className="font-semibold text-gray-600">{openDate}</span>. Check back then.
+            </p>
+            <Link href="/testhub" className="btn-glossy-primary px-8 py-3">
+              Back to Tests
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   // Guard: series must be published (if test belongs to a series)
   if (test.seriesIsPublished === false) {
     return (

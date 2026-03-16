@@ -74,6 +74,8 @@ export interface DbTest {
   subjectIds: string[];
   publishedAt: Date | null;
   isPublished: boolean;
+  /** ISO string when unlockAt is in the future; null otherwise */
+  scheduledUntil: string | null;
 }
 
 export interface DbQuestion {
@@ -138,6 +140,7 @@ function mapToDbTest(
     subjectIds: string[];
     publishedAt: Date | null;
     isPublished: boolean;
+    unlockAt: Date | null;
     series?: {
       title: string;
       categoryId: string | null;
@@ -188,6 +191,10 @@ function mapToDbTest(
     subjectIds: test.subjectIds,
     publishedAt: test.publishedAt,
     isPublished: test.isPublished,
+    scheduledUntil:
+      test.unlockAt && test.unlockAt > new Date()
+        ? test.unlockAt.toISOString()
+        : null,
   };
 }
 
@@ -337,6 +344,8 @@ export interface StudentTestItem {
   completedAttempts: number;
   hasActiveAttempt: boolean;
   attemptsExhausted: boolean;
+  /** ISO string when unlockAt is in the future; null otherwise */
+  scheduledUntil: string | null;
 }
 
 export async function getAllPublishedTests(): Promise<DbTest[]> {
@@ -449,6 +458,7 @@ export async function getPublishedTestsForStudent(userId?: string): Promise<Stud
       completedAttempts: completed,
       hasActiveAttempt: hasActive,
       attemptsExhausted: !hasActive && completed >= t.attemptsAllowed,
+      scheduledUntil: t.scheduledUntil,
     };
   });
 }

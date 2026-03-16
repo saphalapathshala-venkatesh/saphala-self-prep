@@ -64,8 +64,12 @@ export interface LessonDetail extends PublishedLesson {
 }
 
 export async function getPublishedLessons(): Promise<PublishedLesson[]> {
+  const now = new Date();
   const pages = await prisma.contentPage.findMany({
-    where: { isPublished: true },
+    where: {
+      isPublished: true,
+      OR: [{ unlockAt: null }, { unlockAt: { lte: now } }],
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -112,6 +116,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
       body: true,
       isPublished: true,
       publishedAt: true,
+      unlockAt: true,
       subtopic: {
         select: {
           name: true,
@@ -132,6 +137,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
   });
 
   if (!page || !page.isPublished) return null;
+  if (page.unlockAt && page.unlockAt > new Date()) return null;
 
   return {
     id: page.id,
@@ -164,8 +170,12 @@ export interface PublishedPdf {
 }
 
 export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
+  const now = new Date();
   const pdfs = await prisma.pdfAsset.findMany({
-    where: { isPublished: true },
+    where: {
+      isPublished: true,
+      OR: [{ unlockAt: null }, { unlockAt: { lte: now } }],
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -234,8 +244,12 @@ export interface DeckDetail extends PublishedDeck {
 }
 
 export async function getPublishedDecks(): Promise<PublishedDeck[]> {
+  const now = new Date();
   const decks = await prisma.flashcardDeck.findMany({
-    where: { isPublished: true },
+    where: {
+      isPublished: true,
+      OR: [{ unlockAt: null }, { unlockAt: { lte: now } }],
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -281,6 +295,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
       title: true,
       description: true,
       isPublished: true,
+      unlockAt: true,
       categoryId: true,
       subjectId: true,
       topicId: true,
@@ -299,6 +314,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
   });
 
   if (!deck || !deck.isPublished) return null;
+  if (deck.unlockAt && deck.unlockAt > new Date()) return null;
 
   const unique = <T>(arr: (T | null | undefined)[]) =>
     [...new Set(arr.filter((x): x is T => x != null))];
