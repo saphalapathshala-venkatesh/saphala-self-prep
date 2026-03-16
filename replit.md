@@ -89,6 +89,16 @@ Legal constants like `LEGAL_VERSION`, `LEGAL_TERMS_URL`, and `LEGAL_REFUND_URL` 
 ### Route Protection
 `proxy.ts` is the **Next.js 16 equivalent of `middleware.ts`** — it runs at the edge and redirects unauthenticated guests from protected routes to `/login?from=<path>`. Protected paths: `/dashboard`, `/learn`, `/admin`. `/courses` and all public pages are intentionally unprotected at the edge. Auth for TestHub is handled inside its own API and page layers. Do NOT create a `middleware.ts` — Next.js 16 uses `proxy.ts` and will throw a conflict error if both exist.
 
+### Forgot Password Flow
+Students can reset their password at `/forgot-password` without email or SMS:
+1. Enter registered email/mobile + last 4 digits of their registered mobile number
+2. If verified, a short-lived HMAC-SHA256 reset token (15-minute TTL) is returned to the client
+3. Student enters new password + confirm → server validates token, updates `passwordHash`, revokes all sessions via `prisma.session.deleteMany`
+4. Student is redirected to login with success message
+- Routes: `POST /api/auth/forgot-password/verify`, `POST /api/auth/forgot-password/reset`
+- Token: HMAC-SHA256 signed with a secret derived from `DATABASE_URL`, encodes `userId|expires|nonce`
+- No email, no SMS, no DB table for tokens, no schema changes required
+
 ### Auth Hardening (2026-03-16)
 - `getSession()` now checks `revokedAt: null` — admin-revoked sessions are immediately invalid
 - `getCurrentUser()` and `getCurrentUserAndSession()` now re-check `isBlocked`, `isActive`, `deletedAt`, `infringementBlocked` on every request — users blocked after login are denied access immediately

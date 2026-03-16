@@ -63,6 +63,30 @@ Run this checklist before every deploy and after any auth-related change.
 
 ---
 
+## 9. Forgot Password — valid flow
+- [ ] Navigate to `/login`, click "Forgot password?"
+- [ ] Confirm: redirect to `/forgot-password`
+- [ ] Enter registered email/mobile and correct last 4 digits of mobile
+- [ ] Confirm: Step 2 (set new password) appears
+- [ ] Enter new password (8+ chars, 1 letter, 1 number) and confirm it
+- [ ] Confirm: success screen "Password reset successful. Please log in with your new password."
+- [ ] Navigate to `/login`, log in with OLD password → confirm: fails with "Incorrect email/mobile or password."
+- [ ] Log in with NEW password → confirm: succeeds normally
+
+## 10. Forgot Password — verification failure
+- [ ] Navigate to `/forgot-password`
+- [ ] Enter valid identifier but wrong last 4 digits
+- [ ] Confirm: red error "Details do not match our records."
+- [ ] Confirm: NO password is changed
+
+## 11. Forgot Password — expired token
+- [ ] Complete Step 1 (identity verify) to get a reset token
+- [ ] Wait 16+ minutes (or mock token with past expiry)
+- [ ] Attempt to submit Step 2
+- [ ] Confirm: error "Reset link is invalid or has expired. Please start over."
+
+---
+
 ## Notes
 - Session idle timeout: **15 minutes** — sessions expire after 15 min of inactivity (rolling window per request)
 - Cookie max-age: **7 days** — cookie stays in browser; DB session must still be valid
