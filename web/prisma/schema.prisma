@@ -241,11 +241,10 @@ model Question {
   difficulty   DifficultyLevel
   status       QuestionStatus @default(DRAFT)
   stem         String
-  stemEn       String?
-  stemTe       String?
-  explanation  String?
-  explanationEn String?
-  explanationTe String?
+  // Admin bilingual columns: stem = primary language, stemSecondary = secondary language
+  stemSecondary    String?
+  explanation      String?
+  explanationSecondary String?
   tags         String[]       @default([])
   contentHash  String         @unique
   options      QuestionOption[]
@@ -262,8 +261,8 @@ model QuestionOption {
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   text       String
-  textEn     String?
-  textTe     String?
+  // Admin bilingual column: text = primary language, textSecondary = secondary language
+  textSecondary String?
   isCorrect  Boolean  @default(false)
   order      Int
   @@index([questionId])
@@ -345,7 +344,7 @@ model Test {
   xpValue              Int      @default(0)
   testStartTime        DateTime?
   // Computed/denormalized question count
-  totalQuestions       Int      @default(0)
+  totalQuestions       Int?     @default(0)
   isPublished  Boolean  @default(false)
   publishedAt  DateTime?
   createdById  String
@@ -357,8 +356,8 @@ model Test {
   // See also TestSeries.isFree which unlocks all child tests.
   isFree                   Boolean           @default(false)
   languageAvailable        LanguageAvailable @default(BOTH)
-  marksPerQuestion         Float             @default(1)
-  negativeMarksPerQuestion Float             @default(0)
+  marksPerQuestion         Float?            @default(1)
+  negativeMarksPerQuestion Float?            @default(0)
   attemptsAllowed          Int               @default(2)
   categoryId               String?
   subjectIds               String[]          @default([])

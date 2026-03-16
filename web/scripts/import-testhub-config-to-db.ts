@@ -216,15 +216,13 @@ async function main() {
             difficulty: difficultyMap(ct.difficulty),
             status: "APPROVED",
             stem: stemEn || stemTe || "",
-            stemEn: stemEn || null,
-            stemTe: stemTe || null,
+            stemSecondary: stemTe || null,
             subjectId: q.subjectId,
             contentHash: hash,
             options: {
               create: q.options.map((opt, idx) => ({
                 text: opt.en || opt.te || "",
-                textEn: opt.en || null,
-                textTe: opt.te || null,
+                textSecondary: opt.te || null,
                 isCorrect: idx === q.correct,
                 order: idx,
               })),

@@ -154,8 +154,8 @@ function mapToDbTest(
     isFree: boolean;
     allowPause: boolean;
     strictSectionMode: boolean;
-    marksPerQuestion: number;
-    negativeMarksPerQuestion: number;
+    marksPerQuestion: number | null;
+    negativeMarksPerQuestion: number | null;
     attemptsAllowed: number;
     languageAvailable: string;
     subjectIds: string[];
@@ -182,12 +182,12 @@ function mapToDbTest(
   // that may remain 0 when admin hasn't synced them.
   const firstTq = test.questions[0];
   const effectiveMarksPerQ =
-    test.marksPerQuestion > 0
-      ? test.marksPerQuestion
+    (test.marksPerQuestion ?? 0) > 0
+      ? test.marksPerQuestion!
       : (firstTq?.marks ?? 1);
   const effectiveNegMarks =
-    test.negativeMarksPerQuestion > 0
-      ? test.negativeMarksPerQuestion
+    (test.negativeMarksPerQuestion ?? 0) > 0
+      ? test.negativeMarksPerQuestion!
       : (firstTq?.negativeMarks ?? 0);
 
   return {
@@ -329,15 +329,15 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
         ? (subjectNameMap.get(q.subjectId) ?? q.subjectId.charAt(0).toUpperCase() + q.subjectId.slice(1))
         : null,
       correctOptionOrder: correctIdx >= 0 ? correctIdx : 0,
-      questionText_en: q.stemEn ?? q.stem,
-      questionText_te: q.stemTe ?? q.stemEn ?? q.stem,
-      explanation_en: q.explanationEn ?? q.explanation ?? null,
-      explanation_te: q.explanationTe ?? q.explanationEn ?? q.explanation ?? null,
+      questionText_en: q.stem,
+      questionText_te: q.stemSecondary ?? q.stem,
+      explanation_en: q.explanation ?? null,
+      explanation_te: q.explanationSecondary ?? q.explanation ?? null,
       options: q.options.map((o) => ({
         id: o.id,
         order: o.order,
-        textEn: o.textEn ?? o.text,
-        textTe: o.textTe ?? o.textEn ?? o.text,
+        textEn: o.text,
+        textTe: o.textSecondary ?? o.text,
         isCorrect: o.isCorrect,
       })),
     };
