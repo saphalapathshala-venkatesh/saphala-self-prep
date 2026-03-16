@@ -87,7 +87,14 @@ A database-driven server component that dynamically queries and displays publish
 Legal constants like `LEGAL_VERSION`, `LEGAL_TERMS_URL`, and `LEGAL_REFUND_URL` are defined in `web/config/legal.ts` and used across the platform for signup and future checkout flows. Policy pages exist as placeholders.
 
 ### Route Protection
-A `proxy.ts` middleware redirects unauthenticated guests from protected routes to `/login?from=<path>`. Protected paths: `/dashboard`, `/learn`, `/admin`. `/courses` and all public pages are intentionally unprotected at the edge. Auth for TestHub is handled inside its own API and page layers.
+`proxy.ts` is the **Next.js 16 equivalent of `middleware.ts`** — it runs at the edge and redirects unauthenticated guests from protected routes to `/login?from=<path>`. Protected paths: `/dashboard`, `/learn`, `/admin`. `/courses` and all public pages are intentionally unprotected at the edge. Auth for TestHub is handled inside its own API and page layers. Do NOT create a `middleware.ts` — Next.js 16 uses `proxy.ts` and will throw a conflict error if both exist.
+
+### Auth Hardening (2026-03-16)
+- `getSession()` now checks `revokedAt: null` — admin-revoked sessions are immediately invalid
+- `getCurrentUser()` and `getCurrentUserAndSession()` now re-check `isBlocked`, `isActive`, `deletedAt`, `infringementBlocked` on every request — users blocked after login are denied access immediately
+- Login API returns explicit `code` fields: `ACCOUNT_BLOCKED`, `ACCOUNT_INACTIVE`, `ACTIVE_SESSION_EXISTS`
+- LoginForm has explicit code-based error handling for all three codes
+- `AUTH_SMOKE_TEST.md` in web/ is the reference checklist for pre-deploy auth verification
 
 ## External Dependencies
 

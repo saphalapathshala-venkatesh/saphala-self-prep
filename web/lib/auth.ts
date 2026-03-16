@@ -8,6 +8,21 @@ function generateToken(): string {
   return randomBytes(32).toString("hex");
 }
 
+const USER_SELECT = {
+  id: true,
+  email: true,
+  mobile: true,
+  role: true,
+  fullName: true,
+  gender: true,
+  state: true,
+  createdAt: true,
+  isBlocked: true,
+  isActive: true,
+  deletedAt: true,
+  infringementBlocked: true,
+} as const;
+
 export async function getCurrentUser() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
@@ -21,11 +36,18 @@ export async function getCurrentUser() {
     return null;
   }
 
-  const user = await prisma.user.findUnique({
+  const raw = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, email: true, mobile: true, role: true, fullName: true, gender: true, state: true, createdAt: true },
+    select: USER_SELECT,
   });
 
+  if (!raw) return null;
+
+  if (raw.deletedAt || raw.isBlocked || raw.infringementBlocked || !raw.isActive) {
+    return null;
+  }
+
+  const { isBlocked: _b, isActive: _a, deletedAt: _d, infringementBlocked: _i, ...user } = raw;
   return user;
 }
 
@@ -40,12 +62,18 @@ export async function getCurrentUserAndSession(): Promise<{
   const session = await getSession(sessionCookie.value);
   if (!session) return null;
 
-  const user = await prisma.user.findUnique({
+  const raw = await prisma.user.findUnique({
     where: { id: session.userId },
-    select: { id: true, email: true, mobile: true, role: true, fullName: true, gender: true, state: true, createdAt: true },
+    select: USER_SELECT,
   });
-  if (!user) return null;
 
+  if (!raw) return null;
+
+  if (raw.deletedAt || raw.isBlocked || raw.infringementBlocked || !raw.isActive) {
+    return null;
+  }
+
+  const { isBlocked: _b, isActive: _a, deletedAt: _d, infringementBlocked: _i, ...user } = raw;
   return { user, sessionToken: sessionCookie.value };
 }
 

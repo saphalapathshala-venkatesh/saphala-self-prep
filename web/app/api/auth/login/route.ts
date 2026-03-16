@@ -74,7 +74,10 @@ export async function POST(request: NextRequest) {
     if (user.isBlocked || user.infringementBlocked) {
       console.log(`[login] Rejected — user ${user.id} is blocked (isBlocked=${user.isBlocked}, infringementBlocked=${user.infringementBlocked})`);
       return NextResponse.json(
-        { error: "Your account has been suspended. Please contact support." },
+        {
+          error: "Your account has been blocked. Please contact support.",
+          code: "ACCOUNT_BLOCKED",
+        },
         { status: 403 }
       );
     }
@@ -83,7 +86,10 @@ export async function POST(request: NextRequest) {
     if (!user.isActive) {
       console.log(`[login] Rejected — user ${user.id} is inactive`);
       return NextResponse.json(
-        { error: "Your account is inactive. Please contact support." },
+        {
+          error: "Your account is inactive. Please contact support.",
+          code: "ACCOUNT_INACTIVE",
+        },
         { status: 403 }
       );
     }

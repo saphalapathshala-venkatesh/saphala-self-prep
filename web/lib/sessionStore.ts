@@ -31,6 +31,7 @@ export async function getSession(token: string): Promise<Session | null> {
       where: {
         id: token,
         expiresAt: { gt: now },
+        revokedAt: null,
       },
       data: { expiresAt: newExpiresAt },
     });

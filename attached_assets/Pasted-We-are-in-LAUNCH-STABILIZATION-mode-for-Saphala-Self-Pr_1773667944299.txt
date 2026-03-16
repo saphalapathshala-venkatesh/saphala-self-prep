@@ -1,0 +1,125 @@
+We are in LAUNCH STABILIZATION mode for Saphala Self Prep. Treat auth/login/session stability as highest priority. Do not do unrelated feature work. First audit, then implement only the minimum safe changes needed to permanently reduce recurring login issues and make login errors clear to users.
+
+CONTEXT
+- Student frontend and admin app are separate apps sharing one DB
+- We have had repeated login issues after unrelated changes
+- We need login to work TODAY so we can test all products with demo content
+- One-device policy is already intended and backend enforcement may already exist
+- Current UX issue: frontend sometimes shows generic “Login failed. Please try again in a moment.” instead of the real reason
+- Real students will use this system soon, so login/auth/application-crash issues must be treated as launch blockers
+
+GOALS
+1. Make login work reliably today
+2. Stop generic login errors; show clear user-friendly messages
+3. Harden auth/session flows so unrelated feature work is less likely to break login again
+4. Add a small auth smoke-test checklist or script/workflow for future deploys
+5. Do not make risky or destructive DB changes unless absolutely necessary
+
+PHASE 1 — FULL AUDIT FIRST
+Read and audit all auth-critical files before editing anything:
+- prisma/schema.prisma
+- any Session/User/Auth-related models
+- app/api/auth/login/route.ts
+- app/api/auth/register/route.ts
+- app/api/auth/logout/route.ts
+- app/api/auth/me/route.ts
+- middleware.ts or equivalent route protection layer
+- lib/auth.ts
+- lib/prisma.ts
+- any safety/auth helper files
+- login page/form component
+- register page/form component
+- any protected student routes that commonly fail after login
+- any session cookie creation/reading logic
+- any one-device policy logic
+- any startup health check files
+- any environment/config usage related to auth/session/DB
+
+AUDIT OUTPUT REQUIRED BEFORE CHANGES
+Give a short but exact report:
+- current auth flow
+- session creation path
+- session validation path
+- cookie name and usage
+- one-device enforcement path
+- where generic login error is coming from
+- whether DB/schema drift can affect auth
+- whether blocked/inactive users are checked consistently
+- whether logout actually revokes session
+- whether protected pages fail gracefully or crash
+- whether any route uses unstable assumptions
+
+PHASE 2 — FIX LOGIN ERROR MAPPING
+Implement clear frontend mapping for backend auth error codes. The login form must NOT collapse all failures into one generic error.
+
+Map these codes cleanly:
+- INVALID_CREDENTIALS → “Incorrect email/mobile or password.”
+- ACTIVE_SESSION_EXISTS → “This account is already logged in on another device. Please log out there or contact support.”
+- ACCOUNT_BLOCKED → “Your account has been blocked. Please contact support.”
+- ACCOUNT_INACTIVE → “Your account is inactive. Please contact support.”
+- SESSION_EXPIRED → “Your session has expired. Please log in again.”
+- fallback only for real unexpected errors → “Something went wrong. Please try again in a moment.”
+
+UX RULES
+- ACTIVE_SESSION_EXISTS should use an amber/yellow warning-style card, not a generic red error
+- INVALID_CREDENTIALS should stay a normal red validation-style error
+- Do not expose raw backend codes to the user
+- Keep wording plain and student-friendly
+
+PHASE 3 — AUTH STABILITY HARDENING
+Apply only safe, focused hardening:
+- Ensure login route returns stable, explicit JSON error codes/messages
+- Ensure me/auth-session route checks revoked, expired, inactive, blocked, and valid session type consistently
+- Ensure logout revokes session properly
+- Ensure protected page access failures redirect or fail gracefully instead of crashing
+- Ensure one-device policy logic is consistent between backend and frontend UX
+- Ensure auth helpers use a single shared source of truth where possible
+- Ensure prisma singleton usage is correct
+- Ensure password hashing remains bcryptjs only
+- Ensure passwordHash is never leaked in API responses
+
+PHASE 4 — SHARED-SCHEMA / DB SAFETY
+Because admin and student apps share a DB, verify auth-critical schema safety:
+- confirm User and Session schema match actual DB
+- confirm no missing columns/constraints used by auth routes
+- do not do destructive schema edits
+- if a schema issue is found, fix it additively and explain exactly why
+
+PHASE 5 — LAUNCH SMOKE TEST SUPPORT
+Add a simple auth smoke-test checklist or lightweight script/doc for future use. It must cover:
+1. valid login
+2. wrong password
+3. blocked/inactive user behavior
+4. one-device blocked login
+5. logout then login again
+6. protected route access after login
+7. protected route redirect when logged out
+
+PHASE 6 — VERIFICATION
+After changes:
+- run TypeScript check
+- run/build app cleanly
+- verify login page loads
+- verify error mapping works
+- verify successful login works
+- verify logout works
+- verify protected route access works
+- verify one-device policy message displays correctly
+- verify no application crash on auth failure paths
+
+IMPORTANT CONSTRAINTS
+- No unrelated feature work
+- No risky refactors unless necessary
+- No destructive schema changes
+- Prefer additive, minimal, launch-safe fixes
+- Keep all changes grounded in the existing codebase
+- If any issue cannot be safely fixed today, say so clearly and isolate it
+
+FINAL OUTPUT REQUIRED
+At the end provide:
+1. root cause(s) found for recurring/generic login issue
+2. files changed
+3. exact fixes made
+4. any schema changes made
+5. auth smoke-test checklist added
+6. anything still risky or unresolved

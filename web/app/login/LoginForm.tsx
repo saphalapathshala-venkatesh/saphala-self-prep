@@ -57,8 +57,12 @@ export default function LoginForm() {
         if (data.code === "ACTIVE_SESSION_EXISTS") {
           setActiveSessionBlock(true);
           setErrors({});
+        } else if (data.code === "ACCOUNT_BLOCKED") {
+          setErrors({ general: "Your account has been blocked. Please contact support." });
+        } else if (data.code === "ACCOUNT_INACTIVE") {
+          setErrors({ general: "Your account is inactive. Please contact support." });
         } else {
-          setErrors({ general: data.error || "Login failed. Please try again." });
+          setErrors({ general: data.error || "Login failed. Please try again in a moment." });
         }
         setIsSubmitting(false);
         return;
