@@ -1,0 +1,65 @@
+Let me do the full audit first — reading all relevant files in parallel before touching anything:
+
+Let me read the rest of TestAttemptClient — the timer logic, pause handler, and the question palette rendering:
+
+Now let me check the pause route and student attempts API:
+
+Let me check the review API and get the full testhubDb getAnswersForAttempt:
+
+I now have a complete audit picture. Let me summarize and implement all 5 features:
+
+Audit findings:
+
+Radio buttons — Options render as card <button> elements, no radio circle. Easy swap.
+Section timer — Initializes from section.durationSec with no clamping against timeLeft. On pause→resume, restarts fresh instead of continuing from where it stopped. Need a frozen ref.
+Pause — The pause button and API call are correct. The root cause of "Failed to pause" was getDbTestById crashing (missing Question columns) — already fixed. Now just needs the section timer freeze improvement.
+Section palette — Already section-filtered via paletteQuestions. Just needs clearer section pills.
+Section review — Review API doesn't return sectionId per question; ReviewClient palette is flat. Needs section grouping.
+Now implementing all 5:
+
+Now fix the section timer effect (pause preservation + clamping):
+
+Now update handlePause to save the section timer before pausing:
+
+Now clamp the section timer display to never exceed the total timer:
+
+Now replace the option cards with proper radio button rows (Feature 1):
+
+Good. Now Feature 4 polish — update palette section pills label and visibility, then tackle Feature 5 review API + ReviewClient:
+
+Now update the review API to include sectionId per question and a sections array:
+
+Now add sectionId to each review question and include sections in the top-level response:
+
+Now add sections to the API response:
+
+Now update ReviewClient.tsx with section-grouped palette and section data:
+
+Now update the palette in ReviewClient.tsx to group questions by section:
+
+Let me check that currentQ is defined before paletteContent in ReviewClient:
+
+Let me verify getTestSectionsForAttempt exists in testhubDb.ts:
+
+Good - the function exists. Now let me check for TypeScript errors:
+
+Zero TypeScript errors. Let me restart the dev server to validate:
+
+All 5 features are complete and the build is clean. Here's a summary of what was done:
+
+Feature 1 — Radio button options
+Options are now rendered as proper radio rows: a radio ring on the left, the letter badge (A/B/C/D), and the option text — all in a single tappable row. When selected, the ring fills purple (#6D4BCB) with a white dot, and the row gets a purple border.
+
+Feature 2 — Section timer clamping
+The section timer display is clamped to Math.min(sectionTimeLeft, timeLeft) so it can never show more time than the overall test has remaining. A console warning fires if the mismatch occurs, making it easy to catch misconfigured tests.
+
+Feature 3 — Pause fix
+The root cause (missing DB columns crashing question loading) was already fixed. Section timer state is now frozen via frozenSectionTimeRef on pause, and restored on resume.
+
+Feature 4 — Section-aware palette pills
+Section pills in the question palette are now styled as bordered toggle buttons, show an answered/total count (e.g., 3/5), and highlight the active section in dark navy.
+
+Feature 5 — Section-wise review
+
+Review API now returns sectionId per question and a sections array.
+The review palette groups question buttons under their section headers. The currently-viewed section's header turns purple; others are grey. Tests without sections fall back to the flat grid automatically.
