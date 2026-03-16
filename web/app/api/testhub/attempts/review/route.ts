@@ -6,6 +6,7 @@ import {
   getDbQuestionsForTest,
   getAllSubmittedAnswersForQuestion,
 } from "@/lib/testhubDb";
+import { hasRealContent } from "@/lib/sanitizeHtml";
 
 export const dynamic = "force-dynamic";
 
@@ -85,8 +86,14 @@ export async function GET(request: Request) {
           text: o.textTe || "",
         })),
         correctOption: correctLetter,
-        explanation_en: `The correct answer is Option ${correctLetter}.`,
-        explanation_te: `సరైన సమాధానం ఎంపిక ${correctLetter}.`,
+        explanation_en: hasRealContent(q.explanation_en)
+          ? q.explanation_en!
+          : `The correct answer is Option ${correctLetter}.`,
+        explanation_te: hasRealContent(q.explanation_te)
+          ? q.explanation_te!
+          : (hasRealContent(q.explanation_en)
+            ? q.explanation_en!
+            : `The correct answer is Option ${correctLetter}.`),
         userSelectedOption: userSelectedLetter,
         isMarkedForReview: ans?.isMarkedForReview ?? false,
         timeSpentMs: ans?.timeSpentMs ?? 0,

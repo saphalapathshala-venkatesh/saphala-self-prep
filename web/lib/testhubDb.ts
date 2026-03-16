@@ -84,6 +84,8 @@ export interface DbQuestion {
   correctOptionOrder: number;
   questionText_en: string | null;
   questionText_te: string | null;
+  explanation_en: string | null;
+  explanation_te: string | null;
   options: {
     id: string;
     order: number;
@@ -297,6 +299,8 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
       correctOptionOrder: correctIdx >= 0 ? correctIdx : 0,
       questionText_en: q.stemEn ?? q.stem,
       questionText_te: q.stemTe ?? q.stemEn ?? q.stem,
+      explanation_en: q.explanationEn ?? q.explanation ?? null,
+      explanation_te: q.explanationTe ?? q.explanationEn ?? q.explanation ?? null,
       options: q.options.map((o) => ({
         id: o.id,
         order: o.order,

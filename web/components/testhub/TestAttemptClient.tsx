@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import InstructionsPill from "./InstructionsPill";
 import type { MockTest } from "@/config/testhub";
+import { sanitizeHtml } from "@/lib/sanitizeHtml";
 
 interface TestMeta {
   id: string;
@@ -544,7 +545,10 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
               </span>
             </div>
 
-            <p className="text-[15px] text-gray-800 leading-relaxed mb-6">{qText}</p>
+            <div
+              className="text-[15px] text-gray-800 leading-relaxed mb-6"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText) }}
+            />
 
             <div className="space-y-3">
               {options.map((opt) => {
@@ -559,12 +563,12 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
                         : "border-gray-150 hover:border-gray-300 bg-white"
                     }`}
                   >
-                    <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold mr-3 ${
+                    <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold mr-3 flex-shrink-0 ${
                       isSelected ? "bg-purple-500 text-white" : "bg-gray-100 text-gray-600"
                     }`}>
                       {opt.key}
                     </span>
-                    {opt.text}
+                    <span dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text) }} />
                   </button>
                 );
               })}

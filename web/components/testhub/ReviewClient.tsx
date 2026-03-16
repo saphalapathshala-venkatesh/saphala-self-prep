@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, XCircle, Clock, Flag, Star, ChevronDown, ChevronUp, X, MessageSquare } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/sanitizeHtml';
 
 interface OptionData {
   key: string;
@@ -265,7 +266,7 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
               onClick={() => navigateTo(filteredIdx)}
               className={`w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${color} ${filteredIdx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
             >
-              {q.order}
+              {q.order + 1}
             </button>
           );
         })}
@@ -324,7 +325,7 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
           {hasQuestions && <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 md:p-6 mb-4">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
-                Q{currentQ.order} ({currentIndex + 1} of {filteredQuestions.length})
+                Q{currentQ.order + 1} ({currentIndex + 1} of {filteredQuestions.length})
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-[10px] text-gray-400">{currentQ.subjectName}</span>
@@ -347,7 +348,10 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
               </div>
             )}
 
-            <p className="text-[15px] text-gray-800 leading-relaxed mb-6">{qText}</p>
+            <div
+              className="text-[15px] text-gray-800 leading-relaxed mb-6"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText) }}
+            />
 
             <div className="space-y-3 mb-4">
               {options.map((opt) => {
@@ -376,7 +380,10 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
                     <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold mr-3 flex-shrink-0 ${badgeClass}`}>
                       {opt.key}
                     </span>
-                    <span className="flex-grow">{opt.text}</span>
+                    <span
+                      className="flex-grow"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text) }}
+                    />
                     {icon}
                   </div>
                 );
@@ -393,11 +400,18 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
 
             {showAltLang && (
               <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-100">
-                <p className="text-sm text-gray-700 leading-relaxed mb-3">{altQText}</p>
+                <div
+                  className="text-sm text-gray-700 leading-relaxed mb-3"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(altQText) }}
+                />
                 <div className="space-y-2">
                   {altOptions.map((opt) => (
-                    <div key={opt.key} className="text-sm text-gray-600">
-                      <span className="font-medium mr-2">{opt.key}.</span>{opt.text}
+                    <div key={opt.key} className="text-sm text-gray-600 flex items-baseline gap-2">
+                      <span className="font-medium flex-shrink-0">{opt.key}.</span>
+                      <span
+                        className="prose prose-sm max-w-none"
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text) }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -405,8 +419,11 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
             )}
 
             <div className="bg-purple-50 rounded-lg p-4 mb-4 border border-purple-100">
-              <p className="text-xs font-semibold text-purple-700 mb-1">Explanation</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{explanation}</p>
+              <p className="text-xs font-semibold text-purple-700 mb-2">Explanation</p>
+              <div
+                className="text-sm text-gray-700 leading-relaxed"
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(explanation) }}
+              />
             </div>
 
             <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-100">
