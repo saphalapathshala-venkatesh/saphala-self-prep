@@ -216,7 +216,7 @@ export default function AttemptSummaryClient({ testId, attemptId }: AttemptSumma
           </div>
         )}
 
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <Link href="/testhub" className="btn-glossy-secondary flex-1 text-center py-3">
             Back to Tests
           </Link>
