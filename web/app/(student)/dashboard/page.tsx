@@ -357,24 +357,90 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
-            {/* XP Breakdown */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <div className="flex items-center gap-2 mb-1">
-                <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-                <p className="text-sm font-bold text-[#2D1B69]">XP Breakdown</p>
+            {/* XP Breakdown — redesigned */}
+            <div className="rounded-2xl overflow-hidden border border-purple-200 shadow-sm">
+
+              {/* Purple gradient header */}
+              <div
+                className="px-5 pt-5 pb-5"
+                style={{ background: "linear-gradient(135deg, #2D1B69 0%, #6D4BCB 100%)" }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-3.5 h-3.5 text-amber-300 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                  <span className="text-[10px] font-bold text-purple-200 uppercase tracking-widest">
+                    Sadhana Points
+                  </span>
+                </div>
+
+                <p className="text-3xl font-black text-white leading-none tabular-nums">
+                  {data.xpBreakdown.total.toLocaleString("en-IN")}
+                  <span className="text-base font-semibold text-purple-300 ml-2">XP</span>
+                </p>
+                <p className="text-[10px] text-purple-300 mt-1">
+                  Earned across tests, flashcards, ebooks &amp; video lessons
+                </p>
+
+                {/* Progress bar → 25 000 XP milestone */}
+                <div className="mt-4">
+                  <div className="flex items-center justify-between text-[10px] text-purple-300 mb-1.5">
+                    <span>Progress to Reward</span>
+                    <span>
+                      {Math.min(data.xpBreakdown.total, 25000).toLocaleString("en-IN")} / 25,000 XP
+                    </span>
+                  </div>
+                  <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-amber-400"
+                      style={{
+                        width: `${Math.min((data.xpBreakdown.total / 25000) * 100, 100)}%`,
+                        minWidth: data.xpBreakdown.total > 0 ? "6px" : "0",
+                      }}
+                    />
+                  </div>
+                  {data.xpBreakdown.total >= 25000 && (
+                    <p className="text-[10px] text-amber-300 font-semibold mt-1.5">
+                      🎉 Milestone reached — discount unlocked!
+                    </p>
+                  )}
+                </div>
               </div>
-              <p className="text-[10px] text-gray-400 leading-relaxed mb-4">
-                XP = Experience Points (Sadhana Points), a reward for your time, effort and hard work
-              </p>
-              <div className="space-y-2.5">
+
+              {/* Reward info banner */}
+              <div className="flex items-start gap-3 bg-amber-50 border-b border-amber-100 px-5 py-3.5">
+                <svg
+                  className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 8v13m0-13V6a4 4 0 00-4-4H5.45a2 2 0 00-1.6 3.2L6 8h6zm0 0V6a4 4 0 014-4h2.55a2 2 0 011.6 3.2L18 8h-6zm-7 0h14M5 8h14a1 1 0 011 1v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9a1 1 0 011-1z"
+                  />
+                </svg>
+                <div>
+                  <p className="text-xs font-bold text-amber-800">
+                    Unlock Course Discounts at 25,000 XP
+                  </p>
+                  <p className="text-[10px] text-amber-700 mt-0.5 leading-relaxed">
+                    Redeem your Sadhana Points for a <strong>1%–3% discount</strong> on course
+                    purchases — applied directly at checkout.
+                  </p>
+                </div>
+              </div>
+
+              {/* Breakdown rows */}
+              <div className="bg-white px-5 py-4 space-y-2.5">
                 <XpRow label="Total XP" value={data.xpBreakdown.total} bold />
                 <div className="border-t border-gray-50 pt-2.5 space-y-2.5">
-                  <XpRow label="TestHub XP" value={data.xpBreakdown.testHub} />
-                  <XpRow label="Flashcard XP" value={data.xpBreakdown.flashcards} />
-                  <XpRow label="Ebooks XP" value={data.xpBreakdown.ebooks} />
-                  <XpRow label="Pathshala XP" value={data.xpBreakdown.pathshala} />
+                  <XpRow label="TestHub" value={data.xpBreakdown.testHub} />
+                  <XpRow label="Flashcards" value={data.xpBreakdown.flashcards} />
+                  <XpRow label="Ebooks" value={data.xpBreakdown.ebooks} />
+                  <XpRow label="Pathshala" value={data.xpBreakdown.pathshala} />
                 </div>
               </div>
             </div>
