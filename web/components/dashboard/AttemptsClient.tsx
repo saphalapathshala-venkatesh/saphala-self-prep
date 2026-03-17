@@ -25,6 +25,7 @@ export interface SerializedAttempt {
 function formatDate(s: string | null): string {
   if (!s) return "—";
   return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -36,6 +37,7 @@ function formatDate(s: string | null): string {
 function formatShortDate(s: string | null): string {
   if (!s) return "—";
   return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "short",
     year: "numeric",

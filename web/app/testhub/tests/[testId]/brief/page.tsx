@@ -32,11 +32,12 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
 
   // Guard: test not yet available (scheduled unlock)
   if (test.scheduledUntil) {
-    const openDate = new Date(test.scheduledUntil).toLocaleDateString("en-IN", {
+    const openDate = new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
       day: "numeric",
       month: "long",
       year: "numeric",
-    });
+    }).format(new Date(test.scheduledUntil));
     return (
       <main className="min-h-screen flex flex-col bg-gray-50">
         <Header />

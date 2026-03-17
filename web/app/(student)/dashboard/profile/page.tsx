@@ -7,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 function formatDate(d: Date): string {
   return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "long",
     year: "numeric",

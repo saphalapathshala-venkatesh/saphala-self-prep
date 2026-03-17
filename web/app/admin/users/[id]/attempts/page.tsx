@@ -227,13 +227,14 @@ export default async function AdminUserAttemptsPage({
                     </td>
                     <td style={{ padding: "10px 14px", color: "#64748b", whiteSpace: "nowrap" }}>
                       {a.submittedAt
-                        ? new Date(a.submittedAt).toLocaleString("en-IN", {
+                        ? new Intl.DateTimeFormat("en-IN", {
+                            timeZone: "Asia/Kolkata",
                             day: "numeric",
                             month: "short",
                             year: "numeric",
                             hour: "2-digit",
                             minute: "2-digit",
-                          })
+                          }).format(new Date(a.submittedAt))
                         : "—"}
                     </td>
                   </tr>

@@ -129,13 +129,14 @@ export default async function LearnerAttemptsPage({
                         </div>
                         <div className="text-xs text-gray-400 mt-0.5">
                           {a.submittedAt
-                            ? new Date(a.submittedAt).toLocaleDateString("en-IN", {
+                            ? new Intl.DateTimeFormat("en-IN", {
+                                timeZone: "Asia/Kolkata",
                                 day: "numeric",
                                 month: "short",
                                 year: "numeric",
                                 hour: "2-digit",
                                 minute: "2-digit",
-                              })
+                              }).format(new Date(a.submittedAt))
                             : "—"}
                         </div>
                       </div>

@@ -99,13 +99,14 @@ export default function BriefClient({ test }: BriefClientProps) {
 
   if (startsOn) {
     const startDate = new Date(test.publishedAt!);
-    const formatted = startDate.toLocaleDateString("en-IN", {
+    const formatted = new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
       day: "numeric",
       month: "short",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }).format(startDate);
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 max-w-lg w-full p-8 text-center">
         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-blue-50 flex items-center justify-center">

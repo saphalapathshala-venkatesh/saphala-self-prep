@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 function formatDate(d: Date | null): string {
   if (!d) return "—";
   return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "short",
     year: "numeric",
@@ -18,6 +19,7 @@ function formatDate(d: Date | null): string {
 
 function formatMemberSince(d: Date): string {
   return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
     month: "long",
     year: "numeric",
   }).format(new Date(d));

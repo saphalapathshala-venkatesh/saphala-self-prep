@@ -27,11 +27,12 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
       : tests.filter((t) => t.category === selectedCategory);
 
   function formatScheduledDate(iso: string): string {
-    return new Date(iso).toLocaleDateString("en-IN", {
+    return new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
       day: "numeric",
       month: "short",
       year: "numeric",
-    });
+    }).format(new Date(iso));
   }
 
   function handleAttempt(test: StudentTestItem) {
