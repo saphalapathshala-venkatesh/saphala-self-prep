@@ -1,0 +1,61 @@
+You are debugging a frontend filtering issue in Saphala Self Prep.
+Problem:
+A flashcard deck is created and published in admin
+API is being called from frontend
+But the published deck is not visible in the student frontend
+This appears to be a frontend filtering / mapping / gating issue, not a DB creation issue
+Important:
+Read first, patch second
+Make the smallest safe fix
+Do not redesign UI
+Do not change Prisma schema unless absolutely necessary
+Preserve Admin → DB → API → Frontend alignment
+Phase 1 — Trace full reflection chain
+Read all relevant files involved in:
+flashcard deck listing on frontend
+student-facing flashcard API
+flashcard DB mapper/helper
+product/course entitlement gating
+taxonomy/category filtering
+publish/unlock filtering
+Inspect likely files such as:
+prisma schema
+flashcard/student API route
+testhubDb or equivalent mapping layer
+frontend flashcard listing page/component
+dashboard/product listing components if flashcards appear there
+shared types/config files
+Phase 2 — Find the exact exclusion point
+Determine exactly where the deck is getting filtered out.
+Check for these common causes:
+status: "PUBLISHED" vs isPublished === true mismatch
+parent course/product flashcardsEnabled or similar gating
+category/taxonomy mismatch (categoryId, category, slug, exam filter)
+entitlement filter hiding instead of showing locked
+unlock date / validity condition excluding valid decks
+API response property mismatch (frontend reading wrong key)
+null/undefined handling bug in filters
+Phase 3 — Fix only the real cause
+Apply the smallest safe fix at the correct layer.
+Rules:
+If API shape is correct and FE filter is wrong → fix FE filter only
+If mapper is returning wrong field names → fix mapper/API response layer
+Do not patch blindly in multiple places
+Do not remove important access control
+If unpurchased content should show as locked, preserve that behavior
+Phase 4 — Validate
+After fix, confirm:
+published flashcard deck appears in frontend
+locked/purchased state is still correct
+taxonomy/category filters still work
+unlock date logic still works
+no unrelated product listings broke
+TypeScript/build passes cleanly
+Expected report
+Return:
+exact root cause
+exact file(s) changed
+why deck was hidden
+what was fixed
+confirmation that Prisma/DB/API remain aligned
+confirmation build passes cleanly
