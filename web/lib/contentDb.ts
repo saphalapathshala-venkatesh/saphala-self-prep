@@ -59,11 +59,18 @@ export interface PublishedLesson {
   breadcrumb: LessonBreadcrumb;
 }
 
+export interface EbookChapter {
+  id: string;
+  title: string | null;
+  contentHtml: string;
+}
+
 export interface LessonDetail extends PublishedLesson {
   body: string;
   subjectColor: string | null;
   xpEnabled: boolean;
   xpValue: number;
+  chapters: EbookChapter[];
 }
 
 export async function getPublishedLessons(): Promise<PublishedLesson[]> {
@@ -172,6 +179,18 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     resolvedBody = page.body;
   }
 
+  // Build the chapters array for the paginated reader.
+  // If the ebook uses multi-chapter EBookPage rows, each is a chapter.
+  // Otherwise, the legacy body becomes a single unnamed chapter.
+  const chapters: EbookChapter[] =
+    page.ebookPages.length > 0
+      ? page.ebookPages.map((ep) => ({
+          id: ep.id,
+          title: ep.title ?? null,
+          contentHtml: ep.contentHtml,
+        }))
+      : [{ id: page.id, title: null, contentHtml: page.body }];
+
   return {
     id: page.id,
     title: page.title,
@@ -180,6 +199,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     xpEnabled: page.xpEnabled,
     xpValue: page.xpValue,
     subjectColor: null,
+    chapters,
     breadcrumb: {
       category: page.subtopic?.topic.subject.category.name ?? null,
       subject: page.subtopic?.topic.subject.name ?? null,
