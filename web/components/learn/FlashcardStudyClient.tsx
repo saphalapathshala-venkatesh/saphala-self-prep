@@ -3,7 +3,8 @@
 import { useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import type { FlashCard } from "@/lib/contentDb";
-import { BRAND, ROUTES } from "@/config/terminology";
+import { ROUTES } from "@/config/terminology";
+import BrandFooter from "@/components/learn/BrandFooter";
 import { triggerXpCelebration } from "@/lib/xpCelebration";
 
 // ── CSS variable helpers ─────────────────────────────────────────────────────
@@ -126,30 +127,8 @@ function CardShell({ subject, xpEnabled, xpValue, children }: ShellProps) {
         {children}
       </div>
 
-      {/* ── Footer — Saphala logo ── */}
-      <div className="flex items-center justify-between px-5 sm:px-6 py-2 border-t border-gray-100 bg-gray-50/80 shrink-0">
-        {/* Real Saphala logo — falls back to brand name text if image unavailable */}
-        <img
-          src="/images/saphala-logo.png"
-          alt={BRAND.name}
-          className="h-7 w-auto object-contain"
-          onError={(e) => {
-            const t = e.currentTarget;
-            t.style.display = "none";
-            const fallback = t.nextElementSibling as HTMLElement | null;
-            if (fallback) fallback.style.display = "block";
-          }}
-        />
-        <span
-          className="text-[10px] font-bold text-gray-400 uppercase tracking-wider hidden"
-          aria-hidden="true"
-        >
-          {BRAND.name}
-        </span>
-        <span className="text-[9px] text-gray-300 italic truncate ml-2 hidden sm:block">
-          {BRAND.tagline}
-        </span>
-      </div>
+      {/* ── Footer ── */}
+      <BrandFooter />
     </div>
   );
 }

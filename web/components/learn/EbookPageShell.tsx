@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { BRAND } from "@/config/terminology";
+import BrandFooter from "@/components/learn/BrandFooter";
 
 interface EbookPageShellProps {
   title: string;
@@ -101,31 +101,7 @@ export default function EbookPageShell({
       </div>
 
       {/* ── Footer ── */}
-      <div
-        className="flex items-center justify-between px-5 sm:px-6 py-2.5 border-t border-gray-100 bg-gray-50/90"
-        style={{ position: "relative", zIndex: 1 }}
-      >
-        {/* Left: brand name + tagline */}
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 leading-tight truncate">
-            {BRAND.name}
-          </p>
-          <p className="text-[9px] text-gray-400 italic leading-tight hidden sm:block truncate">
-            {BRAND.tagline}
-          </p>
-        </div>
-
-        {/* Right: Saphala logo */}
-        <img
-          src="/images/saphala-logo.png"
-          alt={BRAND.name}
-          className="h-7 w-auto object-contain ml-4 shrink-0"
-          onError={(e) => {
-            const t = e.currentTarget;
-            t.style.display = "none";
-          }}
-        />
-      </div>
+      <BrandFooter style={{ position: "relative", zIndex: 1 }} />
     </article>
   );
 }
