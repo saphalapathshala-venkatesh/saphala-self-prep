@@ -179,6 +179,11 @@ function CardBack({
 // CardFlip — 3D perspective wrapper
 // Renders front and back faces with rotateY flip animation.
 // front: the interaction face; back: the explanation face.
+//
+// Height strategy: outer div is flex:1 + position:relative (becomes the
+// containing block). Rotating div uses position:absolute + inset:0 to fill it —
+// avoiding height:100% which fails when the parent's height is flex-computed
+// rather than explicitly declared.
 function CardFlip({
   flipped,
   front,
@@ -189,12 +194,12 @@ function CardFlip({
   back: React.ReactNode;
 }) {
   return (
-    <div className="flex-1" style={{ perspective: "1200px" }}>
+    <div style={{ flex: 1, perspective: "1200px", position: "relative" }}>
+      {/* Rotating container — fills outer div via absolute positioning */}
       <div
         style={{
-          width: "100%",
-          height: "100%",
-          position: "relative",
+          position: "absolute",
+          inset: 0,
           transformStyle: "preserve-3d",
           transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
           transition: "transform 420ms cubic-bezier(0.4, 0, 0.2, 1)",
@@ -210,12 +215,14 @@ function CardFlip({
             display: "flex",
             flexDirection: "column",
             overflowY: "auto",
+            backgroundColor: "white",
             pointerEvents: flipped ? "none" : "auto",
           }}
         >
           {front}
         </div>
-        {/* Back face — pre-rotated 180° so it appears correctly when container flips */}
+
+        {/* Back face — pre-rotated 180° so it faces forward when container flips */}
         <div
           style={{
             position: "absolute",
@@ -226,8 +233,8 @@ function CardFlip({
             display: "flex",
             flexDirection: "column",
             overflowY: "auto",
-            pointerEvents: flipped ? "auto" : "none",
             backgroundColor: "white",
+            pointerEvents: flipped ? "auto" : "none",
           }}
         >
           {back}
