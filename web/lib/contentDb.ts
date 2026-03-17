@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { nowIST } from "@/lib/formatIST";
 
 // ── Shared taxonomy helpers ───────────────────────────────────────────────────
 
@@ -67,7 +68,7 @@ export interface LessonDetail extends PublishedLesson {
 }
 
 export async function getPublishedLessons(): Promise<PublishedLesson[]> {
-  const now = new Date();
+  const now = nowIST();
   const pages = await prisma.contentPage.findMany({
     where: {
       isPublished: true,
@@ -153,7 +154,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
   });
 
   if (!page || !page.isPublished) return null;
-  if (page.unlockAt && page.unlockAt > new Date()) return null;
+  if (page.unlockAt && page.unlockAt > nowIST()) return null;
 
   // Build the body from EBookPage chapters if they exist;
   // fall back to the legacy ContentPage.body for older ebooks.
@@ -207,7 +208,7 @@ export interface PublishedPdf {
 }
 
 export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
-  const now = new Date();
+  const now = nowIST();
   const pdfs = await prisma.pdfAsset.findMany({
     where: {
       isPublished: true,
@@ -287,7 +288,7 @@ export interface DeckDetail extends PublishedDeck {
 }
 
 export async function getPublishedDecks(): Promise<PublishedDeck[]> {
-  const now = new Date();
+  const now = nowIST();
   const decks = await prisma.flashcardDeck.findMany({
     where: {
       isPublished: true,
@@ -371,7 +372,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
   });
 
   if (!deck || !deck.isPublished) return null;
-  if (deck.unlockAt && deck.unlockAt > new Date()) return null;
+  if (deck.unlockAt && deck.unlockAt > nowIST()) return null;
 
   const unique = <T>(arr: (T | null | undefined)[]) =>
     [...new Set(arr.filter((x): x is T => x != null))];
