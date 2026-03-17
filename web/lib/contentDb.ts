@@ -131,7 +131,6 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
               subject: {
                 select: {
                   name: true,
-                  subjectColor: true,
                   category: { select: { name: true } },
                 },
               },
@@ -180,7 +179,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     publishedAt: page.publishedAt,
     xpEnabled: page.xpEnabled,
     xpValue: page.xpValue,
-    subjectColor: page.subtopic?.topic.subject.subjectColor ?? null,
+    subjectColor: null,
     breadcrumb: {
       category: page.subtopic?.topic.subject.category.name ?? null,
       subject: page.subtopic?.topic.subject.name ?? null,
