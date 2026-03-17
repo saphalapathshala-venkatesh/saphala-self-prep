@@ -998,11 +998,19 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
   const instruction =
     c?.instruction || stripHtml(card.front) || "Drag each item into its correct category";
 
-  // assignments[i] = category name, or "" = unassigned
+  // assignments[i] = category name, or "" = unassigned. Index always refers to
+  // the ORIGINAL items array — correctness checking never changes.
   const [assignments, setAssignments] = useState<string[]>(() => items.map(() => ""));
   const [submitted, setSubmitted] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+
+  // shuffledOrder holds original item indices in a shuffled sequence.
+  // Rendering always iterates shuffledOrder so students see a different
+  // order every attempt — but assignments/results still use original indices.
+  const [shuffledOrder, setShuffledOrder] = useState<number[]>(() =>
+    [...items.map((_, i) => i)].sort(() => Math.random() - 0.5),
+  );
 
   // Ghost div that follows the pointer (updated via ref, not state, for smooth motion)
   const ghostRef = useRef<HTMLDivElement>(null);
@@ -1098,6 +1106,7 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
 
   function handleTryAgain() {
     setAssignments(items.map(() => ""));
+    setShuffledOrder([...items.map((_, i) => i)].sort(() => Math.random() - 0.5));
     setSubmitted(false);
     setFlipped(false);
   }
@@ -1159,9 +1168,12 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
 
             <div className="flex-1 px-6 sm:px-8 py-5 overflow-y-auto space-y-3">
               {categories.map((cat) => {
-                const catItems = items
-                  .map((item, i) => ({ item, i }))
-                  .filter(({ i }) => assignments[i] === cat);
+                // Use shuffledOrder so items appear in the shuffled sequence
+                // inside each category zone too. Correctness still uses
+                // original indices (via assignments[i] and results[i]).
+                const catItems = shuffledOrder
+                  .filter((origIdx) => assignments[origIdx] === cat)
+                  .map((origIdx) => ({ item: items[origIdx], i: origIdx }));
                 const isHighlighted = draggingIdx !== null;
                 return (
                   <div
@@ -1228,18 +1240,19 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
                     Unassigned {unassignedCount > 0 ? `(${unassignedCount})` : ""}
                   </p>
                   <div className="flex flex-wrap gap-2 min-h-[28px]">
-                    {items.map((item, i) => {
-                      if (assignments[i]) return null;
+                    {shuffledOrder.map((origIdx) => {
+                      if (assignments[origIdx]) return null;
+                      const item = items[origIdx];
                       return (
                         <div
-                          key={i}
+                          key={origIdx}
                           className={`px-3 py-1.5 rounded-lg border-2 border-dashed text-sm font-medium cursor-grab ${
-                            draggingIdx === i
+                            draggingIdx === origIdx
                               ? "opacity-40 border-gray-300 bg-gray-100 text-gray-400 cursor-grabbing"
                               : "border-gray-300 bg-white text-gray-600"
                           }`}
                           style={{ touchAction: "none" }}
-                          onPointerDown={(e) => onItemPointerDown(e, i)}
+                          onPointerDown={(e) => onItemPointerDown(e, origIdx)}
                           onPointerMove={onItemPointerMove}
                           onPointerUp={onItemPointerUp}
                         >
