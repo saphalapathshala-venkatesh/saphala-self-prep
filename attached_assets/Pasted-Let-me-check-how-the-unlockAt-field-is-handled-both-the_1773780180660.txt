@@ -1,0 +1,32 @@
+Let me check how the unlockAt field is handled — both the input format and timezone:
+
+Let me check how the API actually stores the unlockAt value to confirm timezone handling:
+
+This reveals a real issue. The server runs in UTC, so when you type 02:07 AM in the field, the server stores it as 02:07 UTC — which is actually 7:37 AM IST (5h 30m later than intended). Let me find every place unlockAt is sent to the API and fix them all:
+
+Good. There are 8 submission points across 5 files that all have the same bug. I'll fix them all in parallel — the fix is simple: append :00+05:30 to the datetime-local string at the moment of API submission, so the server correctly stores the IST time:
+
+Now let me find the video pages' submission lines too:
+
+Now I have everything. There are 10 submission points to fix across 6 files, plus the hint text on 4 pages. I'll batch all the edits in parallel:
+
+Now making all fixes in parallel across all 6 files:
+
+Now fix the remaining 4 files in parallel:
+
+Now fix the curriculum page (2 spots) and update all the "Students can access from…" hint texts to show IST explicitly:
+
+Now verify TypeScript and restart:
+
+Zero errors. Here's the complete answer to your question:
+
+The field uses datetime-local format — you pick a date and time in your browser, and what you see is in IST (since your browser is in India). The display was correct, but there was a hidden bug in the storage.
+
+The bug that was fixed: The server runs in UTC. When you entered 02:07 AM, it stored that as 02:07 AM UTC — which is actually 07:37 AM IST (5 hours 30 minutes later than what you intended). Content would unlock over 5 hours too late.
+
+What was fixed: Every place that sends an unlock time to the server (10 submission points across 6 pages — EBooks, PDFs, Videos, Flashcards, Tests, Quizzes, Course curriculum items) now appends +05:30 to the time value before sending. So 02:07 AM is now correctly stored as 02:07 AM IST.
+
+The preview hint under the field now also explicitly confirms the time in IST:
+
+Students can access from 18/3/2026, 2:07:00 AM IST onwards.
+

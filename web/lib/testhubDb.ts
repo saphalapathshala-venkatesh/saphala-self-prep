@@ -1,5 +1,4 @@
 import { prisma } from "./db";
-import { nowIST } from "./formatIST";
 
 // ============================================================
 // ACCESS RESOLUTION
@@ -217,7 +216,7 @@ function mapToDbTest(
     publishedAt: test.publishedAt,
     isPublished: test.isPublished,
     scheduledUntil:
-      test.unlockAt && test.unlockAt > nowIST()
+      test.unlockAt && test.unlockAt > new Date()
         ? test.unlockAt.toISOString()
         : null,
   };
