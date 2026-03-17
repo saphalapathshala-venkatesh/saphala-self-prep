@@ -62,6 +62,8 @@ export interface PublishedLesson {
 export interface LessonDetail extends PublishedLesson {
   body: string;
   subjectColor: string | null;
+  xpEnabled: boolean;
+  xpValue: number;
 }
 
 export async function getPublishedLessons(): Promise<PublishedLesson[]> {
@@ -115,6 +117,8 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
       id: true,
       title: true,
       body: true,
+      xpEnabled: true,
+      xpValue: true,
       isPublished: true,
       publishedAt: true,
       unlockAt: true,
@@ -174,6 +178,8 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     title: page.title,
     body: resolvedBody,
     publishedAt: page.publishedAt,
+    xpEnabled: page.xpEnabled,
+    xpValue: page.xpValue,
     subjectColor: page.subtopic?.topic.subject.subjectColor ?? null,
     breadcrumb: {
       category: page.subtopic?.topic.subject.category.name ?? null,

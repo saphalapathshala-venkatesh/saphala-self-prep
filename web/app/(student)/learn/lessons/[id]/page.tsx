@@ -51,8 +51,11 @@ export default async function LessonReaderPage({
 
         <EbookPageShell
           title={lesson.title}
+          subject={lesson.breadcrumb.subject}
           breadcrumbParts={breadcrumbParts}
           subjectColor={lesson.subjectColor}
+          xpEnabled={lesson.xpEnabled}
+          xpValue={lesson.xpValue}
           body={
             <div dangerouslySetInnerHTML={{ __html: lesson.body }} />
           }

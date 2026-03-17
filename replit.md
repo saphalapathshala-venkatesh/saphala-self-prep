@@ -45,7 +45,7 @@ A dynamic layout with sections for quotes, a hero slider, database-driven exam c
 
 #### Content Library (Student Content Reflection Layer)
 Learning content routes are dynamically generated from the database under `app/(student)/` and require login. This includes:
-- **Ebooks (`/learn/lessons`)**: Listings of published `ContentPage` rows.
+- **Ebooks (`/learn/lessons`)**: Listings of published `ContentPage` rows. Detail page uses `EbookPageShell` — subject-color 3px border, subject+XP header strip (identical to flashcard CardShell), gradient title header, prose body, Saphala logo BrandFooter, centered watermark. The admin's new multi-chapter model: `ContentPage` is the ebook "container" (title, taxonomy, isPublished), and `EBookPage` rows are individual chapters (`contentHtml`, `contentBlocks`, `orderIndex`). `getLessonById` fetches chapters in order and concatenates their HTML. Falls back to `ContentPage.body` for legacy single-page ebooks.
 - **PDFs (`/learn/pdfs`)**: Listings of published `PdfAsset` rows for download.
 - **Flashcard Decks (`/learn/flashcards`)**: Listings of published `FlashcardDeck` rows with interactive study UI.
 All use `components/learn/LearnPageShell.tsx` for consistent presentation.

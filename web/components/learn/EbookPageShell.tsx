@@ -3,8 +3,11 @@ import BrandFooter from "@/components/learn/BrandFooter";
 
 interface EbookPageShellProps {
   title: string;
+  subject: string | null;
   breadcrumbParts: string[];
   subjectColor: string | null;
+  xpEnabled: boolean;
+  xpValue: number;
   body: ReactNode;
 }
 
@@ -13,11 +16,15 @@ const BRAND_DARK = "#2D1B69";
 
 export default function EbookPageShell({
   title,
+  subject,
   breadcrumbParts,
   subjectColor,
+  xpEnabled,
+  xpValue,
   body,
 }: EbookPageShellProps) {
   const accentColor = subjectColor ?? BRAND_PURPLE;
+  const showXp = xpEnabled && xpValue > 0;
 
   return (
     <article
@@ -59,9 +66,31 @@ export default function EbookPageShell({
       {/* ── All visible content sits above watermark ── */}
       <div style={{ position: "relative", zIndex: 1 }}>
 
-        {/* Header */}
+        {/* ── Subject + XP strip — identical pattern to FlashCard CardShell ── */}
         <div
-          className="px-8 py-10"
+          className="flex items-center justify-between px-5 sm:px-6 py-3 shrink-0"
+          style={{ backgroundColor: accentColor }}
+        >
+          <div className="min-w-0 flex-1">
+            <p className="text-white text-[11px] font-bold uppercase tracking-widest truncate leading-tight">
+              {subject || "Ebook"}
+            </p>
+            {showXp && (
+              <p className="text-white/70 text-[9px] mt-0.5 leading-tight">
+                Complete to earn {xpValue} XP
+              </p>
+            )}
+          </div>
+          {showXp && (
+            <span className="ml-3 shrink-0 inline-flex items-center gap-1 bg-white/25 text-white text-[11px] font-bold px-2.5 py-1 rounded-full">
+              ⚡ {xpValue} XP
+            </span>
+          )}
+        </div>
+
+        {/* ── Title gradient header ── */}
+        <div
+          className="px-8 py-8"
           style={{
             background: `linear-gradient(135deg, ${BRAND_DARK} 0%, ${accentColor} 100%)`,
           }}
@@ -76,7 +105,7 @@ export default function EbookPageShell({
           </h1>
         </div>
 
-        {/* Body */}
+        {/* ── Body ── */}
         <div
           className="
             prose prose-sm md:prose-base max-w-none px-8 py-8
