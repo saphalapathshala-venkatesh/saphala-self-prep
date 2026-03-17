@@ -233,6 +233,27 @@ export default function LoginForm() {
             "Log In"
           )}
         </button>
+
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <svg
+            className="mt-0.5 h-4 w-4 shrink-0 text-amber-500"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v3m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+            />
+          </svg>
+          <p className="text-xs leading-relaxed text-amber-700">
+            <span className="font-semibold">Auto logout after 15 minutes</span> — your session will
+            be automatically signed out if there is no activity for 15 minutes. Save your work
+            before stepping away.
+          </p>
+        </div>
       </form>
 
       <div className="mt-8 pt-8 border-t border-gray-100 text-center">
