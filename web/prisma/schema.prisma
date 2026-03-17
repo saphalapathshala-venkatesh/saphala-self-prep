@@ -520,16 +520,34 @@ model ContentPage {
   // Admin XP fields
   xpEnabled   Boolean @default(false)
   xpValue     Int     @default(0)
+  // Legacy single-page body — new ebooks use EBookPage chapters instead
   body        String
   isPublished Boolean @default(false)
   publishedAt DateTime?
   unlockAt    DateTime?
   createdById String
-  createdBy   User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  ebookPages  EBookPage[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   @@index([isPublished])
   @@index([subtopicId])
+}
+
+// Each EBookPage is one chapter/section of a multi-page ebook (ContentPage).
+// Content is stored in contentHtml (rendered HTML) and/or contentBlocks (block JSON).
+// orderIndex controls chapter sequence.
+model EBookPage {
+  id            String      @id @default(cuid())
+  ebookId       String
+  ebook         ContentPage @relation(fields: [ebookId], references: [id], onDelete: Cascade)
+  title         String?
+  contentHtml   String
+  orderIndex    Int
+  contentBlocks Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  @@index([ebookId, orderIndex])
 }
 model PdfAsset {
   id           String @id @default(cuid())

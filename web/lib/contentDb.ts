@@ -135,16 +135,44 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
           },
         },
       },
+      // Fetch multi-chapter content (new ebook model)
+      ebookPages: {
+        orderBy: { orderIndex: "asc" },
+        select: {
+          id: true,
+          title: true,
+          contentHtml: true,
+          orderIndex: true,
+        },
+      },
     },
   });
 
   if (!page || !page.isPublished) return null;
   if (page.unlockAt && page.unlockAt > new Date()) return null;
 
+  // Build the body from EBookPage chapters if they exist;
+  // fall back to the legacy ContentPage.body for older ebooks.
+  let resolvedBody: string;
+  if (page.ebookPages.length > 0) {
+    // Concatenate chapters. Each chapter gets a heading (if it has a title)
+    // followed by its HTML content.
+    resolvedBody = page.ebookPages
+      .map((chapter) => {
+        const heading = chapter.title
+          ? `<h2 class="ebook-chapter-heading">${chapter.title}</h2>`
+          : "";
+        return `${heading}${chapter.contentHtml}`;
+      })
+      .join("\n");
+  } else {
+    resolvedBody = page.body;
+  }
+
   return {
     id: page.id,
     title: page.title,
-    body: page.body,
+    body: resolvedBody,
     publishedAt: page.publishedAt,
     subjectColor: page.subtopic?.topic.subject.subjectColor ?? null,
     breadcrumb: {
