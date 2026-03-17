@@ -519,7 +519,7 @@ function FillInBlankCard({ card, onNext }: { card: FlashCard; onNext: () => void
 }
 
 // ── REORDER card ──────────────────────────────────────────────────────────────
-// Flow: shuffled items with ▲/▼ buttons → Submit → green/red per item →
+// Flow: drag-and-drop rows → Submit → green/red per item →
 //       Try Again (if wrong) + Flip → explanation
 function ReorderCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
   const c = card.content as ReorderContent | null;
@@ -533,27 +533,60 @@ function ReorderCard({ card, onNext }: { card: FlashCard; onNext: () => void }) 
   );
   const [submitted, setSubmitted] = useState(false);
   const [flipped, setFlipped] = useState(false);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
 
-  const results: boolean[] = submitted
+  // Refs to each row DOM element and to track which row we're dragging from
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const dragFromRef = useRef<number | null>(null);
+
+  const res: boolean[] = submitted
     ? items.map((item, i) => item === correctOrder[i])
     : [];
-  const allCorrect = submitted && results.length > 0 && results.every(Boolean);
-  const correctCount = results.filter(Boolean).length;
+  const allCorrect = submitted && res.length > 0 && res.every(Boolean);
+  const correctCount = res.filter(Boolean).length;
 
-  function move(i: number, dir: -1 | 1) {
+  function onHandlePointerDown(e: React.PointerEvent<HTMLDivElement>, i: number) {
     if (submitted) return;
-    const j = i + dir;
-    if (j < 0 || j >= items.length) return;
-    setItems((prev) => {
-      const next = [...prev];
-      [next[i], next[j]] = [next[j], next[i]];
-      return next;
-    });
+    e.preventDefault();
+    // Capture pointer on the handle so pointermove/up fire here even when cursor leaves
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragFromRef.current = i;
+    setDragIdx(i);
+  }
+
+  function onHandlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (dragFromRef.current === null) return;
+    const y = e.clientY;
+    for (let j = 0; j < rowRefs.current.length; j++) {
+      const el = rowRefs.current[j];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) {
+        const from = dragFromRef.current;
+        if (j !== from) {
+          setItems((prev) => {
+            const next = [...prev];
+            const [removed] = next.splice(from, 1);
+            next.splice(j, 0, removed);
+            return next;
+          });
+          dragFromRef.current = j;
+          setDragIdx(j);
+        }
+        break;
+      }
+    }
+  }
+
+  function onHandlePointerUp() {
+    dragFromRef.current = null;
+    setDragIdx(null);
   }
 
   function handleTryAgain() {
     setSubmitted(false);
     setFlipped(false);
+    setItems([...correctOrder].sort(() => Math.random() - 0.5));
   }
 
   return (
@@ -565,7 +598,7 @@ function ReorderCard({ card, onNext }: { card: FlashCard; onNext: () => void }) 
         <p className="text-sm font-medium text-gray-700 leading-snug mt-1">{instruction}</p>
         {!submitted && (
           <p className="text-[10px] text-gray-400 mt-1 italic">
-            Use ▲ / ▼ to arrange, then submit
+            Drag rows into the correct order, then submit
           </p>
         )}
       </div>
@@ -573,15 +606,39 @@ function ReorderCard({ card, onNext }: { card: FlashCard; onNext: () => void }) 
       <div className="flex-1 px-6 sm:px-8 py-5 space-y-2">
         {items.map((item, i) => (
           <div
-            key={i}
-            className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-sm transition-all ${
+            key={item + i}
+            ref={(el) => { rowRefs.current[i] = el; }}
+            className={`flex items-center gap-3 rounded-xl border-2 px-3 py-3 text-sm transition-all select-none ${
               !submitted
-                ? "border-gray-200 bg-gray-50"
-                : results[i]
+                ? dragIdx === i
+                  ? "border-[color:var(--fc-accent,#6D4BCB)] bg-purple-50 shadow-md scale-[1.01]"
+                  : "border-gray-200 bg-gray-50"
+                : res[i]
                 ? "border-green-400 bg-green-50"
                 : "border-red-400 bg-red-50"
             }`}
           >
+            {/* Drag handle — pointer events captured here */}
+            {!submitted && (
+              <div
+                className="shrink-0 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing px-1 py-0.5 rounded"
+                style={{ touchAction: "none" }}
+                onPointerDown={(e) => onHandlePointerDown(e, i)}
+                onPointerMove={onHandlePointerMove}
+                onPointerUp={onHandlePointerUp}
+                aria-label="Drag to reorder"
+              >
+                {/* six-dot drag icon */}
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <circle cx="7" cy="5" r="1.5" />
+                  <circle cx="13" cy="5" r="1.5" />
+                  <circle cx="7" cy="10" r="1.5" />
+                  <circle cx="13" cy="10" r="1.5" />
+                  <circle cx="7" cy="15" r="1.5" />
+                  <circle cx="13" cy="15" r="1.5" />
+                </svg>
+              </div>
+            )}
             <span className="w-5 text-center text-xs font-bold text-gray-400 shrink-0">
               {i + 1}
             </span>
@@ -589,40 +646,21 @@ function ReorderCard({ card, onNext }: { card: FlashCard; onNext: () => void }) 
               className={`flex-1 font-medium ${
                 !submitted
                   ? "text-gray-800"
-                  : results[i]
+                  : res[i]
                   ? "text-green-700"
                   : "text-red-600"
               }`}
             >
               {item}
             </span>
-            {submitted ? (
+            {submitted && (
               <span className="text-base shrink-0 font-bold">
-                {results[i] ? (
+                {res[i] ? (
                   <span className="text-green-600">✓</span>
                 ) : (
                   <span className="text-red-500">✗</span>
                 )}
               </span>
-            ) : (
-              <div className="flex flex-col shrink-0">
-                <button
-                  onClick={() => move(i, -1)}
-                  disabled={i === 0}
-                  className="text-gray-400 hover:text-gray-700 disabled:opacity-20 px-1 leading-none text-sm"
-                  aria-label="Move up"
-                >
-                  ▲
-                </button>
-                <button
-                  onClick={() => move(i, 1)}
-                  disabled={i === items.length - 1}
-                  className="text-gray-400 hover:text-gray-700 disabled:opacity-20 px-1 leading-none text-sm"
-                  aria-label="Move down"
-                >
-                  ▼
-                </button>
-              </div>
             )}
           </div>
         ))}
@@ -784,7 +822,7 @@ function MatchingCard({ card, onNext }: { card: FlashCard; onNext: () => void })
 }
 
 // ── CATEGORIZATION card ───────────────────────────────────────────────────────
-// Flow: tap items to cycle through categories → Submit → green/red →
+// Flow: drag chips into category drop-zones → Submit → green/red →
 //       Try Again (if wrong) + Flip → explanation
 function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
   const c = card.content as CategorizationContent | null;
@@ -792,26 +830,104 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
   const categories = c?.categories ?? [];
   const explanation = c?.explanation ?? card.back;
   const instruction =
-    c?.instruction || stripHtml(card.front) || "Categorize each item";
+    c?.instruction || stripHtml(card.front) || "Drag each item into its correct category";
 
+  // assignments[i] = category name, or "" = unassigned
   const [assignments, setAssignments] = useState<string[]>(() => items.map(() => ""));
   const [submitted, setSubmitted] = useState(false);
   const [flipped, setFlipped] = useState(false);
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
+
+  // Ghost div that follows the pointer (updated via ref, not state, for smooth motion)
+  const ghostRef = useRef<HTMLDivElement>(null);
+  // Refs to each category drop-zone element
+  const catRefs = useRef<Map<string, HTMLElement>>(new Map());
+  // Ref to the unassigned pool element
+  const poolRef = useRef<HTMLDivElement>(null);
+  // Track dragging index in a ref too (for pointer handlers that close over stale state)
+  const draggingIdxRef = useRef<number | null>(null);
 
   const results: boolean[] = submitted
     ? items.map((item, i) => assignments[i] === item.category)
     : [];
   const allCorrect = submitted && results.length > 0 && results.every(Boolean);
   const correctCount = results.filter(Boolean).length;
+  const unassignedCount = assignments.filter((a) => !a).length;
+  const allAssigned = items.length > 0 && unassignedCount === 0;
 
-  function cycleCategory(idx: number) {
-    if (submitted || categories.length === 0) return;
-    setAssignments((prev) => {
-      const next = [...prev];
-      const ci = categories.indexOf(prev[idx]);
-      next[idx] = categories[(ci + 1) % categories.length] ?? "";
-      return next;
-    });
+  function showGhost(text: string, x: number, y: number) {
+    const g = ghostRef.current;
+    if (!g) return;
+    g.textContent = text;
+    g.style.left = x - 40 + "px";
+    g.style.top = y - 16 + "px";
+    g.style.display = "block";
+  }
+
+  function moveGhost(x: number, y: number) {
+    const g = ghostRef.current;
+    if (!g) return;
+    g.style.left = x - 40 + "px";
+    g.style.top = y - 16 + "px";
+  }
+
+  function hideGhost() {
+    const g = ghostRef.current;
+    if (g) g.style.display = "none";
+  }
+
+  function findDropTarget(x: number, y: number): { type: "cat"; name: string } | { type: "pool" } | null {
+    for (const [cat, el] of catRefs.current.entries()) {
+      const r = el.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return { type: "cat", name: cat };
+      }
+    }
+    if (poolRef.current) {
+      const r = poolRef.current.getBoundingClientRect();
+      if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        return { type: "pool" };
+      }
+    }
+    return null;
+  }
+
+  function onItemPointerDown(e: React.PointerEvent<HTMLDivElement>, idx: number) {
+    if (submitted) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    draggingIdxRef.current = idx;
+    setDraggingIdx(idx);
+    showGhost(items[idx]?.text ?? "", e.clientX, e.clientY);
+  }
+
+  function onItemPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (draggingIdxRef.current === null) return;
+    moveGhost(e.clientX, e.clientY);
+  }
+
+  function onItemPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    const idx = draggingIdxRef.current;
+    if (idx === null) return;
+    hideGhost();
+    draggingIdxRef.current = null;
+    setDraggingIdx(null);
+
+    const target = findDropTarget(e.clientX, e.clientY);
+    if (target?.type === "cat") {
+      setAssignments((prev) => {
+        const next = [...prev];
+        next[idx] = target.name;
+        return next;
+      });
+    } else if (target?.type === "pool") {
+      setAssignments((prev) => {
+        const next = [...prev];
+        next[idx] = "";
+        return next;
+      });
+    }
+    // If no valid target: item stays in place (no change)
   }
 
   function handleTryAgain() {
@@ -820,10 +936,26 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
     setFlipped(false);
   }
 
-  const allAssigned = items.length > 0 && assignments.every((a) => a !== "");
-
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col" style={{ userSelect: "none" }}>
+      {/* Ghost element — fixed position, follows pointer, no pointer events */}
+      <div
+        ref={ghostRef}
+        className="fixed z-50 px-3 py-1.5 rounded-xl text-sm font-medium shadow-xl pointer-events-none"
+        style={{
+          display: "none",
+          border: "2px solid var(--fc-accent, #6D4BCB)",
+          color: "var(--fc-accent, #6D4BCB)",
+          backgroundColor: "white",
+          maxWidth: "180px",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          opacity: 0.92,
+        }}
+      />
+
+      {/* Header */}
       <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100">
         <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
           Categorization
@@ -831,62 +963,106 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
         <p className="text-sm font-medium text-gray-700 leading-snug mt-1">{instruction}</p>
         {!submitted && (
           <p className="text-[10px] text-gray-400 mt-1 italic">
-            Tap each item to cycle through categories
+            Drag chips into the correct category boxes
           </p>
         )}
       </div>
 
-      <div className="flex-1 px-6 sm:px-8 py-5">
-        {/* Category legend */}
-        <div className="flex gap-2 flex-wrap mb-4">
-          {categories.map((cat) => (
-            <span
+      <div className="flex-1 px-6 sm:px-8 py-5 overflow-y-auto space-y-3">
+        {/* Category drop-zones */}
+        {categories.map((cat) => {
+          const catItems = items
+            .map((item, i) => ({ item, i }))
+            .filter(({ i }) => assignments[i] === cat);
+          const isHighlighted = draggingIdx !== null;
+          return (
+            <div
               key={cat}
-              className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full border"
-              style={{
-                borderColor: "var(--fc-accent, #6D4BCB)",
-                color: "var(--fc-accent, #6D4BCB)",
-                backgroundColor: "rgba(109,75,203,0.07)",
-              }}
+              ref={(el) => { if (el) catRefs.current.set(cat, el); }}
+              className={`rounded-xl border-2 p-3 min-h-[72px] transition-colors ${
+                submitted
+                  ? "border-gray-200 bg-gray-50"
+                  : isHighlighted
+                  ? "border-[color:var(--fc-accent,#6D4BCB)] bg-purple-50/40"
+                  : "border-gray-200 bg-gray-50"
+              }`}
             >
-              {cat}
-            </span>
-          ))}
-        </div>
-
-        {/* Items as chips */}
-        <div className="flex flex-wrap gap-2.5">
-          {items.map((item, i) => {
-            const assigned = assignments[i];
-            const isCorrect = submitted ? results[i] : null;
-            return (
-              <button
-                key={i}
-                onClick={() => cycleCategory(i)}
-                disabled={submitted}
-                className={`px-3.5 py-2 rounded-xl border-2 text-sm font-medium text-left transition-all ${
-                  submitted
-                    ? isCorrect
-                      ? "border-green-400 bg-green-50 text-green-700"
-                      : "border-red-400 bg-red-50 text-red-600"
-                    : assigned
-                    ? "border-gray-300 bg-gray-100 text-gray-700"
-                    : "border-dashed border-gray-300 bg-white text-gray-400"
-                }`}
+              <p
+                className="text-[10px] font-bold uppercase tracking-widest mb-2"
+                style={{ color: "var(--fc-accent, #6D4BCB)" }}
               >
-                <span className="block text-[9px] font-bold uppercase leading-tight mb-0.5 opacity-70">
-                  {assigned || "tap to assign"}
-                </span>
-                {item.text}
-                {submitted && !isCorrect && (
-                  <span className="block text-[9px] text-green-600 mt-0.5">
-                    ✓ {item.category}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
+                {cat}
+              </p>
+              <div className="flex flex-wrap gap-2 min-h-[28px]">
+                {catItems.map(({ item, i }) => {
+                  const isCorrect = submitted ? results[i] : null;
+                  return (
+                    <div
+                      key={i}
+                      className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                        submitted
+                          ? isCorrect
+                            ? "border-green-400 bg-green-50 text-green-700"
+                            : "border-red-400 bg-red-50 text-red-600"
+                          : draggingIdx === i
+                          ? "opacity-40 border-dashed border-gray-300 bg-gray-100 text-gray-400 cursor-grabbing"
+                          : "border-gray-300 bg-white text-gray-700 cursor-grab"
+                      }`}
+                      style={{ touchAction: "none" }}
+                      onPointerDown={submitted ? undefined : (e) => onItemPointerDown(e, i)}
+                      onPointerMove={submitted ? undefined : onItemPointerMove}
+                      onPointerUp={submitted ? undefined : onItemPointerUp}
+                    >
+                      {item.text}
+                      {submitted && !isCorrect && (
+                        <span className="block text-[9px] text-green-600 mt-0.5">
+                          ✓ {item.category}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Unassigned pool — hidden after submit */}
+        {!submitted && (
+          <div
+            ref={poolRef}
+            className={`rounded-xl border-2 border-dashed p-3 min-h-[60px] transition-colors ${
+              draggingIdx !== null && assignments[draggingIdx] !== ""
+                ? "border-gray-400 bg-gray-50"
+                : "border-gray-200"
+            }`}
+          >
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
+              Unassigned {unassignedCount > 0 ? `(${unassignedCount})` : ""}
+            </p>
+            <div className="flex flex-wrap gap-2 min-h-[28px]">
+              {items.map((item, i) => {
+                if (assignments[i]) return null;
+                return (
+                  <div
+                    key={i}
+                    className={`px-3 py-1.5 rounded-lg border-2 border-dashed text-sm font-medium cursor-grab ${
+                      draggingIdx === i
+                        ? "opacity-40 border-gray-300 bg-gray-100 text-gray-400 cursor-grabbing"
+                        : "border-gray-300 bg-white text-gray-600"
+                    }`}
+                    style={{ touchAction: "none" }}
+                    onPointerDown={(e) => onItemPointerDown(e, i)}
+                    onPointerMove={onItemPointerMove}
+                    onPointerUp={onItemPointerUp}
+                  >
+                    {item.text}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3">
@@ -894,9 +1070,9 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
           <button
             onClick={() => setSubmitted(true)}
             disabled={!allAssigned}
-            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
+            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl disabled:opacity-40"
           >
-            Submit
+            {allAssigned ? "Submit" : `Submit (${unassignedCount} unassigned)`}
           </button>
         ) : !flipped ? (
           <>

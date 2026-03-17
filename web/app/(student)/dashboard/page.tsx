@@ -61,6 +61,12 @@ export default async function DashboardPage() {
 
   const liveProducts = [
     {
+      label: PRODUCTS.flashcards,
+      sub: "Interactive flashcard decks",
+      href: ROUTES.flashcards,
+      live: true,
+    },
+    {
       label: PRODUCTS.ebooks,
       sub: "Concept-based reading material",
       href: ROUTES.ebooks,
@@ -375,9 +381,17 @@ export default async function DashboardPage() {
 
             {/* Products quick-access */}
             <div className="bg-white border border-gray-100 rounded-2xl p-5">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
-                Study Tools
-              </p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest">
+                  Study Tools
+                </p>
+                <Link
+                  href={ROUTES.courses}
+                  className="text-[10px] font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-2 py-1 rounded-lg transition-colors"
+                >
+                  View All
+                </Link>
+              </div>
               <div className="space-y-2">
                 {liveProducts.map((item) =>
                   item.live && item.href ? (
