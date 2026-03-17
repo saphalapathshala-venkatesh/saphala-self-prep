@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { FlashCard } from "@/lib/contentDb";
 import { ROUTES } from "@/config/terminology";
 import BrandFooter from "@/components/learn/BrandFooter";
+import XpEarnedBadge from "@/components/shared/XpEarnedBadge";
 import { triggerXpCelebration } from "@/lib/xpCelebration";
 
 // ── CSS variable helpers ─────────────────────────────────────────────────────
@@ -1477,7 +1478,7 @@ export default function FlashcardStudyClient({
                 <p className="fc-accent-text text-sm font-semibold">⚡ Saving XP…</p>
               )}
               {xpAwarded !== null && xpAwarded > 0 && (
-                <p className="fc-accent-text text-sm font-semibold">⚡ You earned {xpAwarded} XP!</p>
+                <XpEarnedBadge xp={xpAwarded} />
               )}
               {xpAwarded !== null && xpAlreadyEarned && (
                 <p className="text-gray-400 text-sm">XP already earned for this deck.</p>

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Trophy, Target, Clock, TrendingUp, Star, X, Award, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { triggerXpCelebration } from '@/lib/xpCelebration';
+import XpEarnedBadge from '@/components/shared/XpEarnedBadge';
 
 interface SubjectBreakdown {
   subjectId: string;
@@ -166,16 +167,11 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
             )}
           </div>
 
-          <div className="flex gap-4 mb-4">
-            <div className="flex-1 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 text-center border border-purple-200">
-              <div className="text-xs text-purple-600 font-medium mb-2 uppercase tracking-wide">This Test</div>
-              <div className="text-3xl font-bold text-[#2D1B69]">+{data.xpEarned}</div>
-              <div className="text-xs text-purple-500 mt-1">XP</div>
-            </div>
-            <div className="flex-1 bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-5 text-center border border-green-200">
-              <div className="text-xs text-green-600 font-medium mb-2 uppercase tracking-wide">Total XP</div>
-              <div className="text-3xl font-bold text-green-700 break-all min-w-0">{data.totalXp.toLocaleString()}</div>
-              <div className="text-xs text-green-500 mt-1">XP</div>
+          <div className="mb-4 space-y-3">
+            <XpEarnedBadge xp={data.xpEarned} label="Earned This Test" />
+            <div className="flex items-center justify-between bg-gradient-to-br from-green-50 to-green-100 rounded-xl px-4 py-3 border border-green-200">
+              <div className="text-xs text-green-600 font-semibold uppercase tracking-wide">Total XP</div>
+              <div className="text-xl font-bold text-green-700">{data.totalXp.toLocaleString()} <span className="text-sm font-medium">XP</span></div>
             </div>
           </div>
 
