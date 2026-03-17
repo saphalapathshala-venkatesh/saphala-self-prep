@@ -826,7 +826,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
               onClick={() => { navigateTo(globalIdx); setPaletteOpen(false); }}
               className={`relative w-10 h-10 rounded-lg text-xs font-medium flex items-center justify-center transition-all ${getStatusColor(q.id, globalIdx === currentIndex)} ${globalIdx === currentIndex ? "ring-2 ring-[#2D1B69] ring-offset-1" : ""}`}
             >
-              {q.displayOrder}
+              {q.displayOrder + 1}
               {hasSavedAndMarked && (
                 <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-green-400 rounded-full flex items-center justify-center">
                   <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -969,7 +969,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-medium text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full">
-                  Question {currentQ?.displayOrder ?? currentIndex + 1} of {questions.length}
+                  Question {(currentQ?.displayOrder ?? currentIndex) + 1} of {questions.length}
                 </span>
                 {currentSectionTitle && (
                   <span className="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-full">{currentSectionTitle}</span>
