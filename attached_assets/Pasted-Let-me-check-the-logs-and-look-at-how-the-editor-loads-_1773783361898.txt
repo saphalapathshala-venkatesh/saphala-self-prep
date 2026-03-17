@@ -1,0 +1,49 @@
+Let me check the logs and look at how the editor loads existing page content:
+
+Let me check the API route for fetching an EBook and see if it returns contentBlocks, then look at how isBlockDoc validates the data:
+
+Let me look at how pages are saved (the PUT handler) and exactly how contentBlocks is serialized/stored:
+
+Found the root cause. The latest EBook page has contentBlocks: null and contentHtml: "" — completely empty. Let me see all the pages for this EBook and check if the save logic ever sends contentBlocks:
+
+All 8 pages have contentBlocks: null. Let me check the POST (create) route to find where it goes wrong:
+
+Found it. The POST (create) route has a critical bug — contentBlocks is completely missing from the incomingPages type and the prisma.contentPage.create call. Every EBook ever created via the block editor lost its content silently at creation time. The PUT (edit/save) route is fine. Here's the exact broken line:
+
+// POST route creates pages WITHOUT contentBlocks:
+create: incomingPages.map((p, i) => ({
+  title: p.title ?? null,
+  contentHtml: p.contentHtml,    // ← only this
+  orderIndex: p.orderIndex ?? i, // ← contentBlocks never saved
+}))
+Now fixing the POST route — adding contentBlocks to both the type and the Prisma create call:
+
+Now let me verify the student-facing EBook API returns contentBlocks correctly, and also check how it renders them:
+
+Good — zero TypeScript errors. Let me check the student-side EBook viewer to make sure it renders contentBlocks correctly:
+
+Let me read the EBookViewer to confirm it handles contentBlocks for each page properly, and also check the course preview page:
+
+The fix is in. Let me restart and explain the situation clearly:
+
+Here's exactly what happened and what's fixed:
+
+Root cause — a bug in the EBook creation route
+
+When you first created the EBook and saved it, the API's create handler had contentBlocks missing from the code that writes pages to the database:
+
+// Bug: contentBlocks silently dropped on creation
+create: incomingPages.map(p => ({
+  title: p.title,
+  contentHtml: p.contentHtml,  // ← contentBlocks never appeared here
+  orderIndex: p.orderIndex,
+}))
+The block editor sent your tables, boxes, and paragraphs correctly — but the server quietly ignored and discarded them. The pages were created with contentBlocks = null in the database. When you re-opened the EBook, the editor loaded null → empty → nothing visible.
+
+What's fixed
+
+The create handler now correctly includes contentBlocks when saving each page. Going forward, creating an EBook with full content will persist everything properly.
+
+Regarding your existing EBook
+
+Unfortunately the content you typed was never written to the database — it only lived in the browser at the time. You will need to re-enter the content for those 8 pages. Once you add the blocks and click Save, it will use the edit route (which was already correct) and everything will be persisted and visible in both the admin editor and the student frontend.

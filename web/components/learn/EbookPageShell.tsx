@@ -28,10 +28,12 @@ export default function EbookPageShell({
 
   return (
     <article
-      className="bg-white rounded-2xl shadow-[0_6px_32px_rgba(0,0,0,0.13)] overflow-hidden"
+      className="bg-white rounded-2xl shadow-[0_6px_32px_rgba(0,0,0,0.13)] flex flex-col"
       style={{
         border: `3px solid ${accentColor}`,
         position: "relative",
+        height: "calc(100vh - 260px)",
+        minHeight: 420,
       }}
     >
       {/* ── Watermark ── */}
@@ -64,9 +66,9 @@ export default function EbookPageShell({
       </div>
 
       {/* ── All visible content sits above watermark ── */}
-      <div style={{ position: "relative", zIndex: 1 }}>
+      <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
 
-        {/* ── Subject + XP strip — identical pattern to FlashCard CardShell ── */}
+        {/* ── Subject + XP strip — shrink-0 so it never scrolls away ── */}
         <div
           className="flex items-center justify-between px-5 sm:px-6 py-3 shrink-0"
           style={{ backgroundColor: accentColor }}
@@ -88,9 +90,9 @@ export default function EbookPageShell({
           )}
         </div>
 
-        {/* ── Title gradient header ── */}
+        {/* ── Title gradient header — shrink-0 so it never scrolls away ── */}
         <div
-          className="px-8 py-8"
+          className="px-8 py-8 shrink-0"
           style={{
             background: `linear-gradient(135deg, ${BRAND_DARK} 0%, ${accentColor} 100%)`,
           }}
@@ -105,9 +107,10 @@ export default function EbookPageShell({
           </h1>
         </div>
 
-        {/* ── Body ── */}
+        {/* ── Body — flex-1 + overflow-y-auto: scrollbar only when content overflows ── */}
         <div
           className="
+            flex-1 min-h-0 overflow-y-auto
             prose prose-sm md:prose-base max-w-none px-8 py-8
             prose-headings:font-bold
             prose-a:no-underline hover:prose-a:underline
@@ -129,8 +132,8 @@ export default function EbookPageShell({
         </div>
       </div>
 
-      {/* ── Footer ── */}
-      <BrandFooter style={{ position: "relative", zIndex: 1 }} />
+      {/* ── Footer — shrink-0 so it stays pinned at the bottom ── */}
+      <BrandFooter style={{ position: "relative", zIndex: 1, flexShrink: 0 }} />
     </article>
   );
 }
