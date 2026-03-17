@@ -1,0 +1,178 @@
+Real Flip Animation for Flashcards Explanation Back Side
+
+You are working on Saphala Self Prep flashcard player.
+
+Task
+
+Implement a real card flip animation so that explanation appears on the back side of the card, not as an explanation box opening on the front face.
+
+This is the final polish for flashcards.
+
+Important:
+
+Read first, patch second
+
+Make the smallest clean change
+
+Do not redesign the whole flashcard player
+
+Preserve current card logic, XP flow, submit/check flow, and subject color usage
+
+Required behavior
+Front face
+
+The front side must contain the interaction side:
+
+question/content
+
+options/input/drag interaction
+
+submit/check action
+
+correctness state after submit
+
+Flip Card button when applicable
+
+Back face
+
+The back side must contain:
+
+explanation
+
+answer summary if needed
+
+learning note/correct order/correct mapping as needed
+
+primary button for Next Card
+
+optional previous/back controls only if already part of the player pattern
+
+Important
+
+Explanation must not simply expand on the front side.
+It must be rendered on a distinct back face.
+
+Apply to these card types
+
+Implement real front/back flip for all applicable types:
+
+QUIZ
+
+FILL_IN_BLANK
+
+REORDER
+
+MATCHING
+
+CATEGORIZATION
+
+If INFO cards have a true back side, they may also use flip.
+If not, do not force flip for INFO cards.
+
+Animation requirements
+
+Use a clean, premium flip animation:
+
+3D flip effect
+
+rotateY-based
+
+smooth and readable
+
+duration around 300–450ms
+
+no excessive bounce or flashy motion
+
+must feel calm and premium
+
+Technical requirements
+
+Use a proper front/back card structure:
+
+outer wrapper with perspective
+
+inner wrapper with preserve-3d
+
+front face
+
+back face
+
+backface-visibility hidden
+
+flipped state controlled by component state
+
+Do not fake the flip with fade-only or simple hide/show if avoidable.
+
+UX rules
+
+Before submit/check → no flip available
+
+After submit/check → show Flip Card button
+
+On click → animate flip to back side
+
+Back side shows explanation and next-step action
+
+Reset flip state cleanly when moving to the next card
+
+No stale explanation from previous card should remain
+
+Mobile requirements
+
+Ensure:
+
+flip animation is smooth on mobile
+
+no layout jump during flip
+
+card height remains stable enough
+
+touch interactions still work correctly
+
+Constraints
+
+do not break reorder/categorization drag interactions
+
+do not break fill-in-blank input
+
+do not break XP completion logic
+
+do not break header/footer/subject color rendering
+
+do not redesign unrelated parts of the player
+
+Validation
+
+Test and report:
+
+quiz card flips to explanation back side
+
+fill-in-blank flips correctly
+
+reorder flips correctly after evaluation
+
+matching flips correctly after evaluation
+
+categorization flips correctly after evaluation
+
+next card resets flip state
+
+mobile flip remains smooth
+
+TypeScript/build passes cleanly
+
+Expected output
+
+Return:
+
+files changed
+
+how the flip structure was implemented
+
+which card types now use real flip
+
+how flip state resets between cards
+
+mobile considerations
+
+build/typecheck result

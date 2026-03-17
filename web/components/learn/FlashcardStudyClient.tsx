@@ -138,34 +138,104 @@ function CardShell({ subject, xpEnabled, xpValue, children }: ShellProps) {
 
 // ── Shared small components ───────────────────────────────────────────────────
 
-// Explanation panel that slides in after "Flip for Explanation" is clicked
-function ExplReveal({
-  html,
+// CardBack — back face of the 3D flip: explanation + optional result summary + Next
+function CardBack({
+  explanation,
   fallback,
+  resultSummary,
   onNext,
 }: {
-  html?: string;
+  explanation?: string;
   fallback?: string;
+  resultSummary?: React.ReactNode;
   onNext: () => void;
 }) {
-  const content = (html || fallback || "").trim();
+  const content = (explanation || fallback || "").trim();
   const hasContent = stripHtml(content).length > 0;
   return (
-    <div className="border-t-2 border-amber-200 bg-amber-50/60 px-6 sm:px-8 py-5 space-y-4">
-      <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest">
-        Explanation
-      </p>
-      {hasContent ? (
-        <SafeHtml html={content} className="text-sm text-gray-700 leading-relaxed" />
-      ) : (
-        <p className="text-sm text-gray-400 italic">No explanation provided.</p>
-      )}
-      <button
-        onClick={onNext}
-        className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
+    <>
+      <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 shrink-0">
+        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest">
+          Explanation
+        </p>
+      </div>
+      <div className="flex-1 px-6 sm:px-8 py-5 space-y-4 overflow-y-auto">
+        {resultSummary}
+        {hasContent ? (
+          <SafeHtml html={content} className="text-sm text-gray-700 leading-relaxed" />
+        ) : (
+          <p className="text-sm text-gray-400 italic">No explanation provided.</p>
+        )}
+      </div>
+      <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 shrink-0">
+        <button
+          onClick={onNext}
+          className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
+        >
+          Next Card →
+        </button>
+      </div>
+    </>
+  );
+}
+
+// CardFlip — 3D perspective wrapper
+// Renders front and back faces with rotateY flip animation.
+// front: the interaction face; back: the explanation face.
+function CardFlip({
+  flipped,
+  front,
+  back,
+}: {
+  flipped: boolean;
+  front: React.ReactNode;
+  back: React.ReactNode;
+}) {
+  return (
+    <div className="flex-1" style={{ perspective: "1200px" }}>
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          transformStyle: "preserve-3d",
+          transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+          transition: "transform 420ms cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
       >
-        Next Card →
-      </button>
+        {/* Front face */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backfaceVisibility: "hidden",
+            WebkitBackfaceVisibility: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            overflowY: "auto",
+            pointerEvents: flipped ? "none" : "auto",
+          }}
+        >
+          {front}
+        </div>
+        {/* Back face — pre-rotated 180° so it appears correctly when container flips */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backfaceVisibility: "hidden",
+            WebkitBackfaceVisibility: "hidden",
+            transform: "rotateY(180deg)",
+            display: "flex",
+            flexDirection: "column",
+            overflowY: "auto",
+            pointerEvents: flipped ? "auto" : "none",
+            backgroundColor: "white",
+          }}
+        >
+          {back}
+        </div>
+      </div>
     </div>
   );
 }
@@ -368,60 +438,85 @@ function QuizCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
 
   const isCorrect = selected === correctIndex;
 
-  return (
-    <div className="flex-1 flex flex-col">
-      <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
-          Question
+  const resultSummary = submitted ? (
+    isCorrect ? (
+      <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+        <p className="text-sm font-semibold text-green-700">✅ You selected the correct answer.</p>
+      </div>
+    ) : (
+      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1.5">
+          Correct Answer
         </p>
-        <SafeHtml
-          html={question}
-          className="text-sm sm:text-base font-medium text-gray-800 leading-relaxed"
+        <p className="text-sm text-blue-800">{options[correctIndex]?.text}</p>
+      </div>
+    )
+  ) : null;
+
+  return (
+    <CardFlip
+      flipped={flipped}
+      front={
+        <>
+          <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 shrink-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+              Question
+            </p>
+            <SafeHtml
+              html={question}
+              className="text-sm sm:text-base font-medium text-gray-800 leading-relaxed"
+            />
+          </div>
+
+          <div className="flex-1 px-6 sm:px-8 py-5 space-y-2.5 overflow-y-auto">
+            {options.map((opt, i) => (
+              <button
+                key={i}
+                disabled={submitted}
+                onClick={() => !submitted && setSelected(i)}
+                className={`w-full text-left rounded-xl border-2 border-gray-200 px-4 sm:px-5 py-3 text-sm transition-all ${optionBg(i)}`}
+                style={optionBorder(i)}
+              >
+                <span className="font-semibold text-gray-400 mr-2.5">
+                  {String.fromCharCode(65 + i)}.
+                </span>
+                <span className={optionTextClass(i)}>{opt.text}</span>
+                {submitted && i === correctIndex && (
+                  <span className="ml-2 text-green-600 font-bold">✓</span>
+                )}
+                {submitted && i === selected && i !== correctIndex && (
+                  <span className="ml-2 text-red-500 font-bold">✗</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3 shrink-0">
+            {!submitted ? (
+              <button
+                onClick={() => setSubmitted(true)}
+                disabled={selected === null}
+                className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
+              >
+                Submit Answer
+              </button>
+            ) : (
+              <>
+                <ResultBadge correct={isCorrect} label={isCorrect ? "✅ Correct!" : "❌ Incorrect"} />
+                <FlipButton onClick={() => setFlipped(true)} />
+              </>
+            )}
+          </div>
+        </>
+      }
+      back={
+        <CardBack
+          explanation={explanation}
+          resultSummary={resultSummary}
+          onNext={onNext}
         />
-      </div>
-
-      <div className="flex-1 px-6 sm:px-8 py-5 space-y-2.5">
-        {options.map((opt, i) => (
-          <button
-            key={i}
-            disabled={submitted}
-            onClick={() => !submitted && setSelected(i)}
-            className={`w-full text-left rounded-xl border-2 border-gray-200 px-4 sm:px-5 py-3 text-sm transition-all ${optionBg(i)}`}
-            style={optionBorder(i)}
-          >
-            <span className="font-semibold text-gray-400 mr-2.5">
-              {String.fromCharCode(65 + i)}.
-            </span>
-            <span className={optionTextClass(i)}>{opt.text}</span>
-            {submitted && i === correctIndex && (
-              <span className="ml-2 text-green-600 font-bold">✓</span>
-            )}
-            {submitted && i === selected && i !== correctIndex && (
-              <span className="ml-2 text-red-500 font-bold">✗</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3">
-        {!submitted ? (
-          <button
-            onClick={() => setSubmitted(true)}
-            disabled={selected === null}
-            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
-          >
-            Submit Answer
-          </button>
-        ) : !flipped ? (
-          <>
-            <ResultBadge correct={isCorrect} label={isCorrect ? "✅ Correct!" : "❌ Incorrect"} />
-            <FlipButton onClick={() => setFlipped(true)} />
-          </>
-        ) : (
-          <ExplReveal html={explanation} onNext={onNext} />
-        )}
-      </div>
-    </div>
+      }
+    />
   );
 }
 
@@ -451,70 +546,95 @@ function FillInBlankCard({ card, onNext }: { card: FlashCard; onNext: () => void
   const before = parts[0] ?? "";
   const after = parts.slice(1).join("___");
 
-  return (
-    <div className="flex-1 flex flex-col">
-      <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100">
-        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
-          Fill in the Blank
-        </p>
-        <InstructionLine text={instruction} />
-        <p className="mt-2 text-sm sm:text-base font-medium text-gray-800 leading-relaxed">
-          {before}
-          {submitted ? (
-            <span className="font-bold text-green-700 bg-green-100 rounded px-2 mx-0.5">
-              {accepted[0] ?? "?"}
-            </span>
-          ) : (
-            <span
-              className="inline-block border-b-2 mx-1 w-24 text-center align-bottom font-semibold"
-              style={{
-                borderBottomColor: "var(--fc-accent, #6D4BCB)",
-                color: "var(--fc-accent, #6D4BCB)",
-              }}
-            >
-              {answer || "___"}
-            </span>
-          )}
-          {after}
-        </p>
-      </div>
-
-      <div className="flex-1 px-6 sm:px-8 py-5 space-y-4">
-        {!submitted ? (
-          <div className="flex gap-3">
-            <input
-              type="text"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && answer.trim() && handleCheck()}
-              placeholder="Type your answer…"
-              className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none transition-colors"
-              onFocus={(e) =>
-                (e.currentTarget.style.borderColor = "var(--fc-accent, #6D4BCB)")
-              }
-              onBlur={(e) => (e.currentTarget.style.borderColor = "")}
-            />
-            <button
-              onClick={handleCheck}
-              disabled={!answer.trim()}
-              className="fc-accent-btn text-white text-sm font-semibold px-5 py-2.5 rounded-xl shrink-0"
-            >
-              Check
-            </button>
-          </div>
-        ) : !flipped ? (
-          <>
-            <ResultBadge
-              correct={correct}
-              label={correct ? "✅ Correct!" : `❌ Accepted: ${accepted.join(", ")}`}
-            />
-            <FlipButton onClick={() => setFlipped(true)} />
-          </>
-        ) : (
-          <ExplReveal html={explanation} onNext={onNext} />
-        )}
-      </div>
+  const resultSummary = submitted && !correct ? (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-1.5">
+        Accepted Answer{accepted.length > 1 ? "s" : ""}
+      </p>
+      <p className="text-sm text-blue-800">{accepted.join(" / ")}</p>
     </div>
+  ) : submitted && correct ? (
+    <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+      <p className="text-sm font-semibold text-green-700">✅ You got it right!</p>
+    </div>
+  ) : null;
+
+  return (
+    <CardFlip
+      flipped={flipped}
+      front={
+        <>
+          <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 shrink-0">
+            <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
+              Fill in the Blank
+            </p>
+            <InstructionLine text={instruction} />
+            <p className="mt-2 text-sm sm:text-base font-medium text-gray-800 leading-relaxed">
+              {before}
+              {submitted ? (
+                <span className="font-bold text-green-700 bg-green-100 rounded px-2 mx-0.5">
+                  {accepted[0] ?? "?"}
+                </span>
+              ) : (
+                <span
+                  className="inline-block border-b-2 mx-1 w-24 text-center align-bottom font-semibold"
+                  style={{
+                    borderBottomColor: "var(--fc-accent, #6D4BCB)",
+                    color: "var(--fc-accent, #6D4BCB)",
+                  }}
+                >
+                  {answer || "___"}
+                </span>
+              )}
+              {after}
+            </p>
+          </div>
+
+          <div className="flex-1 px-6 sm:px-8 py-5 overflow-y-auto">
+            {!submitted && (
+              <div className="flex gap-3">
+                <input
+                  type="text"
+                  value={answer}
+                  onChange={(e) => setAnswer(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && answer.trim() && handleCheck()}
+                  placeholder="Type your answer…"
+                  className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none transition-colors"
+                  onFocus={(e) =>
+                    (e.currentTarget.style.borderColor = "var(--fc-accent, #6D4BCB)")
+                  }
+                  onBlur={(e) => (e.currentTarget.style.borderColor = "")}
+                />
+                <button
+                  onClick={handleCheck}
+                  disabled={!answer.trim()}
+                  className="fc-accent-btn text-white text-sm font-semibold px-5 py-2.5 rounded-xl shrink-0"
+                >
+                  Check
+                </button>
+              </div>
+            )}
+          </div>
+
+          {submitted && (
+            <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3 shrink-0">
+              <ResultBadge
+                correct={correct}
+                label={correct ? "✅ Correct!" : `❌ Accepted: ${accepted.join(", ")}`}
+              />
+              <FlipButton onClick={() => setFlipped(true)} />
+            </div>
+          )}
+        </>
+      }
+      back={
+        <CardBack
+          explanation={explanation}
+          resultSummary={resultSummary}
+          onNext={onNext}
+        />
+      }
+    />
   );
 }
 
@@ -589,109 +709,129 @@ function ReorderCard({ card, onNext }: { card: FlashCard; onNext: () => void }) 
     setItems([...correctOrder].sort(() => Math.random() - 0.5));
   }
 
-  return (
-    <div className="flex-1 flex flex-col">
-      <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100">
-        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
-          Reorder
-        </p>
-        <p className="text-sm font-medium text-gray-700 leading-snug mt-1">{instruction}</p>
-        {!submitted && (
-          <p className="text-[10px] text-gray-400 mt-1 italic">
-            Drag rows into the correct order, then submit
-          </p>
-        )}
-      </div>
+  const resultSummary = (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-2">
+        Correct Order
+      </p>
+      <ol className="space-y-1">
+        {correctOrder.map((item, i) => (
+          <li key={i} className="text-sm text-blue-800 flex gap-2">
+            <span className="font-bold text-blue-400 shrink-0">{i + 1}.</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
 
-      <div className="flex-1 px-6 sm:px-8 py-5 space-y-2">
-        {items.map((item, i) => (
-          <div
-            key={item + i}
-            ref={(el) => { rowRefs.current[i] = el; }}
-            className={`flex items-center gap-3 rounded-xl border-2 px-3 py-3 text-sm transition-all select-none ${
-              !submitted
-                ? dragIdx === i
-                  ? "border-[color:var(--fc-accent,#6D4BCB)] bg-purple-50 shadow-md scale-[1.01]"
-                  : "border-gray-200 bg-gray-50"
-                : res[i]
-                ? "border-green-400 bg-green-50"
-                : "border-red-400 bg-red-50"
-            }`}
-          >
-            {/* Drag handle — pointer events captured here */}
+  return (
+    <CardFlip
+      flipped={flipped}
+      front={
+        <>
+          <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 shrink-0">
+            <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
+              Reorder
+            </p>
+            <p className="text-sm font-medium text-gray-700 leading-snug mt-1">{instruction}</p>
             {!submitted && (
-              <div
-                className="shrink-0 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing px-1 py-0.5 rounded"
-                style={{ touchAction: "none" }}
-                onPointerDown={(e) => onHandlePointerDown(e, i)}
-                onPointerMove={onHandlePointerMove}
-                onPointerUp={onHandlePointerUp}
-                aria-label="Drag to reorder"
-              >
-                {/* six-dot drag icon */}
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <circle cx="7" cy="5" r="1.5" />
-                  <circle cx="13" cy="5" r="1.5" />
-                  <circle cx="7" cy="10" r="1.5" />
-                  <circle cx="13" cy="10" r="1.5" />
-                  <circle cx="7" cy="15" r="1.5" />
-                  <circle cx="13" cy="15" r="1.5" />
-                </svg>
-              </div>
-            )}
-            <span className="w-5 text-center text-xs font-bold text-gray-400 shrink-0">
-              {i + 1}
-            </span>
-            <span
-              className={`flex-1 font-medium ${
-                !submitted
-                  ? "text-gray-800"
-                  : res[i]
-                  ? "text-green-700"
-                  : "text-red-600"
-              }`}
-            >
-              {item}
-            </span>
-            {submitted && (
-              <span className="text-base shrink-0 font-bold">
-                {res[i] ? (
-                  <span className="text-green-600">✓</span>
-                ) : (
-                  <span className="text-red-500">✗</span>
-                )}
-              </span>
+              <p className="text-[10px] text-gray-400 mt-1 italic">
+                Drag rows into the correct order, then submit
+              </p>
             )}
           </div>
-        ))}
-      </div>
 
-      <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3">
-        {!submitted ? (
-          <button
-            onClick={() => setSubmitted(true)}
-            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
-          >
-            Submit Order
-          </button>
-        ) : !flipped ? (
-          <>
-            <ResultBadge
-              correct={allCorrect}
-              label={
-                allCorrect
-                  ? "✅ Perfect order!"
-                  : `${correctCount} of ${items.length} in the right position`
-              }
-            />
-            {!allCorrect && <TryAgainButton onClick={handleTryAgain} />}
-            <FlipButton onClick={() => setFlipped(true)} />
-          </>
-        ) : (
-          <ExplReveal html={explanation} onNext={onNext} />
-        )}
-      </div>
-    </div>
+          <div className="flex-1 px-6 sm:px-8 py-5 space-y-2 overflow-y-auto">
+            {items.map((item, i) => (
+              <div
+                key={item + i}
+                ref={(el) => { rowRefs.current[i] = el; }}
+                className={`flex items-center gap-3 rounded-xl border-2 px-3 py-3 text-sm transition-all select-none ${
+                  !submitted
+                    ? dragIdx === i
+                      ? "border-[color:var(--fc-accent,#6D4BCB)] bg-purple-50 shadow-md scale-[1.01]"
+                      : "border-gray-200 bg-gray-50"
+                    : res[i]
+                    ? "border-green-400 bg-green-50"
+                    : "border-red-400 bg-red-50"
+                }`}
+              >
+                {!submitted && (
+                  <div
+                    className="shrink-0 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing px-1 py-0.5 rounded"
+                    style={{ touchAction: "none" }}
+                    onPointerDown={(e) => onHandlePointerDown(e, i)}
+                    onPointerMove={onHandlePointerMove}
+                    onPointerUp={onHandlePointerUp}
+                    aria-label="Drag to reorder"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <circle cx="7" cy="5" r="1.5" />
+                      <circle cx="13" cy="5" r="1.5" />
+                      <circle cx="7" cy="10" r="1.5" />
+                      <circle cx="13" cy="10" r="1.5" />
+                      <circle cx="7" cy="15" r="1.5" />
+                      <circle cx="13" cy="15" r="1.5" />
+                    </svg>
+                  </div>
+                )}
+                <span className="w-5 text-center text-xs font-bold text-gray-400 shrink-0">
+                  {i + 1}
+                </span>
+                <span
+                  className={`flex-1 font-medium ${
+                    !submitted ? "text-gray-800" : res[i] ? "text-green-700" : "text-red-600"
+                  }`}
+                >
+                  {item}
+                </span>
+                {submitted && (
+                  <span className="text-base shrink-0 font-bold">
+                    {res[i] ? (
+                      <span className="text-green-600">✓</span>
+                    ) : (
+                      <span className="text-red-500">✗</span>
+                    )}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3 shrink-0">
+            {!submitted ? (
+              <button
+                onClick={() => setSubmitted(true)}
+                className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
+              >
+                Submit Order
+              </button>
+            ) : (
+              <>
+                <ResultBadge
+                  correct={allCorrect}
+                  label={
+                    allCorrect
+                      ? "✅ Perfect order!"
+                      : `${correctCount} of ${items.length} in the right position`
+                  }
+                />
+                {!allCorrect && <TryAgainButton onClick={handleTryAgain} />}
+                <FlipButton onClick={() => setFlipped(true)} />
+              </>
+            )}
+          </div>
+        </>
+      }
+      back={
+        <CardBack
+          explanation={explanation}
+          resultSummary={resultSummary}
+          onNext={onNext}
+        />
+      }
+    />
   );
 }
 
@@ -727,97 +867,118 @@ function MatchingCard({ card, onNext }: { card: FlashCard; onNext: () => void })
     setFlipped(false);
   }
 
-  return (
-    <div className="flex-1 flex flex-col">
-      <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100">
-        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
-          Matching
-        </p>
-        <InstructionLine text={instruction} />
-      </div>
-
-      <div className="flex-1 px-6 sm:px-8 py-5 space-y-3">
+  const resultSummary = (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-2">
+        Correct Pairs
+      </p>
+      <div className="space-y-1.5">
         {pairs.map((pair, i) => (
-          <div key={i} className="flex items-center gap-2 sm:gap-3">
-            {/* Left — fixed */}
-            <div className="flex-1 min-w-0 rounded-xl border-2 border-gray-200 bg-gray-50 px-3 sm:px-4 py-2.5 text-sm text-gray-800 font-medium">
-              {pair.left}
-            </div>
-
-            <span className="text-gray-400 font-bold shrink-0 text-xs">→</span>
-
-            {/* Right — dropdown or result */}
-            <div className="flex-1 min-w-0">
-              {submitted ? (
-                <div
-                  className={`rounded-xl border-2 px-3 sm:px-4 py-2.5 text-sm font-medium ${
-                    results[i]
-                      ? "border-green-400 bg-green-50 text-green-700"
-                      : "border-red-400 bg-red-50 text-red-600"
-                  }`}
-                >
-                  <span className="block truncate">{selections[i] || "—"}</span>
-                  {!results[i] && (
-                    <span className="text-[10px] text-green-600 block mt-0.5">
-                      ✓ {pair.right}
-                    </span>
-                  )}
-                </div>
-              ) : (
-                <select
-                  value={selections[i]}
-                  onChange={(e) => {
-                    const next = [...selections];
-                    next[i] = e.target.value;
-                    setSelections(next);
-                  }}
-                  className="w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none appearance-none cursor-pointer"
-                  style={
-                    selections[i]
-                      ? { borderColor: "var(--fc-accent, #6D4BCB)" }
-                      : undefined
-                  }
-                >
-                  <option value="">Select…</option>
-                  {shuffledRights.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+          <div key={i} className="text-sm text-blue-800 flex items-center gap-2">
+            <span className="font-medium">{pair.left}</span>
+            <span className="text-blue-300 shrink-0">→</span>
+            <span>{pair.right}</span>
           </div>
         ))}
       </div>
-
-      <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3">
-        {!submitted ? (
-          <button
-            onClick={() => setSubmitted(true)}
-            disabled={selections.some((s) => !s)}
-            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
-          >
-            Submit Matches
-          </button>
-        ) : !flipped ? (
-          <>
-            <ResultBadge
-              correct={allCorrect}
-              label={
-                allCorrect
-                  ? "✅ All matches correct!"
-                  : `${correctCount} of ${pairs.length} correct`
-              }
-            />
-            {!allCorrect && <TryAgainButton onClick={handleTryAgain} />}
-            <FlipButton onClick={() => setFlipped(true)} />
-          </>
-        ) : (
-          <ExplReveal html={explanation} onNext={onNext} />
-        )}
-      </div>
     </div>
+  );
+
+  return (
+    <CardFlip
+      flipped={flipped}
+      front={
+        <>
+          <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 shrink-0">
+            <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
+              Matching
+            </p>
+            <InstructionLine text={instruction} />
+          </div>
+
+          <div className="flex-1 px-6 sm:px-8 py-5 space-y-3 overflow-y-auto">
+            {pairs.map((pair, i) => (
+              <div key={i} className="flex items-center gap-2 sm:gap-3">
+                <div className="flex-1 min-w-0 rounded-xl border-2 border-gray-200 bg-gray-50 px-3 sm:px-4 py-2.5 text-sm text-gray-800 font-medium">
+                  {pair.left}
+                </div>
+                <span className="text-gray-400 font-bold shrink-0 text-xs">→</span>
+                <div className="flex-1 min-w-0">
+                  {submitted ? (
+                    <div
+                      className={`rounded-xl border-2 px-3 sm:px-4 py-2.5 text-sm font-medium ${
+                        results[i]
+                          ? "border-green-400 bg-green-50 text-green-700"
+                          : "border-red-400 bg-red-50 text-red-600"
+                      }`}
+                    >
+                      <span className="block truncate">{selections[i] || "—"}</span>
+                      {!results[i] && (
+                        <span className="text-[10px] text-green-600 block mt-0.5">
+                          ✓ {pair.right}
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <select
+                      value={selections[i]}
+                      onChange={(e) => {
+                        const next = [...selections];
+                        next[i] = e.target.value;
+                        setSelections(next);
+                      }}
+                      className="w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 outline-none appearance-none cursor-pointer"
+                      style={
+                        selections[i] ? { borderColor: "var(--fc-accent, #6D4BCB)" } : undefined
+                      }
+                    >
+                      <option value="">Select…</option>
+                      {shuffledRights.map((r) => (
+                        <option key={r} value={r}>
+                          {r}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3 shrink-0">
+            {!submitted ? (
+              <button
+                onClick={() => setSubmitted(true)}
+                disabled={selections.some((s) => !s)}
+                className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
+              >
+                Submit Matches
+              </button>
+            ) : (
+              <>
+                <ResultBadge
+                  correct={allCorrect}
+                  label={
+                    allCorrect
+                      ? "✅ All matches correct!"
+                      : `${correctCount} of ${pairs.length} correct`
+                  }
+                />
+                {!allCorrect && <TryAgainButton onClick={handleTryAgain} />}
+                <FlipButton onClick={() => setFlipped(true)} />
+              </>
+            )}
+          </div>
+        </>
+      }
+      back={
+        <CardBack
+          explanation={explanation}
+          resultSummary={resultSummary}
+          onNext={onNext}
+        />
+      }
+    />
   );
 }
 
@@ -936,9 +1097,28 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
     setFlipped(false);
   }
 
+  const resultSummary = (
+    <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-2">
+        Correct Categories
+      </p>
+      {categories.map((cat) => {
+        const catItems = items.filter((item) => item.category === cat);
+        return (
+          <div key={cat} className="mb-2 last:mb-0">
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-0.5">
+              {cat}
+            </p>
+            <p className="text-sm text-blue-800">{catItems.map((i) => i.text).join(", ")}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+
   return (
-    <div className="flex-1 flex flex-col" style={{ userSelect: "none" }}>
-      {/* Ghost element — fixed position, follows pointer, no pointer events */}
+    <>
+      {/* Ghost element — fixed position, follows pointer, above everything */}
       <div
         ref={ghostRef}
         className="fixed z-50 px-3 py-1.5 rounded-xl text-sm font-medium shadow-xl pointer-events-none"
@@ -955,143 +1135,153 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
         }}
       />
 
-      {/* Header */}
-      <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100">
-        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
-          Categorization
-        </p>
-        <p className="text-sm font-medium text-gray-700 leading-snug mt-1">{instruction}</p>
-        {!submitted && (
-          <p className="text-[10px] text-gray-400 mt-1 italic">
-            Drag chips into the correct category boxes
-          </p>
-        )}
-      </div>
-
-      <div className="flex-1 px-6 sm:px-8 py-5 overflow-y-auto space-y-3">
-        {/* Category drop-zones */}
-        {categories.map((cat) => {
-          const catItems = items
-            .map((item, i) => ({ item, i }))
-            .filter(({ i }) => assignments[i] === cat);
-          const isHighlighted = draggingIdx !== null;
-          return (
-            <div
-              key={cat}
-              ref={(el) => { if (el) catRefs.current.set(cat, el); }}
-              className={`rounded-xl border-2 p-3 min-h-[72px] transition-colors ${
-                submitted
-                  ? "border-gray-200 bg-gray-50"
-                  : isHighlighted
-                  ? "border-[color:var(--fc-accent,#6D4BCB)] bg-purple-50/40"
-                  : "border-gray-200 bg-gray-50"
-              }`}
-            >
-              <p
-                className="text-[10px] font-bold uppercase tracking-widest mb-2"
-                style={{ color: "var(--fc-accent, #6D4BCB)" }}
-              >
-                {cat}
+      <CardFlip
+        flipped={flipped}
+        front={
+          <div style={{ userSelect: "none", display: "flex", flexDirection: "column", flex: 1 }}>
+            {/* Header */}
+            <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-gray-100 shrink-0">
+              <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
+                Categorization
               </p>
-              <div className="flex flex-wrap gap-2 min-h-[28px]">
-                {catItems.map(({ item, i }) => {
-                  const isCorrect = submitted ? results[i] : null;
-                  return (
-                    <div
-                      key={i}
-                      className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${
-                        submitted
-                          ? isCorrect
-                            ? "border-green-400 bg-green-50 text-green-700"
-                            : "border-red-400 bg-red-50 text-red-600"
-                          : draggingIdx === i
-                          ? "opacity-40 border-dashed border-gray-300 bg-gray-100 text-gray-400 cursor-grabbing"
-                          : "border-gray-300 bg-white text-gray-700 cursor-grab"
-                      }`}
-                      style={{ touchAction: "none" }}
-                      onPointerDown={submitted ? undefined : (e) => onItemPointerDown(e, i)}
-                      onPointerMove={submitted ? undefined : onItemPointerMove}
-                      onPointerUp={submitted ? undefined : onItemPointerUp}
-                    >
-                      {item.text}
-                      {submitted && !isCorrect && (
-                        <span className="block text-[9px] text-green-600 mt-0.5">
-                          ✓ {item.category}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              <p className="text-sm font-medium text-gray-700 leading-snug mt-1">{instruction}</p>
+              {!submitted && (
+                <p className="text-[10px] text-gray-400 mt-1 italic">
+                  Drag chips into the correct category boxes
+                </p>
+              )}
             </div>
-          );
-        })}
 
-        {/* Unassigned pool — hidden after submit */}
-        {!submitted && (
-          <div
-            ref={poolRef}
-            className={`rounded-xl border-2 border-dashed p-3 min-h-[60px] transition-colors ${
-              draggingIdx !== null && assignments[draggingIdx] !== ""
-                ? "border-gray-400 bg-gray-50"
-                : "border-gray-200"
-            }`}
-          >
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
-              Unassigned {unassignedCount > 0 ? `(${unassignedCount})` : ""}
-            </p>
-            <div className="flex flex-wrap gap-2 min-h-[28px]">
-              {items.map((item, i) => {
-                if (assignments[i]) return null;
+            <div className="flex-1 px-6 sm:px-8 py-5 overflow-y-auto space-y-3">
+              {categories.map((cat) => {
+                const catItems = items
+                  .map((item, i) => ({ item, i }))
+                  .filter(({ i }) => assignments[i] === cat);
+                const isHighlighted = draggingIdx !== null;
                 return (
                   <div
-                    key={i}
-                    className={`px-3 py-1.5 rounded-lg border-2 border-dashed text-sm font-medium cursor-grab ${
-                      draggingIdx === i
-                        ? "opacity-40 border-gray-300 bg-gray-100 text-gray-400 cursor-grabbing"
-                        : "border-gray-300 bg-white text-gray-600"
+                    key={cat}
+                    ref={(el) => { if (el) catRefs.current.set(cat, el); }}
+                    className={`rounded-xl border-2 p-3 min-h-[72px] transition-colors ${
+                      submitted
+                        ? "border-gray-200 bg-gray-50"
+                        : isHighlighted
+                        ? "border-[color:var(--fc-accent,#6D4BCB)] bg-purple-50/40"
+                        : "border-gray-200 bg-gray-50"
                     }`}
-                    style={{ touchAction: "none" }}
-                    onPointerDown={(e) => onItemPointerDown(e, i)}
-                    onPointerMove={onItemPointerMove}
-                    onPointerUp={onItemPointerUp}
                   >
-                    {item.text}
+                    <p
+                      className="text-[10px] font-bold uppercase tracking-widest mb-2"
+                      style={{ color: "var(--fc-accent, #6D4BCB)" }}
+                    >
+                      {cat}
+                    </p>
+                    <div className="flex flex-wrap gap-2 min-h-[28px]">
+                      {catItems.map(({ item, i }) => {
+                        const isCorrect = submitted ? results[i] : null;
+                        return (
+                          <div
+                            key={i}
+                            className={`px-3 py-1.5 rounded-lg border-2 text-sm font-medium transition-all ${
+                              submitted
+                                ? isCorrect
+                                  ? "border-green-400 bg-green-50 text-green-700"
+                                  : "border-red-400 bg-red-50 text-red-600"
+                                : draggingIdx === i
+                                ? "opacity-40 border-dashed border-gray-300 bg-gray-100 text-gray-400 cursor-grabbing"
+                                : "border-gray-300 bg-white text-gray-700 cursor-grab"
+                            }`}
+                            style={{ touchAction: "none" }}
+                            onPointerDown={submitted ? undefined : (e) => onItemPointerDown(e, i)}
+                            onPointerMove={submitted ? undefined : onItemPointerMove}
+                            onPointerUp={submitted ? undefined : onItemPointerUp}
+                          >
+                            {item.text}
+                            {submitted && !isCorrect && (
+                              <span className="block text-[9px] text-green-600 mt-0.5">
+                                ✓ {item.category}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
+
+              {!submitted && (
+                <div
+                  ref={poolRef}
+                  className={`rounded-xl border-2 border-dashed p-3 min-h-[60px] transition-colors ${
+                    draggingIdx !== null && assignments[draggingIdx] !== ""
+                      ? "border-gray-400 bg-gray-50"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-2">
+                    Unassigned {unassignedCount > 0 ? `(${unassignedCount})` : ""}
+                  </p>
+                  <div className="flex flex-wrap gap-2 min-h-[28px]">
+                    {items.map((item, i) => {
+                      if (assignments[i]) return null;
+                      return (
+                        <div
+                          key={i}
+                          className={`px-3 py-1.5 rounded-lg border-2 border-dashed text-sm font-medium cursor-grab ${
+                            draggingIdx === i
+                              ? "opacity-40 border-gray-300 bg-gray-100 text-gray-400 cursor-grabbing"
+                              : "border-gray-300 bg-white text-gray-600"
+                          }`}
+                          style={{ touchAction: "none" }}
+                          onPointerDown={(e) => onItemPointerDown(e, i)}
+                          onPointerMove={onItemPointerMove}
+                          onPointerUp={onItemPointerUp}
+                        >
+                          {item.text}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3 shrink-0">
+              {!submitted ? (
+                <button
+                  onClick={() => setSubmitted(true)}
+                  disabled={!allAssigned}
+                  className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl disabled:opacity-40"
+                >
+                  {allAssigned ? "Submit" : `Submit (${unassignedCount} unassigned)`}
+                </button>
+              ) : (
+                <>
+                  <ResultBadge
+                    correct={allCorrect}
+                    label={
+                      allCorrect
+                        ? "✅ All categorized correctly!"
+                        : `${correctCount} of ${items.length} correct`
+                    }
+                  />
+                  {!allCorrect && <TryAgainButton onClick={handleTryAgain} />}
+                  <FlipButton onClick={() => setFlipped(true)} />
+                </>
+              )}
             </div>
           </div>
-        )}
-      </div>
-
-      <div className="px-6 sm:px-8 pb-6 pt-3 border-t border-gray-100 space-y-3">
-        {!submitted ? (
-          <button
-            onClick={() => setSubmitted(true)}
-            disabled={!allAssigned}
-            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl disabled:opacity-40"
-          >
-            {allAssigned ? "Submit" : `Submit (${unassignedCount} unassigned)`}
-          </button>
-        ) : !flipped ? (
-          <>
-            <ResultBadge
-              correct={allCorrect}
-              label={
-                allCorrect
-                  ? "✅ All categorized correctly!"
-                  : `${correctCount} of ${items.length} correct`
-              }
-            />
-            {!allCorrect && <TryAgainButton onClick={handleTryAgain} />}
-            <FlipButton onClick={() => setFlipped(true)} />
-          </>
-        ) : (
-          <ExplReveal html={explanation} onNext={onNext} />
-        )}
-      </div>
-    </div>
+        }
+        back={
+          <CardBack
+            explanation={explanation}
+            resultSummary={resultSummary}
+            onNext={onNext}
+          />
+        }
+      />
+    </>
   );
 }
 
