@@ -3,6 +3,16 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+// XP policy (matches TestHub policy):
+//   1st completion → 100% of xpValue
+//   2nd completion → 50% of xpValue
+//   3rd+ completion → 0 XP
+function computeMultiplier(completionNumber: number): number {
+  if (completionNumber === 1) return 1.0;
+  if (completionNumber === 2) return 0.5;
+  return 0;
+}
+
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) {
@@ -37,37 +47,38 @@ export async function POST(request: Request) {
     });
     return Response.json({
       xpAwarded: 0,
-      alreadyAwarded: false,
+      completionNumber: 0,
+      xpMultiplier: 0,
       newTotal: totalXpAgg._sum.delta ?? 0,
     });
   }
 
-  const existing = await prisma.xpLedgerEntry.findFirst({
+  // Count how many times this user has already completed this deck
+  const priorCompletions = await prisma.xpLedgerEntry.count({
     where: { userId: user.id, refType: "FlashcardDeck", refId: deckId },
   });
 
-  if (existing) {
-    const totalXpAgg = await prisma.xpLedgerEntry.aggregate({
-      where: { userId: user.id },
-      _sum: { delta: true },
-    });
-    return Response.json({
-      xpAwarded: 0,
-      alreadyAwarded: true,
-      newTotal: totalXpAgg._sum.delta ?? 0,
+  const completionNumber = priorCompletions + 1;
+  const xpMultiplier = computeMultiplier(completionNumber);
+  const xpEarned = Math.round(deck.xpValue * xpMultiplier);
+
+  if (xpEarned > 0) {
+    await prisma.xpLedgerEntry.create({
+      data: {
+        userId: user.id,
+        delta: xpEarned,
+        reason: "Flashcard deck completion",
+        refType: "FlashcardDeck",
+        refId: deckId,
+        meta: {
+          deckTitle: deck.title,
+          baseXp: deck.xpValue,
+          xpMultiplier,
+          completionNumber,
+        },
+      },
     });
   }
-
-  await prisma.xpLedgerEntry.create({
-    data: {
-      userId: user.id,
-      delta: deck.xpValue,
-      reason: "Flashcard deck completion",
-      refType: "FlashcardDeck",
-      refId: deckId,
-      meta: { deckTitle: deck.title, xpValue: deck.xpValue },
-    },
-  });
 
   const totalXpAgg = await prisma.xpLedgerEntry.aggregate({
     where: { userId: user.id },
@@ -75,8 +86,9 @@ export async function POST(request: Request) {
   });
 
   return Response.json({
-    xpAwarded: deck.xpValue,
-    alreadyAwarded: false,
+    xpAwarded: xpEarned,
+    completionNumber,
+    xpMultiplier,
     newTotal: totalXpAgg._sum.delta ?? 0,
   });
 }

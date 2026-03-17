@@ -1388,7 +1388,8 @@ export default function FlashcardStudyClient({
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(false);
   const [xpAwarded, setXpAwarded] = useState<number | null>(null);
-  const [xpAlreadyEarned, setXpAlreadyEarned] = useState(false);
+  const [xpCompletionNumber, setXpCompletionNumber] = useState<number | null>(null);
+  const [xpMultiplier, setXpMultiplier] = useState<number | null>(null);
   const celebrationFiredRef = useRef(false);
   const xpCommitCalledRef = useRef(false);
 
@@ -1405,9 +1406,15 @@ export default function FlashcardStudyClient({
         body: JSON.stringify({ deckId }),
       });
       if (!res.ok) return;
-      const data = await res.json() as { xpAwarded: number; alreadyAwarded: boolean };
+      const data = await res.json() as {
+        xpAwarded: number;
+        completionNumber: number;
+        xpMultiplier: number;
+        newTotal: number;
+      };
       setXpAwarded(data.xpAwarded);
-      setXpAlreadyEarned(data.alreadyAwarded);
+      setXpCompletionNumber(data.completionNumber);
+      setXpMultiplier(data.xpMultiplier);
       if (data.xpAwarded > 0 && !celebrationFiredRef.current) {
         celebrationFiredRef.current = true;
         triggerXpCelebration();
@@ -1430,6 +1437,11 @@ export default function FlashcardStudyClient({
   function handleRestart() {
     setIndex(0);
     setDone(false);
+    setXpAwarded(null);
+    setXpCompletionNumber(null);
+    setXpMultiplier(null);
+    xpCommitCalledRef.current = false;
+    celebrationFiredRef.current = false;
   }
 
   // Root element sets CSS custom properties; all descendants inherit them
@@ -1474,14 +1486,28 @@ export default function FlashcardStudyClient({
           </p>
           {xpEnabled && xpValue > 0 && (
             <div className="mb-6">
+              {/* Loading */}
               {xpAwarded === null && (
                 <p className="fc-accent-text text-sm font-semibold">⚡ Saving XP…</p>
               )}
+
+              {/* XP awarded — show badge + context note */}
               {xpAwarded !== null && xpAwarded > 0 && (
-                <XpEarnedBadge xp={xpAwarded} />
+                <div className="space-y-2">
+                  <XpEarnedBadge xp={xpAwarded} />
+                  <p className="text-xs text-gray-500 text-center">
+                    {xpCompletionNumber === 1 && "First study — full XP!"}
+                    {xpCompletionNumber === 2 && "2nd study — 50% XP awarded."}
+                  </p>
+                </div>
               )}
-              {xpAwarded !== null && xpAlreadyEarned && (
-                <p className="text-gray-400 text-sm">XP already earned for this deck.</p>
+
+              {/* 3rd+ attempt — no XP */}
+              {xpAwarded !== null && xpAwarded === 0 && xpMultiplier === 0 && (
+                <div className="rounded-xl px-4 py-3 text-center" style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>
+                  <p className="text-sm font-medium text-gray-500">No XP from the 3rd study onwards.</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Keep studying — your knowledge is what counts!</p>
+                </div>
               )}
             </div>
           )}
