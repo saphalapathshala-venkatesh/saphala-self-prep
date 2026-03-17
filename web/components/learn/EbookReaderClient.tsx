@@ -8,6 +8,36 @@ import { triggerXpCelebration } from "@/lib/xpCelebration";
 const PURPLE = "#6D4BCB";
 const GREEN = "#10B981";
 
+function ProgressBar({
+  current,
+  total,
+  color,
+}: {
+  current: number;
+  total: number;
+  color: string;
+}) {
+  const pct = total > 1 ? Math.round(((current + 1) / total) * 100) : 100;
+  return (
+    <div className="mb-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-semibold uppercase tracking-widest" style={{ color }}>
+          Reading Progress
+        </span>
+        <span className="text-xs font-bold" style={{ color }}>
+          Page {current + 1} / {total}
+        </span>
+      </div>
+      <div className="w-full h-2 rounded-full bg-gray-200 overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all duration-500 ease-out"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
 interface Chapter {
   id: string;
   title: string | null;
@@ -114,8 +144,13 @@ export default function EbookReaderClient({
     </div>
   );
 
+  const accentColor = subjectColor ?? PURPLE;
+
   return (
     <div ref={topRef}>
+      {/* Progress bar — always shown, uses subject color */}
+      <ProgressBar current={currentPage} total={totalPages} color={accentColor} />
+
       <EbookPageShell
         title={title}
         subject={subject}
@@ -148,28 +183,6 @@ export default function EbookReaderClient({
         <div className="mt-4 rounded-xl px-4 py-3 text-sm text-gray-500 bg-gray-50 border border-gray-200">
           ✓ Lesson complete!
         </div>
-      )}
-
-      {/* Chapter progress indicator */}
-      {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-center gap-2">
-          {chapters.map((_, i) => (
-            <div
-              key={i}
-              className="rounded-full transition-all"
-              style={{
-                width: i === currentPage ? 24 : 8,
-                height: 8,
-                backgroundColor: i === currentPage ? PURPLE : "#d1d5db",
-              }}
-            />
-          ))}
-        </div>
-      )}
-      {totalPages > 1 && (
-        <p className="mt-1.5 text-center text-xs text-gray-400">
-          Chapter {currentPage + 1} of {totalPages}
-        </p>
       )}
 
       {/* Navigation buttons */}

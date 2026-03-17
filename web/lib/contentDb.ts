@@ -137,6 +137,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
               name: true,
               subject: {
                 select: {
+                  id: true,
                   name: true,
                   category: { select: { name: true } },
                 },
@@ -160,6 +161,19 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
 
   if (!page || !page.isPublished) return null;
   if (page.unlockAt && page.unlockAt > new Date()) return null;
+
+  // Look up subject-specific color from FlashcardDeck (same subjectId).
+  // FlashcardDeck.subjectColor is the canonical per-subject brand color set by the admin.
+  // This allows ebooks to inherit the same subject color as flashcards for that subject.
+  const subjectId = page.subtopic?.topic.subject.id ?? null;
+  let subjectColor: string | null = null;
+  if (subjectId) {
+    const colorDeck = await prisma.flashcardDeck.findFirst({
+      where: { subjectId, NOT: { subjectColor: null } },
+      select: { subjectColor: true },
+    });
+    subjectColor = colorDeck?.subjectColor ?? null;
+  }
 
   // Build the body from EBookPage chapters if they exist;
   // fall back to the legacy ContentPage.body for older ebooks.
@@ -198,7 +212,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     publishedAt: page.publishedAt,
     xpEnabled: page.xpEnabled,
     xpValue: page.xpValue,
-    subjectColor: null,
+    subjectColor,
     chapters,
     breadcrumb: {
       category: page.subtopic?.topic.subject.category.name ?? null,
