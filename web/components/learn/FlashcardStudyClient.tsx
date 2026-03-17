@@ -93,8 +93,13 @@ interface ShellProps {
 function CardShell({ subject, xpEnabled, xpValue, children }: ShellProps) {
   const showXp = xpEnabled && xpValue > 0;
   return (
-    <div className="w-full max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-[0_6px_32px_rgba(0,0,0,0.12)] border border-black/5 flex flex-col min-h-[540px] sm:min-h-[600px]">
-      {/* ── Header ≈ 10% ── */}
+    <div
+      className="w-full max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-[0_6px_32px_rgba(0,0,0,0.18)] flex flex-col min-h-[540px] sm:min-h-[600px]"
+      style={{
+        border: "3px solid var(--fc-accent, #6D4BCB)",
+      }}
+    >
+      {/* ── Header ── */}
       <div
         className="flex items-center justify-between px-5 sm:px-6 py-3 shrink-0"
         style={{ backgroundColor: "var(--fc-accent, #6D4BCB)" }}
@@ -105,7 +110,7 @@ function CardShell({ subject, xpEnabled, xpValue, children }: ShellProps) {
           </p>
           {showXp && (
             <p className="text-white/70 text-[9px] mt-0.5 leading-tight">
-              Complete deck of Flash cards to earn {xpValue} XP
+              Complete deck to earn {xpValue} XP
             </p>
           )}
         </div>
@@ -116,21 +121,34 @@ function CardShell({ subject, xpEnabled, xpValue, children }: ShellProps) {
         )}
       </div>
 
-      {/* ── Content — grows to fill available space ── */}
+      {/* ── Content ── */}
       <div className="flex-1 flex flex-col bg-white overflow-y-auto">
         {children}
       </div>
 
-      {/* ── Footer ≈ 10% ── */}
-      <div className="flex items-center justify-between px-5 sm:px-6 py-2.5 border-t border-gray-100 bg-gray-50/80 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
-            {BRAND.name}
-          </span>
-          <span className="text-gray-300 text-xs shrink-0">·</span>
-          <span className="text-[9px] text-gray-400 italic truncate">{BRAND.tagline}</span>
-        </div>
-        <span className="ml-2 shrink-0 text-[9px] font-bold text-gray-300">SP</span>
+      {/* ── Footer — Saphala logo ── */}
+      <div className="flex items-center justify-between px-5 sm:px-6 py-2 border-t border-gray-100 bg-gray-50/80 shrink-0">
+        {/* Real Saphala logo — falls back to brand name text if image unavailable */}
+        <img
+          src="/images/saphala-logo.png"
+          alt={BRAND.name}
+          className="h-7 w-auto object-contain"
+          onError={(e) => {
+            const t = e.currentTarget;
+            t.style.display = "none";
+            const fallback = t.nextElementSibling as HTMLElement | null;
+            if (fallback) fallback.style.display = "block";
+          }}
+        />
+        <span
+          className="text-[10px] font-bold text-gray-400 uppercase tracking-wider hidden"
+          aria-hidden="true"
+        >
+          {BRAND.name}
+        </span>
+        <span className="text-[9px] text-gray-300 italic truncate ml-2 hidden sm:block">
+          {BRAND.tagline}
+        </span>
       </div>
     </div>
   );
