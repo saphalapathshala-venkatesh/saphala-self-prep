@@ -233,9 +233,11 @@ export interface PublishedDeck {
 
 export interface FlashCard {
   id: string;
+  cardType: string;
   front: string;
   back: string;
   imageUrl: string | null;
+  content: unknown;
   order: number;
 }
 
@@ -304,9 +306,11 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
         orderBy: { order: "asc" },
         select: {
           id: true,
+          cardType: true,
           front: true,
           back: true,
           imageUrl: true,
+          content: true,
           order: true,
         },
       },

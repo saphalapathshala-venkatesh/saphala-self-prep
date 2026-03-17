@@ -62,3 +62,49 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ── Flashcard rich content (.fc-rich) ─────────────────────────────────────
+   Applied to SafeHtml wrapper; styles admin-editor HTML: tables, lists,
+   blockquotes, callout divs, inline formatting. ── */
+.fc-rich table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  margin: 0.5rem 0;
+}
+.fc-rich th,
+.fc-rich td {
+  border: 1px solid #e5e7eb;
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.fc-rich th {
+  background: #f5f3ff;
+  font-weight: 600;
+  color: #4b5563;
+}
+.fc-rich tr:nth-child(even) td {
+  background: #fafafa;
+}
+.fc-rich blockquote {
+  border-left: 3px solid #6D4BCB;
+  padding-left: 12px;
+  margin: 8px 0;
+  color: #374151;
+}
+.fc-rich ol,
+.fc-rich ul {
+  padding-left: 1.4rem;
+  margin: 6px 0;
+}
+.fc-rich li {
+  margin-bottom: 4px;
+}
+.fc-rich p,
+.fc-rich div {
+  margin-bottom: 2px;
+}
+.fc-rich br {
+  line-height: 1;
+}

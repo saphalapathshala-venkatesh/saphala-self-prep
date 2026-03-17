@@ -1,10 +1,635 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { FlashCard } from "@/lib/contentDb";
 import { ROUTES } from "@/config/terminology";
 
+// ── Safe HTML renderer ──────────────────────────────────────────────────────
+// Content comes from the trusted admin editor; we strip only script/iframe/handlers.
+function SafeHtml({ html, className }: { html: string; className?: string }) {
+  const safe = html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
+    .replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, "");
+  return (
+    <div
+      className={`fc-rich ${className ?? ""}`}
+      dangerouslySetInnerHTML={{ __html: safe }}
+    />
+  );
+}
+
+// Strip HTML tags to get plain display text
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+}
+
+// ── Per-card content type interfaces ───────────────────────────────────────
+interface TitleContent {
+  titleOverride?: string;
+  subtitle?: string;
+}
+interface InfoContent {
+  body?: string;
+}
+interface QuizContent {
+  question?: string;
+  options?: { text: string; isCorrect: boolean }[];
+}
+interface FillInBlankContent {
+  sentence?: string;
+  blanks?: { id: string; accepted: string[] }[];
+  explanation?: string;
+}
+interface MatchingContent {
+  pairs?: { left: string; right: string }[];
+  explanation?: string;
+}
+interface ReorderContent {
+  items?: string[];
+  explanation?: string;
+}
+interface CategorizationContent {
+  items?: { text: string; category: string }[];
+  categories?: string[];
+  explanation?: string;
+}
+
+// ── Shared "Next / Finish" footer button ────────────────────────────────────
+function NextButton({ onNext, label = "Continue →" }: { onNext: () => void; label?: string }) {
+  return (
+    <button
+      onClick={onNext}
+      className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+    >
+      {label}
+    </button>
+  );
+}
+
+// ── TITLE card ──────────────────────────────────────────────────────────────
+function TitleCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  const c = card.content as TitleContent | null;
+  const title = c?.titleOverride ?? stripHtml(card.front);
+  const subtitle = c?.subtitle;
+  return (
+    <div className="w-full max-w-2xl bg-[#2D1B69] rounded-2xl p-10 text-center shadow-lg">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-purple-300 mb-5">
+        Section
+      </p>
+      <h2 className="text-2xl font-bold text-white leading-snug">{title}</h2>
+      {subtitle && <p className="mt-3 text-purple-200 text-sm">{subtitle}</p>}
+      <button
+        onClick={onNext}
+        className="mt-8 bg-white text-[#2D1B69] text-sm font-semibold px-7 py-2.5 rounded-xl hover:bg-purple-50 transition-colors"
+      >
+        Start →
+      </button>
+    </div>
+  );
+}
+
+// ── INFO card ───────────────────────────────────────────────────────────────
+function InfoCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  const c = card.content as InfoContent | null;
+  const body = c?.body ?? "";
+  const backText = stripHtml(card.back);
+  const hasBack = backText.length > 0;
+  const [showBack, setShowBack] = useState(false);
+  return (
+    <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
+      <div className="px-8 pt-7 pb-4 border-b border-gray-100">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Info</p>
+        <h3 className="text-lg font-bold text-[#2D1B69] leading-snug">{stripHtml(card.front)}</h3>
+      </div>
+      <div className="px-8 py-6">
+        {body ? (
+          <SafeHtml html={body} className="text-sm leading-relaxed text-gray-700" />
+        ) : (
+          <p className="text-sm text-gray-400 italic">No content body for this card.</p>
+        )}
+      </div>
+      {hasBack && (
+        <div className="px-8 pb-4">
+          {showBack ? (
+            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
+                Explanation
+              </p>
+              <SafeHtml html={card.back} className="text-sm text-[#2D1B69]" />
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowBack(true)}
+              className="text-sm text-[#6D4BCB] hover:underline"
+            >
+              Show explanation
+            </button>
+          )}
+        </div>
+      )}
+      <div className="px-8 pb-7 flex justify-end">
+        <button
+          onClick={onNext}
+          className="bg-[#6D4BCB] text-white text-sm font-semibold px-7 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+        >
+          Continue →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── QUIZ card ───────────────────────────────────────────────────────────────
+function QuizCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  const c = card.content as QuizContent | null;
+  const question = c?.question ?? card.front;
+  const options = c?.options ?? [];
+  const [selected, setSelected] = useState<number | null>(null);
+  const [revealed, setRevealed] = useState(false);
+  const correctIndex = options.findIndex((o) => o.isCorrect);
+
+  const optionClass = (i: number) => {
+    if (!revealed) {
+      return i === selected
+        ? "border-[#6D4BCB] bg-purple-50"
+        : "border-gray-200 hover:border-[#6D4BCB]/40 hover:bg-purple-50/40 cursor-pointer";
+    }
+    if (i === correctIndex) return "border-green-500 bg-green-50";
+    if (i === selected && i !== correctIndex) return "border-red-400 bg-red-50";
+    return "border-gray-100 opacity-60";
+  };
+  const optionTextClass = (i: number) => {
+    if (!revealed) return i === selected ? "text-[#2D1B69] font-medium" : "text-gray-800";
+    if (i === correctIndex) return "text-green-700 font-medium";
+    if (i === selected && i !== correctIndex) return "text-red-600";
+    return "text-gray-500";
+  };
+
+  return (
+    <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
+      <div className="px-8 pt-7 pb-5 border-b border-gray-100">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Question</p>
+        <SafeHtml html={question} className="text-base font-medium text-gray-800 leading-relaxed" />
+      </div>
+      <div className="px-8 py-5 space-y-2.5">
+        {options.map((opt, i) => (
+          <button
+            key={i}
+            disabled={revealed}
+            onClick={() => !revealed && setSelected(i)}
+            className={`w-full text-left rounded-xl border-2 px-5 py-3 text-sm transition-all ${optionClass(i)}`}
+          >
+            <span className="font-medium text-gray-400 mr-3">{String.fromCharCode(65 + i)}.</span>
+            <span className={optionTextClass(i)}>{opt.text}</span>
+            {revealed && i === correctIndex && (
+              <span className="ml-2 text-green-600">✓</span>
+            )}
+            {revealed && i === selected && i !== correctIndex && (
+              <span className="ml-2 text-red-500">✗</span>
+            )}
+          </button>
+        ))}
+      </div>
+      <div className="px-8 pb-7 space-y-3">
+        {!revealed ? (
+          <button
+            onClick={() => setRevealed(true)}
+            disabled={selected === null}
+            className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Check Answer
+          </button>
+        ) : (
+          <>
+            {card.back && stripHtml(card.back).length > 0 && (
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
+                  Explanation
+                </p>
+                <SafeHtml html={card.back} className="text-sm text-[#2D1B69]" />
+              </div>
+            )}
+            <NextButton onNext={onNext} label="Next →" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── FILL IN THE BLANK card ──────────────────────────────────────────────────
+function FillInBlankCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  const c = card.content as FillInBlankContent | null;
+  const sentence = c?.sentence ?? stripHtml(card.front);
+  const accepted = c?.blanks?.[0]?.accepted ?? [];
+  const explanation = c?.explanation ?? card.back;
+  const [answer, setAnswer] = useState("");
+  const [revealed, setRevealed] = useState(false);
+  const [correct, setCorrect] = useState<boolean | null>(null);
+
+  function handleCheck() {
+    const ok = accepted.some(
+      (a) => a.trim().toLowerCase() === answer.trim().toLowerCase()
+    );
+    setCorrect(ok);
+    setRevealed(true);
+  }
+
+  const parts = sentence.split("___");
+  const before = parts[0] ?? "";
+  const after = parts[1] ?? "";
+
+  return (
+    <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
+      <div className="px-8 pt-7 pb-5 border-b border-gray-100">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+          Fill in the Blank
+        </p>
+        <p className="text-base font-medium text-gray-800 leading-relaxed">
+          {before}
+          {revealed ? (
+            <span className="font-bold text-green-700 bg-green-100 rounded px-2 mx-0.5">
+              {accepted[0] ?? "?"}
+            </span>
+          ) : (
+            <span className="inline-block border-b-2 border-[#6D4BCB] mx-1 w-20 text-center text-[#6D4BCB] font-semibold">
+              {answer || "___"}
+            </span>
+          )}
+          {after}
+        </p>
+      </div>
+      <div className="px-8 py-6 space-y-4">
+        {!revealed ? (
+          <div className="flex gap-3">
+            <input
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && answer.trim() && handleCheck()}
+              placeholder="Type your answer…"
+              className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-[#6D4BCB] focus:outline-none transition-colors"
+            />
+            <button
+              onClick={handleCheck}
+              disabled={!answer.trim()}
+              className="bg-[#6D4BCB] text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Check
+            </button>
+          </div>
+        ) : (
+          <>
+            <div
+              className={`rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2 ${
+                correct
+                  ? "bg-green-50 text-green-700 border border-green-200"
+                  : "bg-red-50 text-red-600 border border-red-200"
+              }`}
+            >
+              {correct ? (
+                <>✅ Correct!</>
+              ) : (
+                <>❌ Not quite — accepted: {accepted.join(", ")}</>
+              )}
+            </div>
+            {explanation && stripHtml(explanation).length > 0 && (
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
+                  Explanation
+                </p>
+                <SafeHtml html={explanation} className="text-sm text-[#2D1B69]" />
+              </div>
+            )}
+            <NextButton onNext={onNext} label="Next →" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── MATCHING card ───────────────────────────────────────────────────────────
+function MatchingCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  const c = card.content as MatchingContent | null;
+  const pairs = c?.pairs ?? [];
+  const explanation = c?.explanation ?? card.back;
+  const [revealed, setRevealed] = useState(false);
+
+  const shuffledRights = useMemo(
+    () => [...pairs.map((p) => p.right)].sort(() => Math.random() - 0.5),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  return (
+    <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
+      <div className="px-8 pt-7 pb-5 border-b border-gray-100">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Matching</p>
+        <h3 className="text-base font-bold text-[#2D1B69]">
+          {revealed ? "Correct Matches" : "Match each item on the left to the right"}
+        </h3>
+      </div>
+      <div className="px-8 py-6">
+        {revealed ? (
+          <div className="space-y-2">
+            {pairs.map((p, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-sm"
+              >
+                <span className="font-medium text-gray-800 flex-1">{p.left}</span>
+                <span className="text-green-500 font-bold">→</span>
+                <span className="font-medium text-green-700 flex-1 text-right">{p.right}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Items</p>
+              {pairs.map((p, i) => (
+                <div
+                  key={i}
+                  className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-800"
+                >
+                  {p.left}
+                </div>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Match to</p>
+              {shuffledRights.map((r, i) => (
+                <div
+                  key={i}
+                  className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5 text-sm text-[#2D1B69]"
+                >
+                  {r}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="px-8 pb-7 space-y-3">
+        {!revealed ? (
+          <button
+            onClick={() => setRevealed(true)}
+            className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+          >
+            Reveal Answers
+          </button>
+        ) : (
+          <>
+            {explanation && stripHtml(explanation).length > 0 && (
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
+                  Explanation
+                </p>
+                <SafeHtml html={explanation} className="text-sm text-[#2D1B69]" />
+              </div>
+            )}
+            <NextButton onNext={onNext} label="Next →" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── REORDER card ────────────────────────────────────────────────────────────
+function ReorderCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  const c = card.content as ReorderContent | null;
+  const items = c?.items ?? [];
+  const explanation = c?.explanation ?? card.back;
+  const [revealed, setRevealed] = useState(false);
+
+  const shuffled = useMemo(
+    () => [...items].sort(() => Math.random() - 0.5),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+
+  return (
+    <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
+      <div className="px-8 pt-7 pb-5 border-b border-gray-100">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Reorder</p>
+        <h3 className="text-base font-bold text-[#2D1B69]">{stripHtml(card.front)}</h3>
+      </div>
+      <div className="px-8 py-6 space-y-2">
+        <p className="text-sm text-gray-500 mb-3">
+          {revealed
+            ? "Correct order (1 → last):"
+            : "Mentally arrange these items in the correct order, then reveal:"}
+        </p>
+        {(revealed ? items : shuffled).map((item, i) => (
+          <div
+            key={i}
+            className={`flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm border transition-colors ${
+              revealed
+                ? "bg-green-50 border-green-200 text-green-800"
+                : "bg-gray-50 border-gray-200 text-gray-800"
+            }`}
+          >
+            {revealed && (
+              <span className="text-green-600 font-bold w-5 shrink-0">{i + 1}.</span>
+            )}
+            <span>{item}</span>
+          </div>
+        ))}
+      </div>
+      <div className="px-8 pb-7 space-y-3">
+        {!revealed ? (
+          <button
+            onClick={() => setRevealed(true)}
+            className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+          >
+            Reveal Order
+          </button>
+        ) : (
+          <>
+            {explanation && stripHtml(explanation).length > 0 && (
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
+                  Explanation
+                </p>
+                <SafeHtml html={explanation} className="text-sm text-[#2D1B69]" />
+              </div>
+            )}
+            <NextButton onNext={onNext} label="Next →" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── CATEGORIZATION card ─────────────────────────────────────────────────────
+function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  const c = card.content as CategorizationContent | null;
+  const items = c?.items ?? [];
+  const categories = c?.categories ?? [];
+  const explanation = c?.explanation ?? card.back;
+  const [revealed, setRevealed] = useState(false);
+
+  return (
+    <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
+      <div className="px-8 pt-7 pb-5 border-b border-gray-100">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
+          Categorization
+        </p>
+        <h3 className="text-base font-bold text-[#2D1B69]">{stripHtml(card.front)}</h3>
+      </div>
+      <div className="px-8 py-6">
+        {!revealed ? (
+          <>
+            <p className="text-sm text-gray-500 mb-4">
+              Mentally place each item under the correct category, then reveal:
+            </p>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {items.map((item, i) => (
+                <span
+                  key={i}
+                  className="bg-purple-50 border border-purple-200 rounded-xl px-3 py-1.5 text-sm text-[#2D1B69]"
+                >
+                  {item.text}
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              {categories.map((cat, i) => (
+                <div
+                  key={i}
+                  className="flex-1 min-h-[56px] bg-gray-50 border-2 border-dashed border-gray-200 rounded-xl flex items-center justify-center text-xs text-gray-400 font-semibold uppercase tracking-wide"
+                >
+                  {cat}
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="space-y-5">
+            {categories.map((cat, ci) => (
+              <div key={ci}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
+                  {cat}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {items
+                    .filter((item) => item.category === cat)
+                    .map((item, ii) => (
+                      <span
+                        key={ii}
+                        className="bg-green-50 border border-green-200 rounded-xl px-3 py-1.5 text-sm text-green-800 font-medium"
+                      >
+                        {item.text}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="px-8 pb-7 space-y-3">
+        {!revealed ? (
+          <button
+            onClick={() => setRevealed(true)}
+            className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+          >
+            Reveal Answers
+          </button>
+        ) : (
+          <>
+            {explanation && stripHtml(explanation).length > 0 && (
+              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
+                  Explanation
+                </p>
+                <SafeHtml html={explanation} className="text-sm text-[#2D1B69]" />
+              </div>
+            )}
+            <NextButton onNext={onNext} label="Next →" />
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Blank / unsupported fallback cards ──────────────────────────────────────
+function EmptyCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  return (
+    <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-dashed border-gray-200 shadow-sm text-center py-12 px-8">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+        {card.cardType}
+      </p>
+      <p className="text-gray-400 text-sm italic">This card has no content yet.</p>
+      <button
+        onClick={onNext}
+        className="mt-6 bg-[#6D4BCB] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+      >
+        Next →
+      </button>
+    </div>
+  );
+}
+
+function UnsupportedCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  return (
+    <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-dashed border-gray-200 shadow-sm text-center py-12 px-8">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+        {card.cardType}
+      </p>
+      <p className="text-gray-500 text-sm">
+        This card type is not yet supported in student view.
+      </p>
+      <button
+        onClick={onNext}
+        className="mt-6 bg-[#6D4BCB] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+      >
+        Next →
+      </button>
+    </div>
+  );
+}
+
+// ── Card dispatcher ─────────────────────────────────────────────────────────
+function CardRenderer({ card, onNext }: { card: FlashCard; onNext: () => void }) {
+  const type = (card.cardType ?? "").toUpperCase();
+
+  const isEmpty =
+    !card.content &&
+    !card.front?.trim() &&
+    !card.back?.trim();
+
+  if (isEmpty && type !== "TITLE") {
+    return <EmptyCard card={card} onNext={onNext} />;
+  }
+
+  switch (type) {
+    case "TITLE":
+      return <TitleCard card={card} onNext={onNext} />;
+    case "INFO":
+      return <InfoCard card={card} onNext={onNext} />;
+    case "QUIZ":
+      return <QuizCard card={card} onNext={onNext} />;
+    case "FILL_IN_BLANK":
+      return <FillInBlankCard card={card} onNext={onNext} />;
+    case "MATCHING":
+      return <MatchingCard card={card} onNext={onNext} />;
+    case "REORDER":
+      return <ReorderCard card={card} onNext={onNext} />;
+    case "CATEGORIZATION":
+      return <CategorizationCard card={card} onNext={onNext} />;
+    default:
+      return <UnsupportedCard card={card} onNext={onNext} />;
+  }
+}
+
+// ── Main player ─────────────────────────────────────────────────────────────
 interface Props {
   deckTitle: string;
   cards: FlashCard[];
@@ -12,35 +637,25 @@ interface Props {
 
 export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
   const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(false);
 
   const total = cards.length;
   const card = cards[index];
 
-  function handleFlip() {
-    setFlipped((f) => !f);
-  }
-
   function handleNext() {
     if (index < total - 1) {
       setIndex((i) => i + 1);
-      setFlipped(false);
     } else {
       setDone(true);
     }
   }
 
   function handlePrev() {
-    if (index > 0) {
-      setIndex((i) => i - 1);
-      setFlipped(false);
-    }
+    if (index > 0) setIndex((i) => i - 1);
   }
 
   function handleRestart() {
     setIndex(0);
-    setFlipped(false);
     setDone(false);
   }
 
@@ -48,13 +663,8 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
     return (
       <div className="flex-grow flex items-center justify-center py-20 text-center">
         <div>
-          <p className="text-gray-400 font-medium mb-1">
-            This deck has no cards yet
-          </p>
-          <Link
-            href={ROUTES.flashcards}
-            className="text-sm text-[#6D4BCB] hover:underline"
-          >
+          <p className="text-gray-400 font-medium mb-1">This deck has no cards yet</p>
+          <Link href={ROUTES.flashcards} className="text-sm text-[#6D4BCB] hover:underline">
             ← Back to decks
           </Link>
         </div>
@@ -81,9 +691,7 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
               />
             </svg>
           </div>
-          <h2 className="text-xl font-bold text-[#2D1B69] mb-2">
-            Deck complete!
-          </h2>
+          <h2 className="text-xl font-bold text-[#2D1B69] mb-2">Deck complete!</h2>
           <p className="text-gray-500 text-sm mb-6">
             You reviewed all {total} cards in{" "}
             <span className="font-medium">{deckTitle}</span>.
@@ -109,14 +717,14 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
 
   return (
     <div className="flex-grow flex flex-col items-center py-10 px-4">
-      {/* Progress */}
+      {/* Progress bar */}
       <div className="w-full max-w-2xl mb-6">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm text-gray-500">
             Card {index + 1} of {total}
           </span>
-          <span className="text-xs text-gray-400">
-            {flipped ? "Showing answer" : "Tap to reveal answer"}
+          <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+            {card.cardType}
           </span>
         </div>
         <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
@@ -127,83 +735,18 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
         </div>
       </div>
 
-      {/* Card */}
-      <button
-        onClick={handleFlip}
-        className="w-full max-w-2xl min-h-[260px] bg-white rounded-2xl border-2 border-gray-100 shadow-sm hover:shadow-md hover:border-[#8050C0]/20 transition-all duration-200 flex flex-col items-center justify-center p-8 cursor-pointer select-none group"
-        aria-label={flipped ? "Hide answer" : "Reveal answer"}
-      >
-        {/* Image (if any, front side only) */}
-        {!flipped && card.imageUrl && (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={card.imageUrl}
-            alt=""
-            className="max-h-32 object-contain mb-4 rounded-lg"
-          />
-        )}
+      {/* Card — key forces remount (resets internal state) on card change */}
+      <CardRenderer key={card.id} card={card} onNext={handleNext} />
 
-        <div className="text-center">
-          <p
-            className={`text-[10px] font-bold uppercase tracking-widest mb-3 ${
-              flipped ? "text-[#6D4BCB]" : "text-gray-400"
-            }`}
-          >
-            {flipped ? "Answer" : "Question"}
-          </p>
-          <p
-            className={`text-base md:text-lg leading-relaxed ${
-              flipped ? "text-[#2D1B69] font-medium" : "text-gray-800"
-            }`}
-          >
-            {flipped ? card.back : card.front}
-          </p>
-        </div>
-
-        {!flipped && (
-          <p className="mt-6 text-xs text-gray-300 group-hover:text-gray-400 transition-colors">
-            tap to flip
-          </p>
-        )}
-      </button>
-
-      {/* Navigation */}
-      <div className="flex items-center gap-4 mt-8">
+      {/* Prev navigation */}
+      {index > 0 && (
         <button
           onClick={handlePrev}
-          disabled={index === 0}
-          className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#2D1B69] hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-          aria-label="Previous card"
+          className="mt-5 text-sm text-gray-400 hover:text-[#6D4BCB] transition-colors flex items-center gap-1"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
+          ← Previous card
         </button>
-
-        <button
-          onClick={handleNext}
-          className="bg-[#6D4BCB] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
-        >
-          {index < total - 1 ? "Next Card →" : "Finish"}
-        </button>
-
-        <button
-          onClick={handlePrev}
-          disabled={index === 0}
-          className="w-10 h-10 opacity-0 pointer-events-none"
-          aria-hidden
-        />
-      </div>
+      )}
     </div>
   );
 }

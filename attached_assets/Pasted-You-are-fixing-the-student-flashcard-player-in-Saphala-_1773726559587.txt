@@ -1,0 +1,111 @@
+You are fixing the student flashcard player in Saphala Self Prep.
+Current reality from live testing:
+flashcard deck is visible
+but student rendering is fundamentally incomplete
+info cards do not properly render content/tables/boxes
+question cards do not show the actual question properly
+there is no proper flip/reveal control
+there is no submit/check button for quiz-style cards
+interactive card types are not functioning as real card types
+raw HTML/rich text output is leaking into the UI in some cards
+Important:
+This is not a cosmetic fix
+Treat this as a player alignment task
+Read first, then patch
+Preserve Prisma/DB/admin save shape unless absolutely necessary
+Do not redesign the whole product visually
+Build the smallest correct student renderer that matches the current card model
+Phase 1 — Read and map the full flashcard model
+Read all relevant files for:
+Prisma schema for flashcard deck/cards
+Admin flashcard editor save shape
+Student flashcard API response
+Student flashcard study page/client
+Any card renderer/switch logic
+Shared flashcard types/interfaces
+Create a clear mapping of what is actually stored for each card type:
+info
+quiz
+fill_blank
+matching
+reorder
+drag_drop
+categorization
+For each type, identify:
+front/title/prompt fields
+back/answer/explanation fields
+options/items/categories fields
+rich text / HTML fields
+Phase 2 — Fix rich content rendering first
+Student player must correctly render saved content from the editor.
+Requirements:
+no raw <div>, <br>, <span>, &nbsp; shown as text
+info card body content must render cleanly
+tables must render visibly
+callouts/boxes/basic rich formatting must appear in readable form
+Telugu text must remain clean
+Use safe rendering/sanitization. Do not blindly inject unsafe HTML.
+Phase 3 — Implement proper card-type renderers
+Build or fix dedicated renderers for these card types:
+1. Info card
+Must support:
+title/front prompt
+body content
+rich text
+table rendering
+answer/back side only if the model truly uses one
+2. Quiz card
+Must show:
+question
+options
+submit/check button
+selected answer state
+correct answer after submit/reveal
+explanation
+Quiz cards must not behave like generic “tap to flip” cards if they have structured quiz fields.
+3. Fill in the blanks
+Must show:
+prompt
+input or reveal flow depending on current model
+answer
+explanation
+4. Matching / reorder / drag_drop / categorization
+If these are already structurally stored and supported, render proper interaction. If not yet fully supported in student player, do NOT fake them as generic cards. Show an explicit fallback card:
+card type label
+“This card type is not yet supported in student view”
+Phase 4 — Add proper controls
+Student player must have the right controls by card type:
+For info cards
+Flip only if there is a true back side
+Otherwise show a simple Continue / Next flow
+For quiz cards
+Submit / Check Answer button
+Then explanation / reveal state
+Then Continue / Next
+For interactive cards
+Action button appropriate to the card type
+Do not show meaningless generic flip text if the card is interactive
+Phase 5 — Fix blank content safely
+If a card has missing/empty content:
+do not render a blank white card
+show a graceful fallback message indicating incomplete content
+include card type for debugging clarity
+Phase 6 — Validate with the existing Geography demo deck
+Confirm:
+info cards now render content properly
+tables show visibly
+question cards show actual question text
+quiz cards show options + submit/check + correct answer + explanation
+Telugu content renders correctly
+no raw HTML leaks into UI
+unsupported interactive types are explicitly marked if not implemented
+build passes cleanly
+Expected report
+Return:
+actual flashcard data model found
+exact root cause(s)
+exact files changed
+which card types are now truly working in student view
+which card types remain unsupported
+confirmation Prisma/DB/admin save shape stayed aligned
+confirmation TypeScript/build passes
