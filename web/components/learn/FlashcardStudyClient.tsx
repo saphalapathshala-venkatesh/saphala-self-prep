@@ -5,8 +5,24 @@ import Link from "next/link";
 import type { FlashCard } from "@/lib/contentDb";
 import { ROUTES } from "@/config/terminology";
 
+// ── Accent CSS variable helpers ─────────────────────────────────────────────
+// The player root sets --fc-accent and --fc-cover-bg as CSS custom properties.
+// All descendant elements read them via CSS utility classes (fc-accent-btn,
+// fc-accent-text, fc-accent-bar) or inline style references (var(--fc-accent)).
+// This way there is zero prop-drilling and a single source of truth for the color.
+
+// Fallbacks:
+//   --fc-accent    → brand purple #6D4BCB   (buttons, borders, labels)
+//   --fc-cover-bg  → brand navy  #2D1B69   (TITLE card background)
+
+function accentVars(subjectColor: string | null): React.CSSProperties {
+  return {
+    "--fc-accent": subjectColor || "#6D4BCB",
+    "--fc-cover-bg": subjectColor || "#2D1B69",
+  } as React.CSSProperties;
+}
+
 // ── Safe HTML renderer ──────────────────────────────────────────────────────
-// Content comes from the trusted admin editor; we strip only script/iframe/handlers.
 function SafeHtml({ html, className }: { html: string; className?: string }) {
   const safe = html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
@@ -20,51 +36,49 @@ function SafeHtml({ html, className }: { html: string; className?: string }) {
   );
 }
 
-// Strip HTML tags to get plain display text
 function stripHtml(html: string): string {
   return html.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
 }
 
-// ── Per-card content type interfaces ───────────────────────────────────────
-interface TitleContent {
-  titleOverride?: string;
-  subtitle?: string;
-}
-interface InfoContent {
-  body?: string;
-}
-interface QuizContent {
-  question?: string;
-  options?: { text: string; isCorrect: boolean }[];
-}
+// ── Per-card content interfaces ─────────────────────────────────────────────
+interface TitleContent   { titleOverride?: string; subtitle?: string }
+interface InfoContent    { body?: string }
+interface QuizContent    { question?: string; options?: { text: string; isCorrect: boolean }[] }
 interface FillInBlankContent {
   sentence?: string;
   blanks?: { id: string; accepted: string[] }[];
   explanation?: string;
 }
-interface MatchingContent {
-  pairs?: { left: string; right: string }[];
-  explanation?: string;
-}
-interface ReorderContent {
-  items?: string[];
-  explanation?: string;
-}
+interface MatchingContent      { pairs?: { left: string; right: string }[]; explanation?: string }
+interface ReorderContent       { items?: string[]; explanation?: string }
 interface CategorizationContent {
   items?: { text: string; category: string }[];
   categories?: string[];
   explanation?: string;
 }
 
-// ── Shared "Next / Finish" footer button ────────────────────────────────────
+// ── Shared footer: Next / Continue button using accent CSS class ────────────
 function NextButton({ onNext, label = "Continue →" }: { onNext: () => void; label?: string }) {
   return (
     <button
       onClick={onNext}
-      className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+      className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
     >
       {label}
     </button>
+  );
+}
+
+// ── Explanation box shared pattern ──────────────────────────────────────────
+function ExplBox({ html }: { html: string }) {
+  if (!html || !stripHtml(html)) return null;
+  return (
+    <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+      <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-2">
+        Explanation
+      </p>
+      <SafeHtml html={html} className="text-sm text-[#2D1B69]" />
+    </div>
   );
 }
 
@@ -74,12 +88,17 @@ function TitleCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
   const title = c?.titleOverride ?? stripHtml(card.front);
   const subtitle = c?.subtitle;
   return (
-    <div className="w-full max-w-2xl bg-[#2D1B69] rounded-2xl p-10 text-center shadow-lg">
+    // --fc-cover-bg: subjectColor when set, #2D1B69 (brand navy) as fallback
+    <div
+      className="w-full max-w-2xl rounded-2xl p-10 text-center shadow-lg"
+      style={{ backgroundColor: "var(--fc-cover-bg, #2D1B69)" }}
+    >
       <p className="text-[10px] font-bold uppercase tracking-widest text-purple-300 mb-5">
         Section
       </p>
       <h2 className="text-2xl font-bold text-white leading-snug">{title}</h2>
       {subtitle && <p className="mt-3 text-purple-200 text-sm">{subtitle}</p>}
+      {/* White button on accent bg is always readable regardless of accent hue */}
       <button
         onClick={onNext}
         className="mt-8 bg-white text-[#2D1B69] text-sm font-semibold px-7 py-2.5 rounded-xl hover:bg-purple-50 transition-colors"
@@ -94,13 +113,12 @@ function TitleCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
 function InfoCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
   const c = card.content as InfoContent | null;
   const body = c?.body ?? "";
-  const backText = stripHtml(card.back);
-  const hasBack = backText.length > 0;
+  const hasBack = stripHtml(card.back).length > 0;
   const [showBack, setShowBack] = useState(false);
   return (
     <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
       <div className="px-8 pt-7 pb-4 border-b border-gray-100">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Info</p>
+        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">Info</p>
         <h3 className="text-lg font-bold text-[#2D1B69] leading-snug">{stripHtml(card.front)}</h3>
       </div>
       <div className="px-8 py-6">
@@ -113,16 +131,11 @@ function InfoCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
       {hasBack && (
         <div className="px-8 pb-4">
           {showBack ? (
-            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
-                Explanation
-              </p>
-              <SafeHtml html={card.back} className="text-sm text-[#2D1B69]" />
-            </div>
+            <ExplBox html={card.back} />
           ) : (
             <button
               onClick={() => setShowBack(true)}
-              className="text-sm text-[#6D4BCB] hover:underline"
+              className="fc-accent-text text-sm hover:underline"
             >
               Show explanation
             </button>
@@ -132,7 +145,7 @@ function InfoCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
       <div className="px-8 pb-7 flex justify-end">
         <button
           onClick={onNext}
-          className="bg-[#6D4BCB] text-white text-sm font-semibold px-7 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+          className="fc-accent-btn text-white text-sm font-semibold px-7 py-2.5 rounded-xl"
         >
           Continue →
         </button>
@@ -150,22 +163,22 @@ function QuizCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
   const [revealed, setRevealed] = useState(false);
   const correctIndex = options.findIndex((o) => o.isCorrect);
 
-  const optionClass = (i: number) => {
+  function optionClasses(i: number): string {
     if (!revealed) {
       return i === selected
-        ? "border-[#6D4BCB] bg-purple-50"
-        : "border-gray-200 hover:border-[#6D4BCB]/40 hover:bg-purple-50/40 cursor-pointer";
+        ? "border-gray-200 bg-purple-50 cursor-pointer"
+        : "border-gray-200 hover:bg-purple-50/40 cursor-pointer";
     }
     if (i === correctIndex) return "border-green-500 bg-green-50";
     if (i === selected && i !== correctIndex) return "border-red-400 bg-red-50";
     return "border-gray-100 opacity-60";
-  };
-  const optionTextClass = (i: number) => {
+  }
+  function optionTextClass(i: number): string {
     if (!revealed) return i === selected ? "text-[#2D1B69] font-medium" : "text-gray-800";
     if (i === correctIndex) return "text-green-700 font-medium";
     if (i === selected && i !== correctIndex) return "text-red-600";
     return "text-gray-500";
-  };
+  }
 
   return (
     <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
@@ -179,13 +192,17 @@ function QuizCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
             key={i}
             disabled={revealed}
             onClick={() => !revealed && setSelected(i)}
-            className={`w-full text-left rounded-xl border-2 px-5 py-3 text-sm transition-all ${optionClass(i)}`}
+            className={`w-full text-left rounded-xl border-2 px-5 py-3 text-sm transition-all ${optionClasses(i)}`}
+            // Apply accent color to the selected border via CSS variable inline style
+            style={
+              !revealed && i === selected
+                ? { borderColor: "var(--fc-accent, #6D4BCB)" }
+                : undefined
+            }
           >
             <span className="font-medium text-gray-400 mr-3">{String.fromCharCode(65 + i)}.</span>
             <span className={optionTextClass(i)}>{opt.text}</span>
-            {revealed && i === correctIndex && (
-              <span className="ml-2 text-green-600">✓</span>
-            )}
+            {revealed && i === correctIndex && <span className="ml-2 text-green-600">✓</span>}
             {revealed && i === selected && i !== correctIndex && (
               <span className="ml-2 text-red-500">✗</span>
             )}
@@ -197,20 +214,13 @@ function QuizCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
           <button
             onClick={() => setRevealed(true)}
             disabled={selected === null}
-            className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
           >
             Check Answer
           </button>
         ) : (
           <>
-            {card.back && stripHtml(card.back).length > 0 && (
-              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
-                  Explanation
-                </p>
-                <SafeHtml html={card.back} className="text-sm text-[#2D1B69]" />
-              </div>
-            )}
+            <ExplBox html={card.back} />
             <NextButton onNext={onNext} label="Next →" />
           </>
         )}
@@ -231,7 +241,7 @@ function FillInBlankCard({ card, onNext }: { card: FlashCard; onNext: () => void
 
   function handleCheck() {
     const ok = accepted.some(
-      (a) => a.trim().toLowerCase() === answer.trim().toLowerCase()
+      (a) => a.trim().toLowerCase() === answer.trim().toLowerCase(),
     );
     setCorrect(ok);
     setRevealed(true);
@@ -244,7 +254,7 @@ function FillInBlankCard({ card, onNext }: { card: FlashCard; onNext: () => void
   return (
     <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
       <div className="px-8 pt-7 pb-5 border-b border-gray-100">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">
+        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-2">
           Fill in the Blank
         </p>
         <p className="text-base font-medium text-gray-800 leading-relaxed">
@@ -254,7 +264,10 @@ function FillInBlankCard({ card, onNext }: { card: FlashCard; onNext: () => void
               {accepted[0] ?? "?"}
             </span>
           ) : (
-            <span className="inline-block border-b-2 border-[#6D4BCB] mx-1 w-20 text-center text-[#6D4BCB] font-semibold">
+            <span
+              className="inline-block border-b-2 mx-1 w-20 text-center font-semibold"
+              style={{ borderBottomColor: "var(--fc-accent, #6D4BCB)", color: "var(--fc-accent, #6D4BCB)" }}
+            >
               {answer || "___"}
             </span>
           )}
@@ -270,12 +283,17 @@ function FillInBlankCard({ card, onNext }: { card: FlashCard; onNext: () => void
               onChange={(e) => setAnswer(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && answer.trim() && handleCheck()}
               placeholder="Type your answer…"
-              className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:border-[#6D4BCB] focus:outline-none transition-colors"
+              className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none transition-colors"
+              style={{ "--fc-input-focus-color": "var(--fc-accent, #6D4BCB)" } as React.CSSProperties}
+              onFocus={(e) =>
+                (e.currentTarget.style.borderColor = "var(--fc-accent, #6D4BCB)")
+              }
+              onBlur={(e) => (e.currentTarget.style.borderColor = "")}
             />
             <button
               onClick={handleCheck}
               disabled={!answer.trim()}
-              className="bg-[#6D4BCB] text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="fc-accent-btn text-white text-sm font-semibold px-5 py-2.5 rounded-xl"
             >
               Check
             </button>
@@ -289,20 +307,9 @@ function FillInBlankCard({ card, onNext }: { card: FlashCard; onNext: () => void
                   : "bg-red-50 text-red-600 border border-red-200"
               }`}
             >
-              {correct ? (
-                <>✅ Correct!</>
-              ) : (
-                <>❌ Not quite — accepted: {accepted.join(", ")}</>
-              )}
+              {correct ? <>✅ Correct!</> : <>❌ Not quite — accepted: {accepted.join(", ")}</>}
             </div>
-            {explanation && stripHtml(explanation).length > 0 && (
-              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
-                  Explanation
-                </p>
-                <SafeHtml html={explanation} className="text-sm text-[#2D1B69]" />
-              </div>
-            )}
+            <ExplBox html={explanation} />
             <NextButton onNext={onNext} label="Next →" />
           </>
         )}
@@ -321,13 +328,13 @@ function MatchingCard({ card, onNext }: { card: FlashCard; onNext: () => void })
   const shuffledRights = useMemo(
     () => [...pairs.map((p) => p.right)].sort(() => Math.random() - 0.5),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
 
   return (
     <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
       <div className="px-8 pt-7 pb-5 border-b border-gray-100">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Matching</p>
+        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">Matching</p>
         <h3 className="text-base font-bold text-[#2D1B69]">
           {revealed ? "Correct Matches" : "Match each item on the left to the right"}
         </h3>
@@ -377,20 +384,13 @@ function MatchingCard({ card, onNext }: { card: FlashCard; onNext: () => void })
         {!revealed ? (
           <button
             onClick={() => setRevealed(true)}
-            className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
           >
             Reveal Answers
           </button>
         ) : (
           <>
-            {explanation && stripHtml(explanation).length > 0 && (
-              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
-                  Explanation
-                </p>
-                <SafeHtml html={explanation} className="text-sm text-[#2D1B69]" />
-              </div>
-            )}
+            <ExplBox html={explanation} />
             <NextButton onNext={onNext} label="Next →" />
           </>
         )}
@@ -409,13 +409,13 @@ function ReorderCard({ card, onNext }: { card: FlashCard; onNext: () => void }) 
   const shuffled = useMemo(
     () => [...items].sort(() => Math.random() - 0.5),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    []
+    [],
   );
 
   return (
     <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
       <div className="px-8 pt-7 pb-5 border-b border-gray-100">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">Reorder</p>
+        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">Reorder</p>
         <h3 className="text-base font-bold text-[#2D1B69]">{stripHtml(card.front)}</h3>
       </div>
       <div className="px-8 py-6 space-y-2">
@@ -444,20 +444,13 @@ function ReorderCard({ card, onNext }: { card: FlashCard; onNext: () => void }) 
         {!revealed ? (
           <button
             onClick={() => setRevealed(true)}
-            className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
           >
             Reveal Order
           </button>
         ) : (
           <>
-            {explanation && stripHtml(explanation).length > 0 && (
-              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
-                  Explanation
-                </p>
-                <SafeHtml html={explanation} className="text-sm text-[#2D1B69]" />
-              </div>
-            )}
+            <ExplBox html={explanation} />
             <NextButton onNext={onNext} label="Next →" />
           </>
         )}
@@ -477,7 +470,7 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
   return (
     <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-gray-100 shadow-sm">
       <div className="px-8 pt-7 pb-5 border-b border-gray-100">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">
+        <p className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-1">
           Categorization
         </p>
         <h3 className="text-base font-bold text-[#2D1B69]">{stripHtml(card.front)}</h3>
@@ -513,7 +506,9 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
           <div className="space-y-5">
             {categories.map((cat, ci) => (
               <div key={ci}>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
+                <p
+                  className="fc-accent-text text-[10px] font-bold uppercase tracking-widest mb-2"
+                >
                   {cat}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -537,20 +532,13 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
         {!revealed ? (
           <button
             onClick={() => setRevealed(true)}
-            className="w-full bg-[#6D4BCB] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+            className="fc-accent-btn w-full text-white text-sm font-semibold py-2.5 rounded-xl"
           >
             Reveal Answers
           </button>
         ) : (
           <>
-            {explanation && stripHtml(explanation).length > 0 && (
-              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#6D4BCB] mb-2">
-                  Explanation
-                </p>
-                <SafeHtml html={explanation} className="text-sm text-[#2D1B69]" />
-              </div>
-            )}
+            <ExplBox html={explanation} />
             <NextButton onNext={onNext} label="Next →" />
           </>
         )}
@@ -559,7 +547,7 @@ function CategorizationCard({ card, onNext }: { card: FlashCard; onNext: () => v
   );
 }
 
-// ── Blank / unsupported fallback cards ──────────────────────────────────────
+// ── Fallback cards ──────────────────────────────────────────────────────────
 function EmptyCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
   return (
     <div className="w-full max-w-2xl bg-white rounded-2xl border-2 border-dashed border-gray-200 shadow-sm text-center py-12 px-8">
@@ -569,7 +557,7 @@ function EmptyCard({ card, onNext }: { card: FlashCard; onNext: () => void }) {
       <p className="text-gray-400 text-sm italic">This card has no content yet.</p>
       <button
         onClick={onNext}
-        className="mt-6 bg-[#6D4BCB] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+        className="fc-accent-btn mt-6 text-white text-sm font-semibold px-6 py-2.5 rounded-xl"
       >
         Next →
       </button>
@@ -588,7 +576,7 @@ function UnsupportedCard({ card, onNext }: { card: FlashCard; onNext: () => void
       </p>
       <button
         onClick={onNext}
-        className="mt-6 bg-[#6D4BCB] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+        className="fc-accent-btn mt-6 text-white text-sm font-semibold px-6 py-2.5 rounded-xl"
       >
         Next →
       </button>
@@ -599,33 +587,18 @@ function UnsupportedCard({ card, onNext }: { card: FlashCard; onNext: () => void
 // ── Card dispatcher ─────────────────────────────────────────────────────────
 function CardRenderer({ card, onNext }: { card: FlashCard; onNext: () => void }) {
   const type = (card.cardType ?? "").toUpperCase();
-
-  const isEmpty =
-    !card.content &&
-    !card.front?.trim() &&
-    !card.back?.trim();
-
-  if (isEmpty && type !== "TITLE") {
-    return <EmptyCard card={card} onNext={onNext} />;
-  }
+  const isEmpty = !card.content && !card.front?.trim() && !card.back?.trim();
+  if (isEmpty && type !== "TITLE") return <EmptyCard card={card} onNext={onNext} />;
 
   switch (type) {
-    case "TITLE":
-      return <TitleCard card={card} onNext={onNext} />;
-    case "INFO":
-      return <InfoCard card={card} onNext={onNext} />;
-    case "QUIZ":
-      return <QuizCard card={card} onNext={onNext} />;
-    case "FILL_IN_BLANK":
-      return <FillInBlankCard card={card} onNext={onNext} />;
-    case "MATCHING":
-      return <MatchingCard card={card} onNext={onNext} />;
-    case "REORDER":
-      return <ReorderCard card={card} onNext={onNext} />;
-    case "CATEGORIZATION":
-      return <CategorizationCard card={card} onNext={onNext} />;
-    default:
-      return <UnsupportedCard card={card} onNext={onNext} />;
+    case "TITLE":        return <TitleCard card={card} onNext={onNext} />;
+    case "INFO":         return <InfoCard card={card} onNext={onNext} />;
+    case "QUIZ":         return <QuizCard card={card} onNext={onNext} />;
+    case "FILL_IN_BLANK": return <FillInBlankCard card={card} onNext={onNext} />;
+    case "MATCHING":     return <MatchingCard card={card} onNext={onNext} />;
+    case "REORDER":      return <ReorderCard card={card} onNext={onNext} />;
+    case "CATEGORIZATION": return <CategorizationCard card={card} onNext={onNext} />;
+    default:             return <UnsupportedCard card={card} onNext={onNext} />;
   }
 }
 
@@ -633,9 +606,10 @@ function CardRenderer({ card, onNext }: { card: FlashCard; onNext: () => void })
 interface Props {
   deckTitle: string;
   cards: FlashCard[];
+  subjectColor: string | null;
 }
 
-export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
+export default function FlashcardStudyClient({ deckTitle, cards, subjectColor }: Props) {
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(false);
 
@@ -643,17 +617,12 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
   const card = cards[index];
 
   function handleNext() {
-    if (index < total - 1) {
-      setIndex((i) => i + 1);
-    } else {
-      setDone(true);
-    }
+    if (index < total - 1) setIndex((i) => i + 1);
+    else setDone(true);
   }
-
   function handlePrev() {
     if (index > 0) setIndex((i) => i - 1);
   }
-
   function handleRestart() {
     setIndex(0);
     setDone(false);
@@ -664,7 +633,7 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
       <div className="flex-grow flex items-center justify-center py-20 text-center">
         <div>
           <p className="text-gray-400 font-medium mb-1">This deck has no cards yet</p>
-          <Link href={ROUTES.flashcards} className="text-sm text-[#6D4BCB] hover:underline">
+          <Link href={ROUTES.flashcards} className="fc-accent-text text-sm hover:underline">
             ← Back to decks
           </Link>
         </div>
@@ -672,23 +641,16 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
     );
   }
 
+  // Root element sets --fc-accent and --fc-cover-bg for all descendants
+  const cssVars = accentVars(subjectColor);
+
   if (done) {
     return (
-      <div className="flex-grow flex items-center justify-center py-20">
+      <div className="flex-grow flex items-center justify-center py-20" style={cssVars}>
         <div className="text-center max-w-sm">
           <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-green-50 flex items-center justify-center">
-            <svg
-              className="w-8 h-8 text-green-500"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <h2 className="text-xl font-bold text-[#2D1B69] mb-2">Deck complete!</h2>
@@ -699,7 +661,7 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
           <div className="flex gap-3 justify-center">
             <button
               onClick={handleRestart}
-              className="bg-[#6D4BCB] text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-[#5E3FB8] transition-colors"
+              className="fc-accent-btn text-white text-sm font-semibold px-5 py-2.5 rounded-xl"
             >
               Study Again
             </button>
@@ -716,20 +678,21 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
   }
 
   return (
-    <div className="flex-grow flex flex-col items-center py-10 px-4">
+    // --fc-accent and --fc-cover-bg cascade to all card sub-components
+    <div className="flex-grow flex flex-col items-center py-10 px-4" style={cssVars}>
       {/* Progress bar */}
       <div className="w-full max-w-2xl mb-6">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm text-gray-500">
             Card {index + 1} of {total}
           </span>
-          <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+          <span className="fc-accent-text text-xs font-semibold uppercase tracking-widest">
             {card.cardType}
           </span>
         </div>
         <div className="w-full h-1.5 bg-gray-200 rounded-full overflow-hidden">
           <div
-            className="h-full bg-[#6D4BCB] rounded-full transition-all duration-300"
+            className="fc-accent-bar h-full rounded-full transition-all duration-300"
             style={{ width: `${((index + 1) / total) * 100}%` }}
           />
         </div>
@@ -738,11 +701,11 @@ export default function FlashcardStudyClient({ deckTitle, cards }: Props) {
       {/* Card — key forces remount (resets internal state) on card change */}
       <CardRenderer key={card.id} card={card} onNext={handleNext} />
 
-      {/* Prev navigation */}
+      {/* Previous navigation */}
       {index > 0 && (
         <button
           onClick={handlePrev}
-          className="mt-5 text-sm text-gray-400 hover:text-[#6D4BCB] transition-colors flex items-center gap-1"
+          className="fc-accent-text mt-5 text-sm hover:underline flex items-center gap-1"
         >
           ← Previous card
         </button>

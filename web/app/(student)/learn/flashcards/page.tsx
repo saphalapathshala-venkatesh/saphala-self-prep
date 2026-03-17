@@ -36,8 +36,22 @@ export default async function FlashcardsPage() {
                 href={`/learn/flashcards/${deck.id}`}
                 className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
               >
-                <div className="bg-gradient-to-br from-[#FFF8DC] to-[#FFF3A3] h-24 flex items-center justify-center px-5">
-                  <svg className="w-10 h-10 text-yellow-500 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+                {/* Thumbnail: subject color when set, default yellow gradient otherwise */}
+                <div
+                  className="h-24 flex items-center justify-center px-5"
+                  style={
+                    deck.subjectColor
+                      ? { backgroundColor: deck.subjectColor }
+                      : { background: "linear-gradient(to bottom right, #FFF8DC, #FFF3A3)" }
+                  }
+                >
+                  <svg
+                    className={`w-10 h-10 opacity-70 ${deck.subjectColor ? "text-white" : "text-yellow-500"}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
                   </svg>
                 </div>

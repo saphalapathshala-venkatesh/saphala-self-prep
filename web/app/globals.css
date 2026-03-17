@@ -108,3 +108,30 @@ body {
 .fc-rich br {
   line-height: 1;
 }
+
+/* ── Flashcard player accent theme (driven by --fc-accent CSS custom property) ──
+   Applied per-deck via style={{ "--fc-accent": subjectColor }} on the player root.
+   Fallback is brand purple #6D4BCB when no subjectColor is set. ── */
+.fc-accent-btn {
+  background-color: var(--fc-accent, #6D4BCB);
+  transition: filter 0.15s;
+}
+.fc-accent-btn:hover:not(:disabled) {
+  filter: brightness(0.88);
+}
+.fc-accent-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.fc-accent-text {
+  color: var(--fc-accent, #6D4BCB);
+}
+.fc-accent-bar {
+  background-color: var(--fc-accent, #6D4BCB);
+}
+.fc-accent-border {
+  border-color: var(--fc-accent, #6D4BCB);
+}
+.fc-accent-bg {
+  background-color: var(--fc-accent, #6D4BCB);
+}

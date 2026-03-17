@@ -66,7 +66,11 @@ export default async function FlashcardStudyPage({
         </div>
       </div>
 
-      <FlashcardStudyClient deckTitle={deck.title} cards={deck.cards} />
+      <FlashcardStudyClient
+        deckTitle={deck.title}
+        cards={deck.cards}
+        subjectColor={deck.subjectColor}
+      />
     </div>
   );
 }

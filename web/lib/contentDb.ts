@@ -224,6 +224,7 @@ export interface PublishedDeck {
   title: string;
   description: string | null;
   cardCount: number;
+  subjectColor: string | null;
   breadcrumb: {
     category: string | null;
     subject: string | null;
@@ -257,6 +258,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
       id: true,
       title: true,
       description: true,
+      subjectColor: true,
       categoryId: true,
       subjectId: true,
       topicId: true,
@@ -281,6 +283,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
     title: d.title,
     description: d.description,
     cardCount: d._count.cards,
+    subjectColor: d.subjectColor,
     breadcrumb: {
       category: d.categoryId ? (catMap.get(d.categoryId) ?? null) : null,
       subject: d.subjectId ? (subMap.get(d.subjectId) ?? null) : null,
@@ -298,6 +301,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
       description: true,
       isPublished: true,
       unlockAt: true,
+      subjectColor: true,
       categoryId: true,
       subjectId: true,
       topicId: true,
@@ -335,6 +339,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
     title: deck.title,
     description: deck.description,
     cardCount: deck._count.cards,
+    subjectColor: deck.subjectColor,
     breadcrumb: {
       category: deck.categoryId ? (catMap.get(deck.categoryId) ?? null) : null,
       subject: deck.subjectId ? (subMap.get(deck.subjectId) ?? null) : null,
