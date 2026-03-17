@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getLessonById } from "@/lib/contentDb";
 import { ROUTES, PRODUCTS } from "@/config/terminology";
 import Link from "next/link";
+import EbookPageShell from "@/components/learn/EbookPageShell";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,7 @@ export default async function LessonReaderPage({
     lesson.breadcrumb.subject,
     lesson.breadcrumb.topic,
     lesson.breadcrumb.subtopic,
-  ].filter(Boolean);
+  ].filter(Boolean) as string[];
 
   return (
     <div className="py-8">
@@ -48,31 +49,14 @@ export default async function LessonReaderPage({
           All {PRODUCTS.ebooks}
         </Link>
 
-        <article className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] px-8 py-10">
-            {breadcrumbParts.length > 0 && (
-              <p className="text-purple-300 text-xs mb-2 truncate">
-                {breadcrumbParts.join(" › ")}
-              </p>
-            )}
-            <h1 className="text-2xl md:text-3xl font-bold text-white leading-snug">
-              {lesson.title}
-            </h1>
-          </div>
-
-          {/* Body */}
-          <div
-            className="prose prose-sm md:prose-base max-w-none px-8 py-8
-              prose-headings:text-[#2D1B69] prose-headings:font-bold
-              prose-a:text-[#6D4BCB] prose-a:no-underline hover:prose-a:underline
-              prose-strong:text-[#2D1B69]
-              prose-code:bg-purple-50 prose-code:text-[#6D4BCB] prose-code:px-1 prose-code:rounded
-              prose-pre:bg-gray-900 prose-pre:text-gray-100
-              prose-blockquote:border-l-[#6D4BCB] prose-blockquote:text-gray-600"
-            dangerouslySetInnerHTML={{ __html: lesson.body }}
-          />
-        </article>
+        <EbookPageShell
+          title={lesson.title}
+          breadcrumbParts={breadcrumbParts}
+          subjectColor={lesson.subjectColor}
+          body={
+            <div dangerouslySetInnerHTML={{ __html: lesson.body }} />
+          }
+        />
 
         {/* Footer nav */}
         <div className="mt-6 flex justify-between items-center">

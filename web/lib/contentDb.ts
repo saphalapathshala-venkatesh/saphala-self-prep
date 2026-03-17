@@ -61,6 +61,7 @@ export interface PublishedLesson {
 
 export interface LessonDetail extends PublishedLesson {
   body: string;
+  subjectColor: string | null;
 }
 
 export async function getPublishedLessons(): Promise<PublishedLesson[]> {
@@ -126,6 +127,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
               subject: {
                 select: {
                   name: true,
+                  subjectColor: true,
                   category: { select: { name: true } },
                 },
               },
@@ -144,6 +146,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     title: page.title,
     body: page.body,
     publishedAt: page.publishedAt,
+    subjectColor: page.subtopic?.topic.subject.subjectColor ?? null,
     breadcrumb: {
       category: page.subtopic?.topic.subject.category.name ?? null,
       subject: page.subtopic?.topic.subject.name ?? null,

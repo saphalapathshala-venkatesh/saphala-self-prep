@@ -1,0 +1,311 @@
+Ebook Watermark + Footer Branding + Subject-Color Border (Saphala)
+
+You are working on Saphala Self Prep — Ebook / HTML content viewer.
+
+Goal
+
+Implement:
+
+Transparent Saphala logo watermark on every ebook page
+
+Standard footer on every page (same as flashcards)
+
+Thick visible subject-color border on every ebook page
+
+This must be:
+
+clean
+
+premium
+
+non-intrusive
+
+consistent across all ebook pages
+
+Part 1 — Watermark (Critical)
+Requirement
+
+Every ebook page must display a transparent Saphala logo watermark.
+
+Logo
+
+I will provide the logo image
+
+use that asset as the watermark
+
+Placement
+
+watermark must appear in the center or slightly diagonal across page
+
+should be visible but subtle
+
+must not overlap or hide important content
+
+Styling rules (VERY IMPORTANT)
+
+opacity: very low (around 0.04–0.08)
+
+grayscale or soft tone preferred
+
+no strong colors
+
+no sharp edges
+
+Behavior
+
+watermark must:
+
+stay behind content
+
+never block text
+
+not interfere with selection or scrolling
+
+not affect readability
+
+Technical guidance
+
+Implement watermark using:
+
+absolute positioned layer
+
+z-index behind content
+
+pointer-events: none
+
+Ensure:
+
+works on all ebook pages
+
+works on mobile and desktop
+
+does not break layout
+
+Part 2 — Footer (Same as Flashcards)
+
+Every ebook page must have a footer identical in concept to flashcards.
+
+Footer content
+
+Institute name:
+
+Saphala Pathshala
+
+Tagline:
+
+Your Success is Our Focus
+
+Logo:
+
+placed on the right side
+
+Styling
+
+small height (~8–10% of page height)
+
+subtle background (light neutral)
+
+clean typography
+
+not distracting
+
+consistent spacing
+
+Logo rules
+
+use same logo asset
+
+maintain aspect ratio
+
+do not stretch
+
+small and premium placement
+
+aligned to right side
+
+Part 3 — Thick visible subject-color border on every ebook page
+
+Every ebook page must have a complete, thick, clearly visible border using the corresponding subject color, same design philosophy as flashcards.
+
+Requirements
+
+border must wrap the entire ebook page
+
+border must be clearly visible on:
+
+desktop
+
+mobile
+
+border must feel premium and strong, not thin/faint
+
+it must not clash with the watermark or footer
+
+it must not reduce readability
+
+Important color logic
+
+In Admin, ebook subject color is currently not designated separately.
+
+So implement the color sourcing in this order:
+
+Priority 1
+
+If the ebook’s subject can be matched to an existing flashcard subject color from DB, use the same subject color for the ebook page border.
+
+This is the preferred behavior:
+
+same subject → same color across products
+
+flashcards and ebooks should feel visually consistent
+
+Priority 2
+
+If this mapping is not possible safely from current DB/frontend wiring, then identify the exact gap and implement the smallest clean fallback.
+
+Priority 3
+
+If DB-based reuse is not possible without proper support, then update the Admin ebook layout/config only for border color support.
+
+Important:
+
+do not invent random colors
+
+do not hardcode inconsistent colors per ebook
+
+keep same subject = same color wherever possible
+
+What to audit first
+
+Read and verify:
+
+how subject is stored for ebooks
+
+how subject color is stored for flashcards
+
+whether there is a shared subject identity or taxonomy key that can be used to map them
+
+whether frontend can reliably derive border color from existing DB data
+
+If direct reuse is possible
+
+Wire it cleanly.
+
+If direct reuse is not possible
+
+Do not fake it.
+Instead:
+
+explain the gap
+
+add the minimal admin-side support needed only for border color, not a large redesign
+
+Part 4 — Layout integration
+
+Ensure:
+
+watermark + footer + subject border work together
+
+footer does not overlap content
+
+content area remains readable
+
+scrolling behavior is smooth
+
+no layout shifts
+
+Part 5 — Reusability
+
+Design this so it can be reused for:
+
+HTML content pages
+
+notes
+
+future ebook formats
+
+Avoid hardcoding per page.
+
+Constraints
+
+Do NOT:
+
+block text with watermark
+
+increase cognitive load
+
+add heavy graphics
+
+break mobile layout
+
+use random border colors
+
+Do:
+
+keep it minimal and elegant
+
+preserve reading experience
+
+keep subject colors consistent across products where possible
+
+Validation
+
+Test:
+
+watermark visible but not distracting
+
+text readability unaffected
+
+thick border visible and premium
+
+border uses correct subject color where mapping is possible
+
+works on long pages
+
+works on mobile
+
+footer visible and clean
+
+logo renders correctly
+
+no overlap issues
+
+no performance lag
+
+Expected output
+
+Return:
+
+files changed
+
+how watermark is implemented
+
+opacity and positioning details
+
+how footer is implemented
+
+how logo is wired
+
+how subject-color border is sourced
+
+whether flashcard subject colors were successfully reused from DB
+
+if not possible, what minimal admin-side support was added for ebook border color
+
+mobile behavior
+
+build/typecheck result
+
+Final note
+
+The visual result should feel like:
+
+branded
+
+protected
+
+premium
+
+consistent across products
+
+not distracting, heavy, or clumsy.
