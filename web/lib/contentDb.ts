@@ -222,9 +222,12 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
 export interface PublishedDeck {
   id: string;
   title: string;
+  subtitle: string | null;
   description: string | null;
   cardCount: number;
   subjectColor: string | null;
+  xpEnabled: boolean;
+  xpValue: number;
   breadcrumb: {
     category: string | null;
     subject: string | null;
@@ -257,8 +260,11 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
     select: {
       id: true,
       title: true,
+      subtitle: true,
       description: true,
       subjectColor: true,
+      xpEnabled: true,
+      xpValue: true,
       categoryId: true,
       subjectId: true,
       topicId: true,
@@ -281,9 +287,12 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
   return decks.map((d) => ({
     id: d.id,
     title: d.title,
+    subtitle: d.subtitle,
     description: d.description,
     cardCount: d._count.cards,
     subjectColor: d.subjectColor,
+    xpEnabled: d.xpEnabled,
+    xpValue: d.xpValue,
     breadcrumb: {
       category: d.categoryId ? (catMap.get(d.categoryId) ?? null) : null,
       subject: d.subjectId ? (subMap.get(d.subjectId) ?? null) : null,
@@ -298,10 +307,13 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
     select: {
       id: true,
       title: true,
+      subtitle: true,
       description: true,
       isPublished: true,
       unlockAt: true,
       subjectColor: true,
+      xpEnabled: true,
+      xpValue: true,
       categoryId: true,
       subjectId: true,
       topicId: true,
@@ -337,9 +349,12 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
   return {
     id: deck.id,
     title: deck.title,
+    subtitle: deck.subtitle,
     description: deck.description,
     cardCount: deck._count.cards,
     subjectColor: deck.subjectColor,
+    xpEnabled: deck.xpEnabled,
+    xpValue: deck.xpValue,
     breadcrumb: {
       category: deck.categoryId ? (catMap.get(deck.categoryId) ?? null) : null,
       subject: deck.subjectId ? (subMap.get(deck.subjectId) ?? null) : null,

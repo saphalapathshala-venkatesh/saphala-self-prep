@@ -68,6 +68,10 @@ export default async function FlashcardStudyPage({
 
       <FlashcardStudyClient
         deckTitle={deck.title}
+        deckSubtitle={deck.subtitle}
+        subject={deck.breadcrumb.subject}
+        xpEnabled={deck.xpEnabled}
+        xpValue={deck.xpValue}
         cards={deck.cards}
         subjectColor={deck.subjectColor}
       />

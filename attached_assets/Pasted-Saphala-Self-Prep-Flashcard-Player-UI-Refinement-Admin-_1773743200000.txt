@@ -1,0 +1,381 @@
+Saphala Self Prep — Flashcard Player UI Refinement + Admin Editor UX + Interactive Card Flows
+
+You are working on the Saphala Self Prep codebase.
+
+This task includes:
+
+Student frontend flashcard player refinement
+
+Admin flashcard creation/edit UI refinement
+
+Respecting the new optional instruction field
+
+Preparing rich layout editing UX for draggable/resizable blocks
+
+Do not break current working rendering.
+Make changes cleanly and incrementally.
+
+Goal
+
+Implement the following flashcard UX requirements.
+
+Part A — Global layout improvements
+1. Larger card size on laptop
+
+On laptop/desktop:
+
+flashcards should occupy more usable width and height
+
+reduce unnecessary empty space around the card
+
+card should feel prominent and premium
+
+avoid making the card too narrow in the center
+
+2. Better mobile card height
+
+On mobile:
+
+increase usable card height by reducing wasted whitespace
+
+keep full card usable without requiring awkward scrolling
+
+card should fit cleanly for most content
+
+optimize vertical layout for one-card-at-a-time reading
+
+3. Common header and footer for every card
+
+Every card, regardless of type, must have a small header and small footer.
+
+Header requirements
+
+Approx. 10% of total card height
+Must include:
+
+SUBJECT
+
+Total XP
+
+one small line below:
+
+Complete FC deck and earn total XP
+
+example: Complete FC deck and earn total 25 XP
+
+Header must remain clearly visible even when subject color is used in the card.
+
+Footer requirements
+
+Approx. 10% of total card height
+Must include:
+
+institute name
+
+tagline
+
+optional small logo on the right
+
+Keep footer subtle and very small, but premium.
+
+Part B — Subject color usage
+
+Subject color is already wired.
+
+Refine it so:
+
+header remains readable over subject color
+
+footer remains elegant
+
+subject color is used as accent, not overused
+
+text contrast is always good
+
+fallback brand color remains when subject color is missing
+
+Part C — Card-type-specific frontend behavior
+1. Info cards
+
+Requirements:
+
+info cards must render actual content cleanly
+
+boxes, tables, callouts, rich text should display properly
+
+no awkward blank areas
+
+if there is no true back side, do not force meaningless flip flow
+
+2. Quiz cards
+
+Required flow:
+
+front side shows question + options + submit button only
+
+after submit:
+
+show right/wrong indication as needed
+
+do not show explanation immediately on front
+
+show a Flip Card button
+
+only after clicking Flip Card
+
+show explanation on back side
+
+This flow is mandatory.
+
+3. Fill in the blanks
+
+Current answer evaluation is okay, but update flow to:
+
+prompt + input on front
+
+submit/check on front
+
+after submit:
+
+show result
+
+show Flip Card button
+
+explanation only after flipping
+
+4. Reorder cards
+
+Right now reorder is not behaving properly.
+
+Implement proper reorder UI:
+
+draggable/reorderable items
+
+submit/check action
+
+evaluate each element as right/wrong
+
+visually indicate green/red item correctness after submit
+
+Flow:
+
+if all are correct → show Flip Card button only
+
+if at least one is wrong → show:
+
+Try Again
+
+Flip Card
+
+5. Matching cards
+
+Implement actual matching interaction:
+
+left column fixed
+
+right column draggable/reorderable/selectable to match with left items
+
+submit/check action
+
+evaluate matches
+
+Flow:
+
+if all correct → Flip Card button only
+
+if at least one wrong → Try Again + Flip Card
+
+6. Categorization cards
+
+Implement actual drag/drop categorization:
+
+items draggable into category buckets
+
+submit/check action
+
+evaluate how many are correct/wrong
+
+Flow:
+
+if all correct → Flip Card button only
+
+if at least one wrong → Try Again + Flip Card
+
+7. Flip-card explanation flow
+
+For all relevant interactive cards:
+
+explanation should appear only after Flip Card
+
+front side = action side
+
+back side = explanation / learning side
+
+This must be consistent across:
+
+QUIZ
+
+FILL_IN_BLANK
+
+REORDER
+
+MATCHING
+
+CATEGORIZATION
+
+Part D — Optional instruction line support
+
+Use the new backend instruction field.
+
+For these card types:
+
+REORDER
+
+FILL_IN_BLANK
+
+MATCHING
+
+CATEGORIZATION
+
+Show the instruction line when present:
+
+place it below the card-type title / prompt area
+
+style it cleanly and lightly
+
+if not present, do not show empty space or placeholder
+
+It must remain optional and error-free.
+
+Part E — Admin app editor improvements
+
+This is very important.
+
+Inside the admin editor, the elements placed inside flashcard content must become more flexible.
+
+We need UI support for future-rich layout editing so the admin can:
+
+resize boxes
+
+drag blocks
+
+arrange blocks in specific positions
+
+place 2 boxes in one row
+
+control element width/height
+
+build visually structured cards
+
+This feature is also required later for Ebooks / HTML content.
+
+Scope for this prompt
+
+Implement the admin-side frontend/editor UX foundation for layout flexibility:
+
+draggable block positioning or row/column arrangement
+
+block sizing controls
+
+side-by-side block placement
+
+safe layout editing without breaking content
+
+Do not destroy the current editor.
+Extend it carefully.
+
+Important
+
+Even if full freeform drag editor is not feasible immediately, at minimum support:
+
+row/column block grouping
+
+width controls (50%, 100%, etc.)
+
+reordering blocks
+
+side-by-side placement
+
+clean save into the new optional layout structure
+
+Part F — Card shell polish
+
+Refine flashcard player so it feels premium:
+
+larger clean card container
+
+stronger but soft shadow
+
+better spacing
+
+clean readable typography
+
+better button hierarchy
+
+no wasted vertical space
+
+laptop and mobile both polished
+
+Constraints
+
+Do not break existing working flashcards
+
+Preserve Admin → DB → API → Frontend alignment
+
+Respect optional fields
+
+Do not require instruction for old cards
+
+Do not overcomplicate unsupported features
+
+Make card behavior consistent and predictable
+
+Keep mobile-first usability in mind
+
+Expected output
+
+After implementation, provide:
+
+1. Student player report
+
+Explain:
+
+larger laptop card sizing
+
+mobile height improvements
+
+header/footer implementation
+
+quiz/fill/reorder/matching/categorization flows
+
+2. Admin editor report
+
+Explain:
+
+what layout editing controls were added
+
+how side-by-side / block resizing works
+
+how it saves safely
+
+3. Optional instruction report
+
+Confirm:
+
+instruction line appears only when present
+
+no errors when missing
+
+4. Compatibility report
+
+Confirm:
+
+old cards still work
+
+subject color still works
+
+no schema/API breakage
+
+5. Build report
+
+Confirm TypeScript/build passes cleanly

@@ -472,6 +472,7 @@ model FlashcardDeck {
   subjectColor   String?
   xpEnabled      Boolean @default(false)
   xpValue        Int     @default(0)
+  examId         String?
   description    String?
   categoryId     String?
   subjectId      String?
