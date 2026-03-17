@@ -67,6 +67,7 @@ export default async function FlashcardStudyPage({
       </div>
 
       <FlashcardStudyClient
+        deckId={deck.id}
         deckTitle={deck.title}
         deckSubtitle={deck.subtitle}
         subject={deck.breadcrumb.subject}

@@ -17,6 +17,9 @@ The backend uses **Prisma 7** ORM with **Neon PostgreSQL**. User authentication 
 ### Schema Governance
 The student frontend shares its database with the admin application, which is the schema owner. The student frontend's `web/prisma/schema.prisma` is a superset of the admin schema. Direct database alterations using `prisma db push --accept-data-loss` are forbidden against the shared production DB. Admin-only tables are not listed in the frontend schema. `Test.accessType` is a derived TypeScript value, not a database field. `unlockAt` fields on `Test`, `ContentPage`, `FlashcardDeck`, and `PdfAsset` control content availability.
 
+### XP Architecture
+XP is stored in `XpLedgerEntry` rows. Each row has `delta` (points), `reason`, `refType`, and `refId`. `refType` distinguishes the source: `"Attempt"` = TestHub, `"FlashcardDeck"` = Flashcard, `"ContentPage"` = Ebooks, `"Video"` = Pathshala. Dashboard total = sum of all `delta` for the user. Dashboard breakdown groups by `refType`. `UserXpSourceProgress` and `UserXpWallet` exist in the DB (admin schema) but are not in the student Prisma schema — use raw SQL if needed. `XpRule` table is currently empty (rules not seeded). Idempotency: before awarding, check `findFirst` on `XpLedgerEntry` with same `userId + refType + refId`. Flashcard XP: `POST /api/student/flashcards/complete` — checks `deck.xpEnabled`, idempotent per deck per user. Test XP: committed in `lib/resultComputer.ts` during `computeOrGetResult`. XP celebration: `triggerXpCelebration()` from `lib/xpCelebration.ts` — reusable across all modules, dual crackers + ribbon effect.
+
 ### Admin APIs
 Admin APIs manage user sessions, multi-device access, and retrieve user attempt records.
 

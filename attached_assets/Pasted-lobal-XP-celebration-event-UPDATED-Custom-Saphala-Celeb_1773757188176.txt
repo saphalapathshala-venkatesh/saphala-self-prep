@@ -1,0 +1,157 @@
+lobal XP celebration event (UPDATED — Custom Saphala Celebration)
+
+Implement a reusable XP celebration system so confetti is triggered for every XP earning event globally, not just tests.
+
+Base requirements
+
+trigger only when XP is actually awarded
+
+do not trigger on zero XP
+
+do not trigger on reload/replay
+
+reusable across:
+
+Flashcards
+
+Tests
+
+Ebooks
+
+Videos (Pathshala)
+
+future XP-enabled products
+
+🎉 Custom Saphala Celebration Design (Important)
+
+This is not generic confetti. It must feel like a clean, premium “Knowledge Celebration”.
+
+1. Dual Crackers (left + right)
+
+Trigger two side-origin bursts (like crackers)
+
+Positions:
+
+bottom-left
+
+bottom-right
+
+Direction:
+
+angled upward toward center
+
+2. Particle colors (very important)
+
+Use only:
+
+Purple → #8050C0 (primary brand)
+
+Dark Blue → #1040A0
+
+Yellow / Gold accent → soft tone (not neon)
+
+⚠️ Reduce purple particle density slightly so it doesn’t dominate.
+
+3. Ribbon effect across screen
+
+Add flowing ribbon/streamer effect:
+
+Colors:
+
+Green → #88C840
+
+Orange → warm soft tone (not harsh)
+
+Behavior:
+
+light flowing arcs across the screen
+
+not too many
+
+smooth animation (no jitter)
+
+4. Retain existing confetti
+
+keep current confetti system
+
+reduce particle count slightly
+
+ensure it blends with crackers, not overwhelms
+
+5. Visual balance
+
+must NOT feel:
+
+noisy
+
+festival-like
+
+distracting
+
+must feel:
+
+rewarding
+
+clean
+
+premium
+
+calm celebration of achievement
+
+6. Duration
+
+short and controlled (~1.5–2.5 seconds)
+
+fade out smoothly
+
+Implementation notes
+
+build a reusable utility:
+
+triggerXpCelebration()
+
+ensure:
+
+single trigger per XP event
+
+no duplicate firing
+
+safe for repeated use across modules
+
+prefer:
+
+existing confetti library (if already used)
+
+extend it rather than replacing completely
+
+Validation
+
+Confirm:
+
+confetti triggers on flashcard XP
+
+triggers on test XP
+
+no trigger on zero XP
+
+crackers appear from both sides
+
+ribbon animation visible but subtle
+
+particle density is balanced (not clumsy)
+
+animation ends cleanly
+
+no performance lag on mobile
+
+Expected output (add to report)
+
+how the celebration was implemented
+
+how colors and particle density were controlled
+
+where the trigger is wired
+
+how duplication is prevented
+
+mobile performance impact

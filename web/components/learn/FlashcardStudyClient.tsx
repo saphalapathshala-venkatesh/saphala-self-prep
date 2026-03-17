@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import Link from "next/link";
 import type { FlashCard } from "@/lib/contentDb";
 import { BRAND, ROUTES } from "@/config/terminology";
+import { triggerXpCelebration } from "@/lib/xpCelebration";
 
 // ── CSS variable helpers ─────────────────────────────────────────────────────
 // Root element sets --fc-accent (buttons, borders, labels) and
@@ -104,7 +105,7 @@ function CardShell({ subject, xpEnabled, xpValue, children }: ShellProps) {
           </p>
           {showXp && (
             <p className="text-white/70 text-[9px] mt-0.5 leading-tight">
-              Complete FC deck and earn total {xpValue} XP
+              Complete deck of Flash cards to earn {xpValue} XP
             </p>
           )}
         </div>
@@ -993,6 +994,7 @@ function CardRenderer({
 
 // ── Main player export ────────────────────────────────────────────────────────
 interface Props {
+  deckId: string;
   deckTitle: string;
   deckSubtitle: string | null;
   subject: string | null;
@@ -1003,6 +1005,7 @@ interface Props {
 }
 
 export default function FlashcardStudyClient({
+  deckId,
   deckTitle,
   deckSubtitle,
   subject,
@@ -1013,13 +1016,42 @@ export default function FlashcardStudyClient({
 }: Props) {
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(false);
+  const [xpAwarded, setXpAwarded] = useState<number | null>(null);
+  const [xpAlreadyEarned, setXpAlreadyEarned] = useState(false);
+  const celebrationFiredRef = useRef(false);
+  const xpCommitCalledRef = useRef(false);
 
   const total = cards.length;
   const card = cards[index];
 
+  const commitXp = useCallback(async () => {
+    if (xpCommitCalledRef.current) return;
+    xpCommitCalledRef.current = true;
+    try {
+      const res = await fetch("/api/student/flashcards/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deckId }),
+      });
+      if (!res.ok) return;
+      const data = await res.json() as { xpAwarded: number; alreadyAwarded: boolean };
+      setXpAwarded(data.xpAwarded);
+      setXpAlreadyEarned(data.alreadyAwarded);
+      if (data.xpAwarded > 0 && !celebrationFiredRef.current) {
+        celebrationFiredRef.current = true;
+        triggerXpCelebration();
+      }
+    } catch {
+    }
+  }, [deckId]);
+
   function handleNext() {
-    if (index < total - 1) setIndex((i) => i + 1);
-    else setDone(true);
+    if (index < total - 1) {
+      setIndex((i) => i + 1);
+    } else {
+      setDone(true);
+      commitXp();
+    }
   }
   function handlePrev() {
     if (index > 0) setIndex((i) => i - 1);
@@ -1070,7 +1102,17 @@ export default function FlashcardStudyClient({
             <span className="font-medium">{deckTitle}</span>.
           </p>
           {xpEnabled && xpValue > 0 && (
-            <p className="fc-accent-text text-sm font-semibold mb-6">⚡ You earned {xpValue} XP!</p>
+            <div className="mb-6">
+              {xpAwarded === null && (
+                <p className="fc-accent-text text-sm font-semibold">⚡ Saving XP…</p>
+              )}
+              {xpAwarded !== null && xpAwarded > 0 && (
+                <p className="fc-accent-text text-sm font-semibold">⚡ You earned {xpAwarded} XP!</p>
+              )}
+              {xpAwarded !== null && xpAlreadyEarned && (
+                <p className="text-gray-400 text-sm">XP already earned for this deck.</p>
+              )}
+            </div>
           )}
           <div className="flex gap-3 justify-center">
             <button

@@ -26,12 +26,21 @@ export interface ActiveAttempt {
   startedAt: Date;
 }
 
+export interface XpBreakdown {
+  total: number;
+  testHub: number;
+  flashcards: number;
+  ebooks: number;
+  pathshala: number;
+}
+
 export interface DashboardData {
   attemptCount: number;
   recentAttempts: DashboardAttempt[];
   activeAttempt: ActiveAttempt | null;
   xpTotal: number;
   xpHasLedger: boolean;
+  xpBreakdown: XpBreakdown;
   accuracyPct: number | null;
   freeTests: StudentTestItem[];
 }
@@ -41,7 +50,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     attemptCount,
     recentAttemptsRaw,
     activeAttemptRaw,
-    xpAgg,
+    xpLedgerRows,
     scoredAttemptsRaw,
     allFreeTests,
   ] = await Promise.all([
@@ -69,9 +78,9 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       orderBy: { startedAt: "desc" },
       include: { test: { select: { title: true } } },
     }),
-    prisma.xpLedgerEntry.aggregate({
+    prisma.xpLedgerEntry.findMany({
       where: { userId },
-      _sum: { delta: true },
+      select: { delta: true, refType: true },
     }),
     prisma.attempt.findMany({
       where: {
@@ -84,8 +93,18 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     getPublishedTestsForStudent(userId),
   ]);
 
-  const xpTotal = xpAgg._sum.delta ?? 0;
-  const xpHasLedger = xpAgg._sum.delta !== null;
+  const xpBreakdown: XpBreakdown = { total: 0, testHub: 0, flashcards: 0, ebooks: 0, pathshala: 0 };
+  for (const row of xpLedgerRows) {
+    const d = row.delta;
+    xpBreakdown.total += d;
+    if (row.refType === "Attempt") xpBreakdown.testHub += d;
+    else if (row.refType === "FlashcardDeck") xpBreakdown.flashcards += d;
+    else if (row.refType === "ContentPage") xpBreakdown.ebooks += d;
+    else if (row.refType === "Video") xpBreakdown.pathshala += d;
+  }
+
+  const xpTotal = xpBreakdown.total;
+  const xpHasLedger = xpLedgerRows.length > 0;
 
   let accuracyPct: number | null = null;
   if (scoredAttemptsRaw.length > 0) {
@@ -136,6 +155,7 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     activeAttempt,
     xpTotal,
     xpHasLedger,
+    xpBreakdown,
     accuracyPct,
     freeTests,
   };

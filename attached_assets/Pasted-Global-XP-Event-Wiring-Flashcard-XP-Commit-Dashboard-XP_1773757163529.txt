@@ -1,0 +1,227 @@
+Global XP Event Wiring + Flashcard XP Commit + Dashboard XP Breakdown
+
+You are working on Saphala Self Prep.
+
+This task is about XP architecture, XP event wiring, flashcard completion XP commit, and dashboard XP breakdown.
+
+Do not redesign unrelated parts.
+Read first, patch second.
+Keep Admin → DB → API → Frontend aligned.
+
+Goals
+
+Implement the following:
+
+1. Flashcard completion XP must commit correctly
+
+When a student completes a flashcard deck:
+
+the earned XP must be committed to Flashcard XP
+
+the same event must also update Total XP
+
+dashboard must reflect the new values immediately / correctly on refresh
+
+2. Global XP event celebration
+
+Confetti must happen for every XP earning event globally, not just tests.
+
+This applies to any product/module that awards XP, including at least:
+
+Flashcards
+
+Ebooks
+
+TestHub
+
+Pathshala / videos
+
+future XP-enabled products
+
+3. Dashboard XP breakdown card
+
+Replace / refine the XP dashboard card to show:
+
+Total XP
+
+description:
+
+XP = Experience Points (Sadhana Points), a reward for your time, effort and hard work
+
+Then product-wise XP rows:
+
+Flashcard XP = XP earned from flashcards
+
+Ebooks XP = XP earned from completing ebooks
+
+TestHub XP = XP earned from completing tests
+
+Pathshala XP = XP earned from videos
+
+PDFs = no XP (do not include as XP bucket unless current UI requires a visible “No XP” note)
+
+4. Flashcard deck XP message refinement
+
+In flashcard deck/player UI, message should read:
+
+Complete deck of Flash cards to earn 25 XP
+
+Requirements:
+
+remove the word total
+
+XP number must be pulled dynamically from admin deck config
+
+handle decks with different XP values
+
+if XP disabled / zero, message should adapt gracefully
+
+Phase 1 — Audit current XP architecture
+
+Read all relevant files for:
+
+XP wallet / ledger / source progress / totals
+
+dashboard XP API/data source
+
+flashcard completion logic
+
+test XP awarding logic
+
+confetti trigger logic
+
+any per-product XP aggregation
+
+Identify:
+
+where flashcard completion currently awards XP
+
+why the earned XP message appears but dashboard total does not update
+
+whether product-wise XP buckets already exist in DB or must be derived
+
+whether Total XP is persisted or derived
+
+how to make global XP celebration reusable
+
+Phase 2 — Fix XP commit for flashcards
+
+When flashcard deck completion is successfully recorded:
+
+write/update Flashcard XP source/bucket
+
+write/update Total XP
+
+ensure no duplicate awarding on repeated completion unless the business logic explicitly allows it
+
+keep this idempotent
+
+If source-specific XP tracking already exists, use it.
+If not, implement the smallest clean extension needed.
+
+Important:
+
+do not allow the same deck to repeatedly grant XP unless intended
+
+old decks and old completions must not break
+
+Phase 3 — Dashboard XP breakdown
+
+Update the dashboard data/API/UI so it exposes and renders:
+
+Total XP
+
+Flashcard XP
+
+Ebooks XP
+
+TestHub XP
+
+Pathshala XP
+
+Rules:
+
+Total XP = sum of product XP buckets
+
+PDFs do not earn XP
+
+data must be correct for current logged-in student
+
+no hardcoded sample values
+
+Also add this description:
+XP = Experience Points (Sadhana Points), a reward for your time, effort and hard work
+
+Keep the UI simple, clean, and easy to understand.
+
+Phase 4 — Global XP celebration event
+
+Implement a reusable XP celebration flow so confetti is triggered for every successful XP earning event, not just tests.
+
+Requirements:
+
+reusable utility / event trigger
+
+only fire when XP is truly awarded
+
+not on zero-XP cases
+
+not on duplicate/replayed states
+
+usable by flashcards immediately
+
+architecture should support ebooks / tests / videos too
+
+Do not spam confetti on page reload.
+
+Phase 5 — Flashcard XP message refinement
+
+In flashcard player/deck UI:
+
+use the deck’s actual configured XP value from admin
+
+show:
+
+Complete deck of Flash cards to earn 25 XP
+
+remove the word total
+
+if XP is disabled or zero, avoid misleading wording
+
+Phase 6 — Validate scenarios
+
+Test and report:
+
+flashcard deck with XP enabled and XP value set
+
+completion awards XP once
+
+flashcard XP bucket updates
+
+total XP updates
+
+dashboard reflects updated values
+
+confetti triggers on successful XP award
+
+repeated completion does not duplicate XP unless intended
+
+zero-XP / disabled-XP deck does not falsely celebrate
+
+Expected output
+
+Return:
+
+exact root cause of flashcard XP not reflecting on dashboard
+
+exact files changed
+
+how flashcard XP now commits
+
+how total XP is calculated/stored
+
+how global confetti was made reusable
+
+how dashboard XP card now works
+
+build/typecheck result

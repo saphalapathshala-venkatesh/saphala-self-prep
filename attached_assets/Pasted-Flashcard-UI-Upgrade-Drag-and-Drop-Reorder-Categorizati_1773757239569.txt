@@ -1,0 +1,171 @@
+Flashcard UI Upgrade: Drag-and-Drop Reorder + Categorization
+
+You are working on Saphala Self Prep flashcard player UI.
+
+This task is only for frontend interaction upgrade of flashcards.
+
+Read first, patch second.
+Do not redesign unrelated modules.
+
+Goals
+
+Implement the following UX improvements:
+
+1. Reorder cards
+
+Current arrow-based reorder UI is not user-friendly.
+
+Replace it with:
+
+mouse drag-and-drop on laptop
+
+touch drag-and-drop on mobile
+
+Behavior:
+
+student can drag items to reorder them
+
+on submit:
+
+each item position is evaluated
+
+correct items shown in green
+
+wrong items shown in red
+
+if all correct:
+
+show Flip Card button only
+
+if at least one wrong:
+
+show Try Again and Flip Card
+
+Explanation should appear only after flipping.
+
+2. Categorization cards
+
+Implement true categorization interaction.
+
+UI requirements:
+
+categories must be shown as large visible boxes
+
+items must be shown as small card/button-like draggable chips
+
+student can drag an item into a category box
+
+already-categorized items must be movable again into another category any number of times before submit
+
+Evaluation:
+
+on submit, inside each category box:
+
+correct items shown in green
+
+wrong items shown in red
+
+Flow:
+
+if all correct → Flip Card only
+
+if at least one wrong → Try Again + Flip Card
+
+Explanation appears only after flip.
+
+Interaction requirements
+
+Use a drag-and-drop approach that works for:
+
+desktop mouse dragging
+
+mobile touch dragging
+
+Keep it smooth and simple.
+Do not make the UI visually cluttered.
+
+If an existing DnD library is already present and suitable, reuse it.
+If not, add the smallest reliable solution.
+
+UI requirements
+Reorder
+
+large enough draggable rows
+
+clear drag handle / visual affordance
+
+after submit, correctness should be visually obvious
+
+Categorization
+
+category boxes should be large and clear
+
+items should look like movable chips/cards
+
+moving an item from one category to another before submit must feel natural
+
+no horizontal overflow on mobile
+
+Preserve existing flow
+
+Keep the already-established flashcard flow pattern:
+
+front side = action side
+
+submit/check first
+
+explanation not shown immediately
+
+explanation only after Flip Card
+
+Constraints
+
+do not break other card types
+
+do not remove current working XP message/header/footer
+
+do not redesign the whole player
+
+do not convert unsupported card types unless needed for this task
+
+keep mobile usability strong
+
+Validation
+
+Test and report:
+
+reorder works with mouse drag
+
+reorder works with touch drag
+
+correct/wrong row coloring works
+
+categorization drag/drop works on desktop
+
+categorization drag/drop works on mobile
+
+items can be moved between categories before submit
+
+submit evaluation works correctly
+
+try again resets only what is needed
+
+flip/explanation flow still works
+
+build/typecheck passes
+
+Expected output
+
+Return:
+
+files changed
+
+DnD approach/library used
+
+how reorder now works
+
+how categorization now works
+
+mobile handling details
+
+build/typecheck result

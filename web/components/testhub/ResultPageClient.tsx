@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { Trophy, Target, Clock, TrendingUp, Star, X, Award, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { triggerXpCelebration } from '@/lib/xpCelebration';
 
 interface SubjectBreakdown {
   subjectId: string;
@@ -64,34 +65,6 @@ function formatTime(ms: number): string {
   return `${s}s`;
 }
 
-function fireConfetti() {
-  import('canvas-confetti').then((mod) => {
-    const confetti = mod.default;
-    const saphalaColors = ['#6D4BCB', '#2D1B69', '#5E3FB8', '#4CAF50', '#38A169', '#7C3AED'];
-    const end = Date.now() + 3000;
-
-    function frame() {
-      confetti({
-        particleCount: 3,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0, y: 0.7 },
-        colors: saphalaColors,
-      });
-      confetti({
-        particleCount: 3,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1, y: 0.7 },
-        colors: saphalaColors,
-      });
-      if (Date.now() < end) {
-        requestAnimationFrame(frame);
-      }
-    }
-    frame();
-  });
-}
 
 export default function ResultPageClient({ attemptId, testId }: { attemptId: string; testId: string }) {
   const [data, setData] = useState<ResultData | null>(null);
@@ -144,7 +117,7 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
   useEffect(() => {
     if (data && showOverlay && !confettiTriggered.current) {
       confettiTriggered.current = true;
-      fireConfetti();
+      triggerXpCelebration();
     }
   }, [data, showOverlay]);
 

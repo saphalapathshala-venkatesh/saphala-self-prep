@@ -148,7 +148,7 @@ export default async function DashboardPage() {
           <MetricCard
             label="XP Earned"
             value={xpDisplay}
-            subtitle={data.xpTotal > 0 ? "Keep attempting to earn more" : "Earn XP by completing tests"}
+            subtitle={data.xpTotal > 0 ? "Keep learning to earn more" : "Complete tests & flashcards to earn XP"}
             icon="star"
             color="amber"
             isReal={data.xpHasLedger}
@@ -351,6 +351,28 @@ export default async function DashboardPage() {
               </Link>
             </div>
 
+            {/* XP Breakdown */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <svg className="w-4 h-4 text-amber-500 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                <p className="text-sm font-bold text-[#2D1B69]">XP Breakdown</p>
+              </div>
+              <p className="text-[10px] text-gray-400 leading-relaxed mb-4">
+                XP = Experience Points (Sadhana Points), a reward for your time, effort and hard work
+              </p>
+              <div className="space-y-2.5">
+                <XpRow label="Total XP" value={data.xpBreakdown.total} bold />
+                <div className="border-t border-gray-50 pt-2.5 space-y-2.5">
+                  <XpRow label="TestHub XP" value={data.xpBreakdown.testHub} />
+                  <XpRow label="Flashcard XP" value={data.xpBreakdown.flashcards} />
+                  <XpRow label="Ebooks XP" value={data.xpBreakdown.ebooks} />
+                  <XpRow label="Pathshala XP" value={data.xpBreakdown.pathshala} />
+                </div>
+              </div>
+            </div>
+
             {/* Products quick-access */}
             <div className="bg-white border border-gray-100 rounded-2xl p-5">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
@@ -482,6 +504,17 @@ function MetricCard({
           Soon
         </span>
       )}
+    </div>
+  );
+}
+
+function XpRow({ label, value, bold }: { label: string; value: number; bold?: boolean }) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className={`text-xs ${bold ? "font-bold text-[#2D1B69]" : "text-gray-500"}`}>{label}</span>
+      <span className={`text-xs font-semibold ${bold ? "text-amber-600" : value > 0 ? "text-amber-500" : "text-gray-300"}`}>
+        {value > 0 ? `+${value}` : "—"} {value > 0 ? "XP" : ""}
+      </span>
     </div>
   );
 }
