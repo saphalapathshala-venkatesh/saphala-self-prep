@@ -1,5 +1,28 @@
 import { prisma } from "@/lib/db";
 
+// ── Subject color fallback map ────────────────────────────────────────────────
+// Used when a subject has no FlashcardDeck with subjectColor set yet.
+// Keys are subject names (case-insensitive match).
+// Priority: FlashcardDeck.subjectColor > this map > brand purple (in EbookPageShell).
+// Add entries here whenever a new subject needs a fixed color before decks are created.
+const SUBJECT_COLOR_MAP: Record<string, string> = {
+  economy: "#2563EB",
+  economics: "#2563EB",
+  geography: "#2E8B57",
+  history: "#B45309",
+  polity: "#7C3AED",
+  "indian polity": "#7C3AED",
+  science: "#0891B2",
+  "general science": "#0891B2",
+  mathematics: "#DC2626",
+  environment: "#16A34A",
+};
+
+function subjectColorFallback(subjectName: string | null | undefined): string | null {
+  if (!subjectName) return null;
+  return SUBJECT_COLOR_MAP[subjectName.toLowerCase()] ?? null;
+}
+
 // ── Shared taxonomy helpers ───────────────────────────────────────────────────
 
 async function buildTaxonomyMaps(
@@ -162,17 +185,17 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
   if (!page || !page.isPublished) return null;
   if (page.unlockAt && page.unlockAt > new Date()) return null;
 
-  // Look up subject-specific color from FlashcardDeck (same subjectId).
-  // FlashcardDeck.subjectColor is the canonical per-subject brand color set by the admin.
-  // This allows ebooks to inherit the same subject color as flashcards for that subject.
+  // Look up subject-specific color.
+  // Priority: FlashcardDeck.subjectColor (admin-set) → SUBJECT_COLOR_MAP fallback.
   const subjectId = page.subtopic?.topic.subject.id ?? null;
+  const subjectName = page.subtopic?.topic.subject.name ?? null;
   let subjectColor: string | null = null;
   if (subjectId) {
     const colorDeck = await prisma.flashcardDeck.findFirst({
       where: { subjectId, NOT: { subjectColor: null } },
       select: { subjectColor: true },
     });
-    subjectColor = colorDeck?.subjectColor ?? null;
+    subjectColor = colorDeck?.subjectColor ?? subjectColorFallback(subjectName);
   }
 
   // Build the body from EBookPage chapters if they exist;
@@ -354,21 +377,24 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
     [],
   );
 
-  return decks.map((d) => ({
-    id: d.id,
-    title: d.title,
-    subtitle: d.subtitle,
-    description: d.description,
-    cardCount: d._count.cards,
-    subjectColor: d.subjectColor,
-    xpEnabled: d.xpEnabled,
-    xpValue: d.xpValue,
-    breadcrumb: {
-      category: d.categoryId ? (catMap.get(d.categoryId) ?? null) : null,
-      subject: d.subjectId ? (subMap.get(d.subjectId) ?? null) : null,
-      topic: d.topicId ? (topMap.get(d.topicId) ?? null) : null,
-    },
-  }));
+  return decks.map((d) => {
+    const subjectName = d.subjectId ? (subMap.get(d.subjectId) ?? null) : null;
+    return {
+      id: d.id,
+      title: d.title,
+      subtitle: d.subtitle,
+      description: d.description,
+      cardCount: d._count.cards,
+      subjectColor: d.subjectColor ?? subjectColorFallback(subjectName),
+      xpEnabled: d.xpEnabled,
+      xpValue: d.xpValue,
+      breadcrumb: {
+        category: d.categoryId ? (catMap.get(d.categoryId) ?? null) : null,
+        subject: subjectName,
+        topic: d.topicId ? (topMap.get(d.topicId) ?? null) : null,
+      },
+    };
+  });
 }
 
 export async function getDeckById(id: string): Promise<DeckDetail | null> {
@@ -416,18 +442,20 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
     [],
   );
 
+  const subjectName = deck.subjectId ? (subMap.get(deck.subjectId) ?? null) : null;
+
   return {
     id: deck.id,
     title: deck.title,
     subtitle: deck.subtitle,
     description: deck.description,
     cardCount: deck._count.cards,
-    subjectColor: deck.subjectColor,
+    subjectColor: deck.subjectColor ?? subjectColorFallback(subjectName),
     xpEnabled: deck.xpEnabled,
     xpValue: deck.xpValue,
     breadcrumb: {
       category: deck.categoryId ? (catMap.get(deck.categoryId) ?? null) : null,
-      subject: deck.subjectId ? (subMap.get(deck.subjectId) ?? null) : null,
+      subject: subjectName,
       topic: deck.topicId ? (topMap.get(deck.topicId) ?? null) : null,
     },
     cards: deck.cards,
