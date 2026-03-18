@@ -188,7 +188,7 @@ export default function EbookReaderClient({
       {/* Navigation buttons */}
       <div className="mt-3 mb-3 flex justify-between items-center gap-3">
         {/* Left button */}
-        {isFirst ? (
+        {isFirst || isLast ? (
           <a
             href="/learn/lessons"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-white transition-opacity hover:opacity-90 active:opacity-80"
