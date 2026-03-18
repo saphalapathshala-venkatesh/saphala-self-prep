@@ -102,6 +102,10 @@ export interface DbQuestion {
   sectionId: string | null;
   subjectId: string | null;
   subjectName: string | null;
+  topicId: string | null;
+  topicName: string | null;
+  subtopicId: string | null;
+  subtopicName: string | null;
   correctOptionOrder: number;
   questionText_en: string | null;
   questionText_te: string | null;
@@ -299,35 +303,92 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
       question: {
         include: {
           options: { orderBy: { order: "asc" } },
+          subtopic: {
+            include: {
+              topic: {
+                include: { subject: true },
+              },
+            },
+          },
         },
       },
     },
   });
 
-  const rawSubjectIds = Array.from(
-    new Set(testQuestions.map((tq) => tq.question.subjectId).filter((id): id is string => !!id))
+  // Batch-fetch subjects/topics for questions that have denormalised IDs
+  // but no subtopic relation (legacy data or questions without subtopics assigned)
+  const orphanSubjectIds = Array.from(
+    new Set(
+      testQuestions
+        .filter((tq) => !tq.question.subtopic && tq.question.subjectId)
+        .map((tq) => tq.question.subjectId as string)
+    )
   );
-  const subjectRows =
-    rawSubjectIds.length > 0
-      ? await prisma.subject.findMany({
-          where: { id: { in: rawSubjectIds } },
-          select: { id: true, name: true },
-        })
-      : [];
-  const subjectNameMap = new Map(subjectRows.map((s) => [s.id, s.name]));
+  const orphanTopicIds = Array.from(
+    new Set(
+      testQuestions
+        .filter((tq) => !tq.question.subtopic && tq.question.topicId)
+        .map((tq) => tq.question.topicId as string)
+    )
+  );
+
+  const [orphanSubjects, orphanTopics] = await Promise.all([
+    orphanSubjectIds.length > 0
+      ? prisma.subject.findMany({ where: { id: { in: orphanSubjectIds } }, select: { id: true, name: true } })
+      : [],
+    orphanTopicIds.length > 0
+      ? prisma.topic.findMany({ where: { id: { in: orphanTopicIds } }, select: { id: true, name: true } })
+      : [],
+  ]);
+  const orphanSubjectMap = new Map(orphanSubjects.map((s) => [s.id, s.name]));
+  const orphanTopicMap = new Map(orphanTopics.map((t) => [t.id, t.name]));
 
   return testQuestions.map((tq) => {
     const q = tq.question;
     const correctIdx = q.options.findIndex((o) => o.isCorrect);
 
+    // Resolve taxonomy: prefer the Prisma relation chain (most accurate),
+    // fall back to denormalized IDs on the Question row.
+    let subjectId: string | null = null;
+    let subjectName: string | null = null;
+    let topicId: string | null = null;
+    let topicName: string | null = null;
+    let subtopicId: string | null = null;
+    let subtopicName: string | null = null;
+
+    if (q.subtopic) {
+      subtopicId = q.subtopic.id;
+      subtopicName = q.subtopic.name;
+      if (q.subtopic.topic) {
+        topicId = q.subtopic.topic.id;
+        topicName = q.subtopic.topic.name;
+        if (q.subtopic.topic.subject) {
+          subjectId = q.subtopic.topic.subject.id;
+          subjectName = q.subtopic.topic.subject.name;
+        }
+      }
+    }
+
+    // Fill in from denormalized fields when relation chain didn't cover them
+    if (!subjectId && q.subjectId) {
+      subjectId = q.subjectId;
+      subjectName = orphanSubjectMap.get(q.subjectId) ?? null;
+    }
+    if (!topicId && q.topicId) {
+      topicId = q.topicId;
+      topicName = orphanTopicMap.get(q.topicId) ?? null;
+    }
+
     return {
       id: q.id,
       order: tq.order,
       sectionId: tq.sectionId ?? null,
-      subjectId: q.subjectId,
-      subjectName: q.subjectId
-        ? (subjectNameMap.get(q.subjectId) ?? q.subjectId.charAt(0).toUpperCase() + q.subjectId.slice(1))
-        : null,
+      subjectId,
+      subjectName,
+      topicId,
+      topicName,
+      subtopicId,
+      subtopicName,
       correctOptionOrder: correctIdx >= 0 ? correctIdx : 0,
       questionText_en: q.stem,
       questionText_te: q.stemSecondary ?? q.stem,

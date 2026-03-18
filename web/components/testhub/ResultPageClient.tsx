@@ -69,9 +69,16 @@ interface ResultData {
   top10: Top10Entry[];
 }
 
-interface AccuracyBucket {
-  subjectId: string;
+interface TaxoBucket {
+  key: string;
+  level: 'subtopic' | 'topic' | 'subject' | 'general';
+  label: string;
   subjectName: string;
+  topicName: string | null;
+  subtopicName: string | null;
+}
+
+interface AccuracyBucket extends TaxoBucket {
   total: number;
   correct: number;
   wrong: number;
@@ -83,9 +90,7 @@ interface AccuracyBucket {
   meaning: string;
 }
 
-interface TimeBucket {
-  subjectId: string;
-  subjectName: string;
+interface TimeBucket extends TaxoBucket {
   learnerAvgTimeMs: number;
   cohortAvgTimeMs: number;
   ratio: number;
@@ -103,9 +108,7 @@ interface RiskMap {
   limitedSamples: boolean;
 }
 
-interface FocusArea {
-  subjectId: string;
-  subjectName: string;
+interface FocusArea extends TaxoBucket {
   accuracyPct: number;
   unattemptedPct: number;
   timeStatus: string;
@@ -651,13 +654,20 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
                   <h2 className="text-sm font-semibold text-[#2D1B69] mb-1 flex items-center gap-2">
                     <BarChart2 size={16} /> Accuracy Heat Map
                   </h2>
-                  <p className="text-xs text-gray-400 mb-4">How accurately you performed in each subject area.</p>
+                  <p className="text-xs text-gray-400 mb-4">How accurately you performed in each area. Grouped by the most specific level available (subtopic → topic → subject).</p>
                   <div className="space-y-4">
                     {analytics.accuracyHeatMap.map((s) => (
-                      <div key={s.subjectId}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium text-gray-700">{s.subjectName}</span>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      <div key={s.key}>
+                        <div className="flex items-center justify-between mb-0.5">
+                          <div className="min-w-0">
+                            <span className="text-sm font-medium text-gray-700">{s.label}</span>
+                            {(s.topicName || s.subtopicName) && (
+                              <div className="text-[10px] text-gray-400 truncate">
+                                {[s.subjectName, s.topicName, s.level === 'subtopic' ? null : null].filter(Boolean).join(' › ')}
+                              </div>
+                            )}
+                          </div>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0 ml-2 ${
                             s.color === 'green' ? 'bg-green-100 text-green-700' :
                             s.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
                             s.color === 'orange' ? 'bg-orange-100 text-orange-700' :
@@ -673,7 +683,7 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="border-b border-gray-100 text-gray-400">
-                          <th className="text-left py-1.5 pr-2">Subject</th>
+                          <th className="text-left py-1.5 pr-2">Area</th>
                           <th className="text-right py-1.5 px-2">Total</th>
                           <th className="text-right py-1.5 px-2">Correct</th>
                           <th className="text-right py-1.5 px-2">Wrong</th>
@@ -683,8 +693,13 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
                       </thead>
                       <tbody>
                         {analytics.accuracyHeatMap.map((s) => (
-                          <tr key={s.subjectId} className="border-b border-gray-50">
-                            <td className="py-1.5 pr-2 font-medium text-gray-700">{s.subjectName}</td>
+                          <tr key={s.key} className="border-b border-gray-50">
+                            <td className="py-1.5 pr-2 font-medium text-gray-700">
+                              <div>{s.label}</div>
+                              {s.level !== 'subject' && s.level !== 'general' && (
+                                <div className="text-[10px] text-gray-400">{s.subjectName}{s.topicName && s.level === 'subtopic' ? ` › ${s.topicName}` : ''}</div>
+                              )}
+                            </td>
                             <td className="py-1.5 px-2 text-right text-gray-500">{s.total}</td>
                             <td className="py-1.5 px-2 text-right text-green-600 font-medium">{s.correct}</td>
                             <td className="py-1.5 px-2 text-right text-red-500 font-medium">{s.wrong}</td>
@@ -702,14 +717,17 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
                     <h2 className="text-sm font-semibold text-[#2D1B69] mb-1 flex items-center gap-2">
                       <Clock size={16} /> Time Efficiency Map
                     </h2>
-                    <p className="text-xs text-gray-400 mb-4">How your time per question compares to the average learner.</p>
+                    <p className="text-xs text-gray-400 mb-4">How your average time per question compares to other learners (first attempts only).</p>
                     <div className="space-y-3">
                       {analytics.timeHeatMap.map((s) => (
-                        <div key={s.subjectId} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                        <div key={s.key} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
                           <TimeColorDot color={s.color} />
                           <div className="flex-grow min-w-0">
-                            <div className="text-sm font-medium text-gray-700">{s.subjectName}</div>
-                            <div className="text-[11px] text-gray-400">
+                            <div className="text-sm font-medium text-gray-700">{s.label}</div>
+                            {s.level !== 'subject' && s.level !== 'general' && (
+                              <div className="text-[10px] text-gray-400">{s.subjectName}{s.topicName && s.level === 'subtopic' ? ` › ${s.topicName}` : ''}</div>
+                            )}
+                            <div className="text-[11px] text-gray-400 mt-0.5">
                               You: {formatTime(s.learnerAvgTimeMs)}/q · Avg: {formatTime(s.cohortAvgTimeMs)}/q
                             </div>
                           </div>
@@ -722,6 +740,37 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
                         </div>
                       ))}
                     </div>
+                    <div className="mt-5 overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-100 text-gray-400">
+                            <th className="text-left py-1.5 pr-2">Area</th>
+                            <th className="text-right py-1.5 px-2">Your time/q</th>
+                            <th className="text-right py-1.5 px-2">Avg time/q</th>
+                            <th className="text-right py-1.5 px-2">Ratio</th>
+                            <th className="text-right py-1.5 pl-2">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analytics.timeHeatMap.map((s) => (
+                            <tr key={s.key} className="border-b border-gray-50">
+                              <td className="py-1.5 pr-2 font-medium text-gray-700">
+                                <div>{s.label}</div>
+                                {s.level !== 'subject' && s.level !== 'general' && (
+                                  <div className="text-[10px] text-gray-400">{s.subjectName}{s.topicName && s.level === 'subtopic' ? ` › ${s.topicName}` : ''}</div>
+                                )}
+                              </td>
+                              <td className="py-1.5 px-2 text-right text-gray-600">{formatTime(s.learnerAvgTimeMs)}</td>
+                              <td className="py-1.5 px-2 text-right text-gray-400">{s.cohortAvgTimeMs > 0 ? formatTime(s.cohortAvgTimeMs) : '—'}</td>
+                              <td className="py-1.5 px-2 text-right text-gray-600">{s.cohortAvgTimeMs > 0 ? `${Math.round(s.ratio * 100)}%` : '—'}</td>
+                              <td className={`py-1.5 pl-2 text-right font-semibold text-xs ${
+                                s.color === 'blue' ? 'text-blue-600' : s.color === 'green' ? 'text-green-600' : s.color === 'orange' ? 'text-orange-500' : 'text-red-500'
+                              }`}>{s.status}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
 
@@ -731,7 +780,7 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
                       <Zap size={16} /> Question Behaviour Map
                     </h2>
                     <p className="text-xs text-gray-400 mb-4">How you handled each question — correctly, incorrectly, or skipped.</p>
-                    <div className="space-y-3">
+                    <div className="space-y-3 mb-5">
                       {[
                         { label: 'Correct & Efficient', value: analytics.riskHeatMap.correctEfficient, color: 'bg-green-500', meaning: 'Got it right and within time. Excellent.' },
                         { label: 'Correct but Slow', value: analytics.riskHeatMap.correctSlow, color: 'bg-yellow-400', meaning: 'Right answer, but took longer than average. Practice speed.' },
@@ -751,6 +800,32 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
                         </div>
                       ))}
                     </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b border-gray-100 text-gray-400">
+                            <th className="text-left py-1.5 pr-2">Behaviour Type</th>
+                            <th className="text-right py-1.5 px-2">Count</th>
+                            <th className="text-right py-1.5 pl-2">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {[
+                            { type: 'Correct & Efficient', count: analytics.riskHeatMap.correctEfficient, action: 'Keep it up' },
+                            { type: 'Correct but Slow', count: analytics.riskHeatMap.correctSlow, action: 'Improve speed' },
+                            { type: 'Rushed Error', count: analytics.riskHeatMap.wrongRushed, action: 'Slow down' },
+                            { type: 'Time-Heavy Mistake', count: analytics.riskHeatMap.wrongHeavy, action: 'Move on faster' },
+                            { type: 'Unattempted', count: analytics.riskHeatMap.unattempted, action: 'Build confidence' },
+                          ].map(({ type, count, action }) => (
+                            <tr key={type} className="border-b border-gray-50">
+                              <td className="py-1.5 pr-2 font-medium text-gray-700">{type}</td>
+                              <td className="py-1.5 px-2 text-right font-semibold text-gray-700">{count}</td>
+                              <td className="py-1.5 pl-2 text-right text-gray-500">{action}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
 
@@ -758,12 +833,17 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
                   <h2 className="text-sm font-semibold text-[#2D1B69] mb-1 flex items-center gap-2">
                     <Target size={16} /> Focus Area Analysis
                   </h2>
-                  <p className="text-xs text-gray-400 mb-4">Subjects ranked by how much attention they need based on accuracy, time, and mistakes.</p>
+                  <p className="text-xs text-gray-400 mb-4">Areas ranked by how much attention they need (accuracy, time, and mistakes combined).</p>
                   <div className="space-y-3">
                     {analytics.focusAreas.map((fa) => (
-                      <div key={fa.subjectId} className="border border-gray-100 rounded-xl p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium text-gray-700 text-sm">{fa.subjectName}</span>
+                      <div key={fa.key} className="border border-gray-100 rounded-xl p-4">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="min-w-0">
+                            <span className="font-medium text-gray-700 text-sm">{fa.label}</span>
+                            {fa.level !== 'subject' && fa.level !== 'general' && (
+                              <div className="text-[10px] text-gray-400">{fa.subjectName}{fa.topicName && fa.level === 'subtopic' ? ` › ${fa.topicName}` : ''}</div>
+                            )}
+                          </div>
                           <PriorityBadge priority={fa.priority} />
                         </div>
                         <div className="flex gap-3 text-[11px] text-gray-500 mb-2 flex-wrap">

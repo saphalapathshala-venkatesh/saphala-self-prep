@@ -1,0 +1,326 @@
+Perform a COMPLETE audit of the current Test Result, Review, Analytics, and Leaderboard system in the Saphala student frontend and backend before making any changes.
+
+IMPORTANT:
+- Do NOT assume anything is missing.
+- First verify what already exists and how it is implemented.
+- Only implement what is truly missing or incorrect.
+
+==================================================
+PHASE 1 — AUDIT (MANDATORY, NO CODE CHANGES)
+==================================================
+
+Audit the following areas carefully:
+
+1. TOTAL TIME CALCULATION
+- Verify if total exam time is computed as:
+  submittedAt - startedAt
+- Confirm this is used in:
+  - result card
+  - leaderboard ranking
+  - topper comparison
+  - analytics
+  - suggestions
+- Check if any place still uses sum(timeSpentMs)
+
+----------------------------------------
+
+2. RANK + LEADERBOARD
+- Verify ranking is:
+  - DB-based (not in-memory)
+  - FIRST ATTEMPTS ONLY
+- Confirm:
+  - repeat attempts are excluded
+  - rank updates dynamically when new users attempt later
+- Verify sorting:
+  1. marks desc
+  2. accuracy desc
+  3. total time asc
+  4. submittedAt asc
+- Check:
+  - top 10 list
+  - learner’s own rank (even if outside top 10)
+
+----------------------------------------
+
+3. TOPPER COMPARISON
+- Verify topper is:
+  - first-attempt-only
+  - correctly selected using ranking logic
+- Confirm result card shows:
+  - marks comparison
+  - accuracy comparison
+  - total time comparison
+
+----------------------------------------
+
+4. PER-QUESTION TIME ANALYSIS
+- Verify review page shows:
+  - learner time (timeSpentMs)
+  - average time
+- Confirm:
+  - average uses FIRST ATTEMPTS ONLY
+  - unattempted excluded
+  - batch query used (not per-question DB calls)
+- Check behavior tags:
+  - Efficient Solve
+  - Correct but Slow
+  - Rushed Error
+  - Time-Heavy Mistake
+
+----------------------------------------
+
+5. HEAT MAPS
+Verify existence and correctness of:
+
+A. Accuracy Heat Map
+B. Time Efficiency Heat Map
+C. Risk/Mistake Heat Map
+
+For each:
+- verify formulas
+- verify color logic
+- verify correctness of classification
+
+----------------------------------------
+
+6. SUMMARY TABLES (CRITICAL)
+- Check if each heat map has:
+  - a clean summary table
+  - simple explanation
+- Ensure tables explain:
+  - what the metric means
+  - whether performance is good or weak
+  - what student should do
+
+----------------------------------------
+
+7. FOCUS AREA SCORING
+- Verify focus score formula:
+
+focus_score =
+  0.45 * accuracy_risk +
+  0.20 * unattempted_risk +
+  0.20 * time_inefficiency_risk +
+  0.15 * wrong_density_risk
+
+- Verify:
+  - correct calculation
+  - correct priority labels:
+    High / Moderate / Low / Strong
+
+----------------------------------------
+
+8. SAPHALA MENTOR SUGGESTIONS
+- Verify suggestions are:
+  - RULE-BASED (no AI)
+- Check:
+  - test-level rules
+  - topic-level rules
+- Ensure suggestions match actual conditions
+
+----------------------------------------
+
+9. TAXONOMY SUPPORT (VERY IMPORTANT)
+- Verify analytics are correctly grouped by:
+  - subject
+  - topic
+  - subtopic
+
+- Confirm:
+  - NO hardcoding of subject names
+  - NO assumptions of fixed structure
+  - uses DB joins (subjectId → topicId → subtopicId)
+
+- Check:
+  - adding a NEW subject reflects automatically
+  - adding NEW topic reflects automatically
+  - adding NEW subtopic reflects automatically
+
+----------------------------------------
+
+10. EXISTING TESTS SUPPORT
+- Verify analytics works for:
+  - old attempts
+  - existing test data
+- Check fallback logic where fields are missing
+
+==================================================
+PHASE 2 — REPORT
+==================================================
+
+Return a structured report:
+
+A. What is already correct
+B. What is partially implemented
+C. What is missing
+D. What is incorrect
+E. What needs improvement
+
+Do NOT implement yet.
+
+==================================================
+PHASE 3 — IMPLEMENTATION (ONLY IF GAPS EXIST)
+==================================================
+
+If ANY gaps are found, implement fixes using the following rules:
+
+----------------------------------------
+1. TOTAL TIME FIX
+----------------------------------------
+
+Ensure everywhere:
+
+total_exam_time = submittedAt - startedAt
+
+Fallback:
+- if startedAt missing → use Attempt.createdAt
+
+----------------------------------------
+2. FIRST-ATTEMPT FILTER
+----------------------------------------
+
+All analytics must use:
+
+WHERE attemptNumber = 1
+
+Applies to:
+- rank
+- leaderboard
+- topper
+- avg time
+- heat maps
+
+----------------------------------------
+3. PER-QUESTION AVG TIME
+----------------------------------------
+
+For each question:
+
+avg_time =
+  AVG(timeSpentMs)
+  FROM AttemptAnswer
+  WHERE attemptNumber = 1
+  AND attempted = true
+
+Exclude:
+- unanswered questions
+
+----------------------------------------
+4. HEAT MAP FORMULAS
+----------------------------------------
+
+Accuracy:
+accuracy = correct / attempted * 100
+
+Time ratio:
+time_ratio = learner_time / avg_time
+
+Risk classification:
+- correct + fast → efficient
+- correct + slow → time-heavy
+- wrong + fast → rushed
+- wrong + slow → time-heavy mistake
+
+----------------------------------------
+5. FOCUS SCORE
+----------------------------------------
+
+accuracy_risk = 100 - accuracy
+unattempted_risk = unattempted %
+time_risk = based on ratio buckets
+wrong_density = wrong / total
+
+Apply weighted formula exactly.
+
+----------------------------------------
+6. SUMMARY TABLES
+----------------------------------------
+
+MANDATORY:
+
+Each heat map must have a table:
+
+Accuracy table:
+- Topic
+- Attempted
+- Correct
+- Accuracy %
+- Status
+- Meaning
+
+Time table:
+- Topic
+- Your time
+- Avg time
+- Ratio
+- Status
+
+Risk table:
+- Type
+- Count
+- Meaning
+- Action
+
+----------------------------------------
+7. TAXONOMY SAFETY (CRITICAL)
+----------------------------------------
+
+Ensure:
+
+- ALL grouping uses DB joins:
+  subtopic → topic → subject
+
+- NO hardcoded labels
+
+- If new:
+  - subject added
+  - topic added
+  - subtopic added
+
+→ analytics must reflect automatically
+
+----------------------------------------
+8. PERFORMANCE
+----------------------------------------
+
+- Use batch queries
+- Avoid N+1 queries
+- Cache aggregates if needed
+
+----------------------------------------
+9. UI RULES
+----------------------------------------
+
+- Keep result page clean
+- Use tabs:
+  Summary / Report / Suggestions
+
+- Avoid clutter
+- Keep explanations simple
+
+----------------------------------------
+10. FINAL VALIDATION
+----------------------------------------
+
+After implementation verify:
+
+- rank updates dynamically
+- repeat attempts excluded
+- topper correct
+- time correct
+- averages correct
+- tables readable
+- new taxonomy reflects instantly
+
+==================================================
+FINAL GOAL
+==================================================
+
+Build a fully correct, rule-based, scalable analytics system where:
+
+- rankings are fair
+- time is accurate
+- insights are meaningful
+- students understand their mistakes
+- system automatically adapts to new subjects/topics/subtopics
+- no future rework is required for taxonomy expansion
