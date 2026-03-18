@@ -1,0 +1,223 @@
+Let me gather all the real schema data and API structures to write an accurate synopsis:
+
+Now let me also check the curriculum fetch API:
+
+Now I have everything. Let me write the complete synopsis:
+
+Saphala Self Prep — Student Frontend: Course Architecture Synopsis
+1. The Two Ways a Course is Classified
+Every course in the system carries two independent classification dimensions simultaneously. Both must be used together to build the student dashboard correctly.
+
+Dimension A — Exam/Study Goal Category (Who is it for?)
+This answers: "Which competitive exam is this course preparing me for?"
+
+Stored in: Course.categoryId → links to the Category table.
+
+Current categories in the database:
+
+Category Name	Who it's for
+APPSC	Andhra Pradesh Public Service Commission aspirants
+AP Police	Andhra Pradesh Police recruitment aspirants
+TGPSC	Telangana Public Service Commission aspirants
+TG Police	Telangana Police recruitment aspirants
+UPSC	Union Public Service Commission (IAS/IPS) aspirants
+How to use on the student frontend: This is the primary navigation filter — the student selects their exam (APPSC, AP Police, etc.) and sees only courses relevant to them. Think of it as the top-level tab or sidebar filter on the dashboard.
+
+Dimension B — Product Category (What type of course is it?)
+This answers: "What does this course actually contain — videos, tests, PDFs?"
+
+Stored in: Course.productCategory → one of 8 fixed enum values.
+
+Enum Value	Label to show student	What it contains
+FREE_DEMO	Free Demo	Trial content — no purchase needed
+COMPLETE_PREP_PACK	Complete Prep Pack	Everything: videos + PDFs + tests + flashcards
+VIDEO_ONLY	Video Course	Video lectures only
+SELF_PREP	Self Prep	Mixed self-paced study content
+PDF_ONLY	PDF Notes	Study notes and PDFs only
+TEST_SERIES	Test Series	Practice tests only
+FLASHCARDS_ONLY	Flashcard Decks	Flashcard revision decks only
+CURRENT_AFFAIRS	Current Affairs	Time-sensitive news/GK content
+How to use on the student frontend: These are the horizontal filter chips or tab bar within a selected category. Example: Student selects "APPSC" → sees chips for "Free Demo / Video Course / Test Series / Complete Pack" → taps one to filter the course list.
+
+How the Two Dimensions Work Together
+Student Dashboard
+│
+├── Tab: APPSC
+│     ├── [Free Demo]  [Video Course]  [Test Series]  [Complete Pack]  ...
+│     │
+│     │   → Course cards filtered by categoryId=APPSC + productCategory=selected
+│
+├── Tab: AP Police
+│     ├── [Free Demo]  [Test Series]  ...
+│
+└── Tab: UPSC ...
+A student who has enrolled for APPSC prep should land on the APPSC tab. They see Free Demo courses without logging in (or before purchase), and their purchased courses after login.
+
+2. What "Featured" Means
+Course.featured is a boolean flag set by the admin (the "⭐ Featured" toggle in the admin console). It has no bearing on category or product type.
+
+Its purpose: Featured courses are promoted in the homepage hero/banner section — regardless of which exam category they belong to. Think of it as editorial curation: the admin hand-picks 2–4 courses to highlight at the top of the student app's home screen.
+
+Rule for the frontend:
+
+On the home/discovery screen: query courses where featured = true → render as a highlighted carousel or banner at the top
+On all other screens (category tabs, search): ignore the featured flag — show all isActive = true courses
+3. Course Visibility Rule
+A course is visible to students only when isActive = true. The admin toggles this with the "Active / Inactive" button in the course list. If isActive = false, the course must be completely hidden from students — no listing, no detail page.
+
+4. The Curriculum Structure (5 Levels Deep)
+Every course's content is organized in a strict tree hierarchy:
+
+Course
+└── Section  (= a Subject, e.g. "Economy", "Polity", "Geography")
+    └── Chapter  (e.g. "National Income", "Fundamental Rights")
+        └── Lesson  (e.g. "Introduction to National Income")
+            └── LessonItem  (the actual content piece to consume)
+LessonItem is the leaf node — the actual thing a student opens and studies. It has an itemType that tells the frontend which viewer to launch:
+
+itemType	What to render
+HTML_PAGE	Open the built-in E-Book viewer (sourceId = ContentPage id)
+VIDEO	Open video player (sourceId = Video id)
+PDF	Open PDF viewer (sourceId = PdfAsset id, served via /api/pdf-serve/[id])
+FLASHCARD_DECK	Open flashcard player (sourceId = FlashcardDeck id)
+EXTERNAL_LINK	Open URL in browser (externalUrl field, sourceId is null)
+Important: titleSnapshot on each LessonItem is a cached copy of the content title at the time it was added. Use it for display in the curriculum tree without needing to fetch each source record.
+
+unlockAt field: If set on a LessonItem, the content is scheduled for future release. The frontend must check: if unlockAt is in the future, show the item as locked with a countdown/lock icon — do not allow opening it.
+
+Lesson status: Each Lesson has a status field. Only show lessons where status = "PUBLISHED" to students.
+
+5. Course Capability Flags
+Each course has boolean flags that tell the frontend which content types it actually contains. Use these to show/hide the relevant tabs on the course detail screen:
+
+Flag	Show tab
+hasVideoCourse = true	"Videos" tab
+hasHtmlCourse = true	"E-Books" tab
+hasPdfCourse = true	"PDF Notes" tab
+hasTestSeries = true	"Tests" tab
+hasFlashcardDecks = true	"Flashcards" tab
+6. APIs the Student Frontend Must Call
+All student-facing API calls require a valid student session cookie (session cookie, set on login via POST /api/auth/user-login). The following endpoints need to be built in this admin console codebase under app/api/student/:
+
+6a. Course Listing — GET /api/student/courses
+Query params:
+
+categoryId      — filter by exam category (APPSC, AP Police, etc.)
+productCategory — filter by product type (FREE_DEMO, VIDEO_ONLY, etc.)
+featured        — "true" to get only featured courses (for home screen)
+pageSize        — default 20
+page            — pagination
+What to return per course:
+
+{
+  "id": "cmmvwzr7w000110btqoxjx1as",
+  "name": "APPSC Demo Course",
+  "description": "...",
+  "thumbnailUrl": "...",
+  "categoryId": "cmmruwcuh000095x3ad4aah4g",
+  "categoryName": "APPSC",
+  "productCategory": "FREE_DEMO",
+  "featured": true,
+  "isActive": true,
+  "hasVideoCourse": false,
+  "hasHtmlCourse": true,
+  "hasPdfCourse": true,
+  "hasTestSeries": false,
+  "hasFlashcardDecks": true,
+  "courseType": "STANDARD",
+  "validityType": "UNLIMITED",
+  "isEnrolled": true,          ← check UserEntitlement for the logged-in student
+  "entitlementValidUntil": null
+}
+6b. Course Detail — GET /api/student/courses/[id]
+Returns the full course object (same fields as above) plus the full curriculum tree in one response:
+
+{
+  "course": { ...course fields... },
+  "curriculum": [
+    {
+      "sectionId": "...",
+      "subjectName": "Economy",
+      "sortOrder": 0,
+      "chapters": [
+        {
+          "chapterId": "...",
+          "title": "Demo",
+          "sortOrder": 0,
+          "lessons": [
+            {
+              "lessonId": "...",
+              "title": "Lesson 1",
+              "status": "PUBLISHED",
+              "sortOrder": 0,
+              "items": [
+                {
+                  "itemId": "...",
+                  "itemType": "HTML_PAGE",
+                  "sourceId": "cmmvtug910001z6cjflz9mpqz",
+                  "titleSnapshot": "Meaning of National Income",
+                  "sortOrder": 0,
+                  "unlockAt": null,       ← null means available now
+                  "externalUrl": null
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+The curriculum is built from:
+
+CourseSubjectSection → join Subject (for name) → Chapter → Lesson → LessonItem
+6c. Individual Content Endpoints (already exist, need student auth):
+Content type	Endpoint
+E-Book page	GET /api/content-pages/[id]
+PDF file	GET /api/pdf-serve/[id] (no auth, streams directly)
+Video	GET /api/videos/[id]
+Flashcard deck	GET /api/student/decks/[id] (already exists)
+7. Access Control (Entitlements)
+A student can access a course if they have a UserEntitlement record matching that course:
+
+UserEntitlement.productCode  ←→  must match the course's entitlement code
+UserEntitlement.status = "ACTIVE"
+UserEntitlement.validUntil = null (unlimited) OR validUntil > now
+Current gap: The Course model does not yet have an entitlementCode field. This needs to be added (one additive column) so the student API can do: "give me all courses where entitlementCode is in the student's active entitlement codes".
+
+Free Demo courses (productCategory = "FREE_DEMO") should be accessible to all logged-in students with no entitlement check.
+
+8. Recommended Student Dashboard UI Flow
+App Launch
+    ↓
+Not logged in → Show marketing landing + "Free Demo" courses (no auth)
+    ↓
+Login (POST /api/auth/user-login)
+    ↓
+Dashboard Home
+  ├── Hero: Featured courses carousel (featured=true)
+  ├── "My Courses" row: courses where student has UserEntitlement
+  └── "Explore" section: filtered by Category tabs + Product Category chips
+    ↓
+Course Detail Page
+  ├── Header: name, thumbnail, description, capability badges (Video/PDF/Tests)
+  ├── Curriculum accordion: Section → Chapter → Lesson → Items
+  │     • Locked item (unlockAt in future): show 🔒 + unlock date
+  │     • Completed item: show ✓ checkmark
+  │     • Current item: highlighted
+  └── "Continue Learning" button → last incomplete item
+    ↓
+Content Viewer (depends on itemType)
+  ├── HTML_PAGE  → E-Book viewer
+  ├── VIDEO      → Video player
+  ├── PDF        → PDF embed viewer
+  ├── FLASHCARD  → Flashcard player
+  └── EXTERNAL_LINK → Open in browser/webview
+Summary: What Needs to Be Built First
+Priority	Task
+1	Add entitlementCode field to Course model (additive schema change)
+2	Build GET /api/student/courses — with category, productCategory, featured filters + entitlement check
+3	Build GET /api/student/courses/[id] — full curriculum tree response
+4	Student frontend: Category tabs + Product filter chips + course card grid
+5	Student frontend: Course detail + curriculum accordion + content viewers
+Would you like me to start building any of these pieces? I'd suggest starting with adding the entitlementCode field to the Course schema and then creating the student course listing API.

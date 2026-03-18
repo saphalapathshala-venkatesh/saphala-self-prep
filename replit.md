@@ -50,8 +50,20 @@ Learning content routes are dynamically generated from the database under `app/(
 - **Flashcard Decks (`/learn/flashcards`)**: Listings of published `FlashcardDeck` rows with interactive study UI.
 All use `components/learn/LearnPageShell.tsx` for consistent presentation.
 
+#### Course Architecture
+Courses are organized by two dimensions: **Exam Category** (APPSC, AP Police, TGPSC, UPSC, etc. — `Course.categoryId` → `Category`) and **Product Category** (FREE_DEMO, VIDEO_ONLY, TEST_SERIES, etc. — `Course.productCategory` enum). `Course.featured` flags editorial picks shown in the home page hero. Only `Course.isActive = true` courses are visible to students.
+
+The curriculum is a 5-level tree: `Course → CourseSubjectSection → Chapter → Lesson (status=PUBLISHED) → LessonItem`. `LessonItem.itemType` determines which viewer to launch: `HTML_PAGE` → ebook reader, `PDF` → PDF viewer, `FLASHCARD_DECK` → flashcard player, `VIDEO` → video player, `EXTERNAL_LINK` → open in browser. `LessonItem.unlockAt` controls scheduled release. `Course` and curriculum tables are admin-owned and NOT in the student Prisma schema — always query via `prisma.$queryRawUnsafe` from `web/lib/courseDb.ts`.
+
+**Student Course APIs:** `GET /api/student/courses` (list with optional categoryId/productCategory/featured filters) and `GET /api/student/courses/[id]` (full course + curriculum tree). Both use raw SQL via `courseDb.ts`. `FREE_DEMO` courses are accessible to all logged-in students without entitlement check. Other product types show a "Purchase Required" gate in the curriculum.
+
+**Course UI pages:**
+- Public catalog: `/courses` — category tab bar (URL `?category=id`) + course cards with content-type badges and "Start Free →" CTA
+- Student detail: `/courses/[id]` (within student layout, requires login) — course header + collapsible curriculum accordion (`CurriculumAccordion` client component in `components/courses/`)
+- Dashboard: "Start Learning" section shows FREE_DEMO courses as compact cards
+
 #### Course Catalog (`/courses`)
-A database-driven server component that dynamically displays published `TestSeries`, `PdfAsset`, `FlashcardDeck`, and `ContentPage` organized by product type.
+A database-driven server component that dynamically displays active `Course` records with category tab filters (server-side via URL search params) and content-type capability badges. Uses `web/lib/courseDb.ts` for raw SQL queries.
 
 ### APIs
 Public APIs for daily quotes, categories, and contact forms. Authenticated APIs for TestHub operations (start, save, submit, results, review, reporting, feedback). Admin APIs for user/role management.

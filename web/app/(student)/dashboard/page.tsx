@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import LoginSuccessToast from "@/components/dashboard/LoginSuccessToast";
 import { getDashboardData } from "@/lib/dashboardData";
+import { getActiveCourses } from "@/lib/courseDb";
 import { PRODUCTS, ROUTES } from "@/config/terminology";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,10 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const data = await getDashboardData(user.id);
+  const [data, freeCourses] = await Promise.all([
+    getDashboardData(user.id),
+    getActiveCourses({ productCategory: "FREE_DEMO", limit: 4 }),
+  ]);
 
   const salutation =
     user.gender === "Male" ? "Mr. " : user.gender === "Female" ? "Ms. " : "";
@@ -213,6 +217,65 @@ export default async function DashboardPage() {
               Resume
             </Link>
           </div>
+        )}
+
+        {/* Start Learning — free courses */}
+        {freeCourses.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-bold text-[#2D1B69]">Start Learning</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Free courses available for you right now</p>
+              </div>
+              <Link
+                href={ROUTES.courses}
+                className="text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                All Courses
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {freeCourses.map((course) => (
+                <Link
+                  key={course.id}
+                  href={`/courses/${course.id}`}
+                  className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
+                >
+                  {course.thumbnailUrl ? (
+                    <div className="h-24 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={course.thumbnailUrl} alt={course.name} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="h-24 bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center px-3">
+                      <span className="text-white font-semibold text-xs text-center line-clamp-3">{course.name}</span>
+                    </div>
+                  )}
+                  <div className="p-3 flex flex-col flex-1 gap-2">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Free</span>
+                      {course.categoryName && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">{course.categoryName}</span>
+                      )}
+                    </div>
+                    <p className="text-xs font-bold text-[#2D1B69] leading-snug group-hover:text-[#6D4BCB] transition-colors line-clamp-2">
+                      {course.name}
+                    </p>
+                    <div className="flex flex-wrap gap-1.5 text-[10px] text-gray-400">
+                      {course.hasHtmlCourse && <span>📖 Ebooks</span>}
+                      {course.hasPdfCourse && <span>📄 PDFs</span>}
+                      {course.hasFlashcardDecks && <span>🃏 Cards</span>}
+                      {course.hasVideoCourse && <span>🎬 Video</span>}
+                      {course.hasTestSeries && <span>✏️ Tests</span>}
+                    </div>
+                    <span className="mt-auto block text-center text-[11px] font-bold py-1.5 rounded-lg bg-green-600 text-white group-hover:bg-green-700 transition-colors">
+                      Start Free →
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
         )}
 
         {/* Main grid */}

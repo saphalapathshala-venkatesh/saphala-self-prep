@@ -67,7 +67,7 @@ export default async function FeaturedCoursesSection() {
         price: null,
         originalPrice: null,
         badge: PRODUCT_CATEGORY_LABEL[c.productCategory] ?? c.productCategory,
-        href: "/courses",
+        href: `/courses/${c.id}`,
         cta: isFree ? "Start Free" : "View Course",
       });
     }
