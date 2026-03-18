@@ -9,7 +9,6 @@ import {
   Layers,
   Newspaper,
 } from "lucide-react";
-import { ROUTES } from "@/config/terminology";
 
 const PRODUCT_TYPES = [
   {
@@ -19,7 +18,7 @@ const PRODUCT_TYPES = [
     title: "Free Demo Courses & Tests",
     desc: "Try selected free courses and tests before choosing your full preparation path.",
     cta: "Start for Free",
-    href: ROUTES.testHub,
+    href: "/courses?productCategory=FREE_DEMO",
   },
   {
     icon: Package,
@@ -28,7 +27,7 @@ const PRODUCT_TYPES = [
     title: "Complete Prep Packs",
     desc: "Get video, PDFs, tests, and flashcards bundled in one focused preparation package.",
     cta: "View Packs",
-    href: ROUTES.courses,
+    href: "/courses?productCategory=COMPLETE_PREP_PACK",
   },
   {
     icon: PlayCircle,
@@ -37,7 +36,7 @@ const PRODUCT_TYPES = [
     title: "Video Courses",
     desc: "Learn through structured, topic-wise recorded video lessons taught by subject experts.",
     cta: "Watch Lessons",
-    href: ROUTES.courses,
+    href: "/courses?productCategory=VIDEO_ONLY",
   },
   {
     icon: BookOpen,
@@ -46,7 +45,7 @@ const PRODUCT_TYPES = [
     title: "Self Prep Courses",
     desc: "Study independently using a structured mix of ebooks, PDFs, tests, and flashcards.",
     cta: "Start Self Prep",
-    href: ROUTES.courses,
+    href: "/courses?productCategory=SELF_PREP",
   },
   {
     icon: FileText,
@@ -55,7 +54,7 @@ const PRODUCT_TYPES = [
     title: "PDF Study Material",
     desc: "Access focused, exam-oriented study material for reading, revision, and offline use.",
     cta: "Browse PDFs",
-    href: ROUTES.pdfs,
+    href: "/courses?productCategory=PDF_ONLY",
   },
   {
     icon: ClipboardCheck,
@@ -64,7 +63,7 @@ const PRODUCT_TYPES = [
     title: "Test Series",
     desc: "Practice topic tests, subject tests, and full-length mock exams in real exam format.",
     cta: "Take a Test",
-    href: ROUTES.testHub,
+    href: "/courses?productCategory=TEST_SERIES",
   },
   {
     icon: Layers,
@@ -73,7 +72,7 @@ const PRODUCT_TYPES = [
     title: "Flash Cards",
     desc: "Revise key concepts quickly with memory-friendly cards built for daily recall practice.",
     cta: "Revise Now",
-    href: ROUTES.flashcards,
+    href: "/courses?productCategory=FLASHCARDS_ONLY",
   },
   {
     icon: Newspaper,
@@ -82,7 +81,7 @@ const PRODUCT_TYPES = [
     title: "Current Affairs",
     desc: "Stay exam-ready with targeted content, daily digests, and quiz-based current affairs revision.",
     cta: "Stay Updated",
-    href: ROUTES.testHub,
+    href: "/courses?productCategory=CURRENT_AFFAIRS",
   },
 ];
 

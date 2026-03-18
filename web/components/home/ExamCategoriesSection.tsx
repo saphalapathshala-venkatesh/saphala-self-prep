@@ -12,7 +12,10 @@ interface Category {
 
 function CategoryCard({ cat }: { cat: Category }) {
   return (
-    <div className="group shrink-0 w-48 sm:w-52 flex flex-col rounded-2xl border border-gray-100 bg-white overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
+    <Link
+      href={`/courses?category=${cat.id}`}
+      className="group shrink-0 w-48 sm:w-52 flex flex-col rounded-2xl border border-gray-100 bg-white overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200"
+    >
       <div className="relative w-full aspect-video bg-gradient-to-br from-[#6D4BCB]/10 to-[#2D1B69]/20 overflow-hidden">
         {cat.thumbnailUrl ? (
           <Image
@@ -43,8 +46,17 @@ function CategoryCard({ cat }: { cat: Category }) {
         <span className="min-w-0 text-sm font-semibold text-[#2D1B69] group-hover:text-[#6D4BCB] transition-colors line-clamp-2 leading-snug">
           {cat.name}
         </span>
+        <svg
+          className="w-4 h-4 text-gray-300 group-hover:text-[#6D4BCB] flex-shrink-0 transition-colors"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -212,7 +224,7 @@ export default function ExamCategoriesSection() {
           </div>
         )}
 
-        {/* Scroll bar — only when categories are loaded */}
+        {/* Scroll bar */}
         {!loading && categories.length > 0 && (
           <div
             ref={trackRef}
@@ -238,10 +250,10 @@ export default function ExamCategoriesSection() {
           </div>
         )}
 
-        {/* Swipe hint — mobile only */}
+        {/* Swipe hint */}
         {!loading && categories.length > 0 && (
           <p className="md:hidden text-xs text-[#8050C0]/60 font-medium text-center mt-3">
-            Swipe to explore all exam categories
+            Tap an exam to browse its courses
           </p>
         )}
 
@@ -249,10 +261,10 @@ export default function ExamCategoriesSection() {
         {!loading && categories.length > 0 && (
           <div className="text-center mt-8">
             <Link
-              href="/testhub"
+              href="/courses"
               className="inline-flex items-center gap-2 bg-[#6D4BCB] hover:bg-[#5C3DB5] text-white font-semibold text-sm px-6 py-3 rounded-xl transition-colors shadow-sm"
             >
-              Browse Practice Tests
+              Browse All Courses
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
