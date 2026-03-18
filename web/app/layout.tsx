@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { verifySystemIntegrity } from "@/lib/safetyChecks";
+import { TopProgressBar } from "@/components/ui/TopProgressBar";
+import { Suspense } from "react";
 
 verifySystemIntegrity();
 
@@ -30,6 +32,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <Suspense fallback={null}>
+          <TopProgressBar />
+        </Suspense>
         {children}
       </body>
     </html>

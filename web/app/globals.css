@@ -3,7 +3,7 @@
 @layer components {
   .btn-glossy-primary {
     background-color: var(--brand-primary);
-    @apply text-white font-semibold py-2.5 px-5 rounded-full shadow-sm transition-all duration-200 ease-in-out focus:outline-none cursor-pointer;
+    @apply text-white font-semibold py-2.5 px-5 rounded-full shadow-sm transition-all duration-150 ease-in-out focus:outline-none cursor-pointer active:scale-[0.97];
   }
   .btn-glossy-primary:hover {
     background-color: var(--brand-primary-hover);
@@ -13,7 +13,7 @@
   }
 
   .btn-glossy-secondary {
-    @apply bg-white text-purple-700 font-semibold py-2.5 px-5 rounded-full border border-purple-600 shadow-sm transition-all duration-200 ease-in-out hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-300 cursor-pointer;
+    @apply bg-white text-purple-700 font-semibold py-2.5 px-5 rounded-full border border-purple-600 shadow-sm transition-all duration-150 ease-in-out hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-300 cursor-pointer active:scale-[0.97];
   }
 }
 

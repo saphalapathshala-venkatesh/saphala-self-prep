@@ -1,0 +1,169 @@
+Improve navigation speed perception, loading feedback, and test answer-saving performance across the Saphala student frontend (mobile + desktop).
+
+Goal:
+1. Make page transitions feel fast and responsive.
+2. Eliminate the “nothing is happening” feeling during navigation delays.
+3. Optimize test answer saving so it feels instant and never blocks the student experience.
+
+---------------------------------------------------------------------
+
+A. Performance audit and improvements
+
+1. Audit navigation delays (currently ~2–3 seconds):
+   - API latency
+   - blocking calls
+   - sequential requests
+   - lack of route prefetching
+   - unnecessary re-renders
+
+2. Apply improvements:
+   - enable route prefetching for key pages (courses, ebooks, tests)
+   - ensure client-side navigation (no full reloads)
+   - parallelize API calls where safe
+   - cache frequently used data (course, ebook, user data)
+
+---------------------------------------------------------------------
+
+B. Global navigation feedback
+
+1. Implement a top progress bar (like YouTube).
+2. Show only if navigation takes >300–500ms.
+3. Hide automatically when page is ready.
+4. Works on mobile + desktop.
+
+---------------------------------------------------------------------
+
+C. Contextual loading messages (only when needed)
+
+Use only when loading >800ms.
+
+Messages:
+- Course → “Opening your course…”
+- Ebook → “Loading your learning material…”
+- Test → “Preparing your test environment…”
+- Results → “Analyzing your performance…”
+- Dashboard → “Getting your progress ready…”
+- Payment → “Securing your transaction…”
+
+Rules:
+- No generic “Loading…”
+- No overuse
+- Keep UI clean and minimal
+
+---------------------------------------------------------------------
+
+D. Skeleton UI
+
+1. Add skeleton loaders for:
+   - course pages
+   - ebook pages
+   - dashboard
+   - test interface (initial load)
+
+2. Avoid blank screens.
+
+---------------------------------------------------------------------
+
+E. Click feedback
+
+1. All buttons must show instant response:
+   - pressed state
+   - slight visual feedback
+
+---------------------------------------------------------------------
+
+F. Test interface — CRITICAL PERFORMANCE FIX
+
+Problem:
+Saving each answer is taking noticeable time, breaking exam flow.
+
+Goal:
+Answer selection must feel **instant (<100ms perceived)**.
+
+Tasks:
+
+1. Implement Optimistic UI Update
+   - when user selects an option:
+     → update UI immediately (no waiting for API)
+     → highlight selected option instantly
+
+2. Decouple UI from API latency
+   - DO NOT block UI on API response
+   - API should run in background
+
+3. Implement Background Saving
+   - send answer to server asynchronously
+   - no loading spinner per question
+   - no UI freeze
+
+4. Add Silent Retry Mechanism
+   - if save fails:
+     → retry automatically (1–2 times)
+     → queue unsaved answers if needed
+
+5. Batch Saving (if required)
+   - instead of saving each click individually:
+     → debounce or batch multiple answers (e.g., every few seconds)
+     → or queue and flush
+
+6. Add Minimal Feedback (non-intrusive)
+   - small indicator:
+     → “Saved” / “Saving…” (very subtle, not distracting)
+   - no popups or blocking messages
+
+7. Ensure Data Safety
+   - no answer loss
+   - handle:
+     → network drop
+     → page refresh
+     → session expiry
+
+8. Optimize API
+   - reduce payload size
+   - avoid redundant fields
+   - ensure fast response time
+
+9. Validate flows:
+   - fast answering (rapid clicks)
+   - question navigation
+   - section switching
+   - pause/resume
+   - submission
+
+Expected behavior:
+- selecting an option feels instant
+- no lag between questions
+- system saves reliably in background
+- student never feels delay
+
+---------------------------------------------------------------------
+
+G. UX constraints
+
+1. Keep UI clean — avoid clutter.
+2. No excessive loaders/messages.
+3. Maintain Saphala tone:
+   - simple
+   - reassuring
+   - educational
+
+---------------------------------------------------------------------
+
+H. Deliverables
+
+- root cause of navigation delay
+- navigation performance improvements
+- global progress bar
+- contextual message system
+- skeleton UI
+- optimized test answer saving system
+- validation across mobile + desktop
+
+---------------------------------------------------------------------
+
+Expected outcome:
+
+1. Navigation feels fast and responsive.
+2. Users never feel “stuck” or confused.
+3. Test interface feels instant and smooth, even if backend is slower.
+4. Student trust in exam system significantly improves.

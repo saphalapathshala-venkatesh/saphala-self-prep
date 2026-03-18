@@ -139,11 +139,19 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   const sectionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Save / submit
-  const [saving, setSaving] = useState(false);
-  const [savedToast, setSavedToast] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+  const [bgSaveActive, setBgSaveActive] = useState(false); // subtle sync indicator
+
+  // Background save queue — Map<questionId, payload> (not React state to avoid re-renders)
+  const pendingSaves = useRef<Map<string, {
+    questionId: string;
+    selectedOptionId: string | null;
+    isMarkedForReview: boolean;
+    timeSpentMsDelta: number;
+  }>>(new Map());
+  const bgSaveFlushing = useRef(false);
 
   // UI
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -427,57 +435,145 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
       next.set(qId, state);
       return next;
     });
+    // Background save the clear to the server
+    if (attemptMeta) {
+      pendingSaves.current.set(qId, {
+        questionId: qId,
+        selectedOptionId: null,
+        isMarkedForReview: false,
+        timeSpentMsDelta: 0,
+      });
+      void flushPendingSaves(attemptMeta.attemptId);
+    }
   }
 
-  async function saveAnswer(markForReview: boolean) {
-    if (!attemptMeta || saving || isPaused) return;
-    setSaving(true);
-    setSaveError(null);
+  // ── Background save engine ─────────────────────────────────────────────────
+
+  async function flushPendingSaves(attemptId: string): Promise<void> {
+    if (bgSaveFlushing.current || pendingSaves.current.size === 0) return;
+    bgSaveFlushing.current = true;
+    setBgSaveActive(true);
+
+    let retries = 0;
+    const MAX_RETRIES = 5;
+
+    while (pendingSaves.current.size > 0 && retries < MAX_RETRIES) {
+      const entries = Array.from(pendingSaves.current.entries());
+
+      for (const [qId, payload] of entries) {
+        try {
+          const res = await fetch(`/api/student/attempts/${attemptId}/answer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload),
+          });
+
+          if (res.ok) {
+            pendingSaves.current.delete(qId);
+          } else if (res.status === 401) {
+            setSessionExpired(true);
+            bgSaveFlushing.current = false;
+            setBgSaveActive(false);
+            return;
+          } else if (res.status === 409) {
+            const d = await res.json().catch(() => ({}));
+            if (d.code === "ATTEMPT_LOCKED") {
+              setSaveError("This test is open on another device.");
+              bgSaveFlushing.current = false;
+              setBgSaveActive(false);
+              return;
+            }
+            // Other 409 (bad data) — don't retry
+            pendingSaves.current.delete(qId);
+          } else if (res.status === 400) {
+            // Bad payload — don't retry
+            pendingSaves.current.delete(qId);
+          }
+          // Other errors (5xx, network) — keep in queue, retry
+        } catch {
+          // Network error — keep in queue
+        }
+      }
+
+      if (pendingSaves.current.size > 0) {
+        retries++;
+        // Exponential backoff: 1s, 2s, 4s, …
+        await new Promise((r) => setTimeout(r, Math.min(1000 * retries, 8000)));
+      }
+    }
+
+    bgSaveFlushing.current = false;
+    setBgSaveActive(pendingSaves.current.size > 0); // still active if items remain after max retries
+  }
+
+  // Force-flush for submission: waits for any in-progress flush, then does a final pass
+  async function forceFlushBeforeSubmit(attemptId: string): Promise<void> {
+    const deadline = Date.now() + 4000;
+    while (bgSaveFlushing.current && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    // Final direct flush of anything still pending
+    if (pendingSaves.current.size > 0) {
+      const wasLocked = bgSaveFlushing.current;
+      if (!wasLocked) bgSaveFlushing.current = true;
+      const entries = Array.from(pendingSaves.current.entries());
+      for (const [qId, payload] of entries) {
+        try {
+          const res = await fetch(`/api/student/attempts/${attemptId}/answer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify(payload),
+          });
+          if (res.ok || res.status === 400 || res.status === 409) {
+            pendingSaves.current.delete(qId);
+          } else if (res.status === 401) {
+            setSessionExpired(true);
+          }
+        } catch {}
+      }
+      if (!wasLocked) bgSaveFlushing.current = false;
+    }
+    setBgSaveActive(false);
+  }
+
+  // ── Answer save (optimistic) ────────────────────────────────────────────────
+
+  function saveAnswer(markForReview: boolean) {
+    if (!attemptMeta || isPaused) return;
 
     const qId = questions[currentIndex].id;
     const timeInfo = recordTimeForCurrent();
-    const state = questionStates.get(qId)!;
 
-    try {
-      const res = await fetch(`/api/student/attempts/${attemptMeta.attemptId}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          questionId: qId,
-          selectedOptionId: state.draftOptionId,
-          isMarkedForReview: markForReview,
-          timeSpentMsDelta: timeInfo?.delta ?? 0,
-        }),
-      });
+    // Capture draft BEFORE any state update
+    const currentState = questionStates.get(qId)!;
+    const optionToSave = currentState.draftOptionId;
 
-      if (res.status === 401) { setSessionExpired(true); setSaving(false); return; }
-      if (res.status === 409) {
-        const d = await res.json().catch(() => ({}));
-        setSaveError(d.error ?? "Access conflict. Reload the page.");
-        setSaving(false); return;
-      }
-      if (!res.ok) { setSaveError("Could not save. Check connection."); setSaving(false); return; }
+    // 1. Optimistic update — mark as saved immediately (no waiting for API)
+    setQuestionStates((prev) => {
+      const next = new Map(prev);
+      const s = { ...next.get(qId)! };
+      s.savedOptionId = optionToSave;
+      s.isMarkedForReview = markForReview;
+      next.set(qId, s);
+      return next;
+    });
 
-      setQuestionStates((prev) => {
-        const next = new Map(prev);
-        const s = { ...next.get(qId)! };
-        s.savedOptionId = s.draftOptionId;
-        s.isMarkedForReview = markForReview;
-        next.set(qId, s);
-        return next;
-      });
+    // 2. Navigate to next question immediately
+    const nextIdx = currentIndex + 1;
+    if (nextIdx < questions.length) navigateTo(nextIdx);
 
-      setSavedToast(true);
-      setTimeout(() => setSavedToast(false), 1500);
+    // 3. Queue for background save (latest answer per question wins)
+    pendingSaves.current.set(qId, {
+      questionId: qId,
+      selectedOptionId: optionToSave,
+      isMarkedForReview: markForReview,
+      timeSpentMsDelta: timeInfo?.delta ?? 0,
+    });
 
-      const nextIdx = currentIndex + 1;
-      if (nextIdx < questions.length) navigateTo(nextIdx);
-    } catch {
-      setSaveError("Could not save. Check connection.");
-    } finally {
-      setSaving(false);
-    }
+    // 4. Trigger background flush — fire and forget
+    void flushPendingSaves(attemptMeta.attemptId);
   }
 
   // ── Pause ──────────────────────────────────────────────────────────────────
@@ -583,25 +679,41 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
   // ── Submit ─────────────────────────────────────────────────────────────────
 
   function buildFinalAnswers() {
+    // Include anything still in pendingSaves (not yet confirmed by server)
+    // plus the current question's draft if it wasn't explicitly saved via Save & Next
     const out: Array<{
       questionId: string;
       selectedOptionId: string | null;
       isMarkedForReview: boolean;
       timeSpentMs: number;
     }> = [];
-    for (const q of questions) {
-      const state = questionStates.get(q.id);
-      if (!state) continue;
-      const draftDiffers = state.draftOptionId !== state.savedOptionId;
-      if (draftDiffers) {
-        out.push({
-          questionId: q.id,
-          selectedOptionId: state.draftOptionId,
-          isMarkedForReview: state.isMarkedForReview,
-          timeSpentMs: state.timeSpentMs,
-        });
+
+    for (const payload of pendingSaves.current.values()) {
+      const state = questionStates.get(payload.questionId);
+      out.push({
+        questionId: payload.questionId,
+        selectedOptionId: payload.selectedOptionId,
+        isMarkedForReview: payload.isMarkedForReview,
+        timeSpentMs: state?.timeSpentMs ?? 0,
+      });
+    }
+
+    // Also include current question's draft if user selected but didn't click Save & Next
+    if (questions.length > 0) {
+      const currentQ = questions[currentIndex];
+      if (!pendingSaves.current.has(currentQ.id)) {
+        const state = questionStates.get(currentQ.id);
+        if (state && state.draftOptionId !== state.savedOptionId) {
+          out.push({
+            questionId: currentQ.id,
+            selectedOptionId: state.draftOptionId,
+            isMarkedForReview: state.isMarkedForReview,
+            timeSpentMs: state.timeSpentMs,
+          });
+        }
       }
     }
+
     return out;
   }
 
@@ -616,6 +728,9 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
     setSubmitting(true);
     recordTimeForCurrent();
+
+    // Flush all pending background saves before submitting
+    await forceFlushBeforeSubmit(attemptMeta.attemptId);
 
     try {
       const res = await fetch(`/api/student/attempts/${attemptMeta.attemptId}/submit`, {
@@ -649,6 +764,8 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
     setAutoSubmitted(true);
     if (!attemptMeta) return;
     recordTimeForCurrent();
+    // Best-effort flush before auto-submit (3s max wait)
+    try { await forceFlushBeforeSubmit(attemptMeta.attemptId); } catch {}
     try {
       await fetch(`/api/student/attempts/${attemptMeta.attemptId}/submit`, {
         method: "POST",
@@ -710,8 +827,39 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-pulse text-gray-400">Loading test...</div>
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        {/* Top bar skeleton */}
+        <div className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+          <div className="h-4 bg-gray-200 rounded animate-pulse w-40" />
+          <div className="h-6 bg-gray-200 rounded animate-pulse w-20" />
+          <div className="h-4 bg-gray-200 rounded animate-pulse w-24" />
+        </div>
+        <div className="flex-1 flex">
+          {/* Question area */}
+          <div className="flex-1 max-w-2xl mx-auto px-4 py-8 space-y-6 w-full">
+            <p className="text-center text-xs text-[#6D4BCB] font-medium animate-pulse">Preparing your test environment…</p>
+            <div className="bg-white rounded-2xl border border-gray-100 p-6 animate-pulse space-y-4">
+              <div className="h-3 bg-gray-200 rounded w-24" />
+              <div className="h-4 bg-gray-200 rounded w-full" />
+              <div className="h-4 bg-gray-200 rounded w-4/5" />
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="space-y-3 mt-4">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="h-12 bg-gray-100 rounded-xl border border-gray-100" />
+                ))}
+              </div>
+            </div>
+          </div>
+          {/* Palette skeleton — desktop only */}
+          <div className="hidden md:block w-64 border-l border-gray-200 bg-white p-4">
+            <div className="h-3 bg-gray-200 rounded animate-pulse w-32 mb-4" />
+            <div className="grid grid-cols-5 gap-1.5">
+              {[...Array(20)].map((_, i) => (
+                <div key={i} className="w-9 h-9 bg-gray-100 rounded animate-pulse" />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -1027,9 +1175,13 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             </div>
           </div>
 
-          {savedToast && (
-            <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-green-500 text-white text-xs font-medium px-4 py-2 rounded-full shadow-lg">
-              Saved
+          {/* Subtle background sync indicator */}
+          {bgSaveActive && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+              <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Syncing…
             </div>
           )}
 
@@ -1041,22 +1193,25 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
           )}
 
           <div className={`flex items-center gap-2 flex-wrap ${isPaused ? "opacity-40 pointer-events-none" : ""}`}>
-            <button onClick={clearResponse} className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+            <button
+              onClick={clearResponse}
+              className="px-4 py-2.5 text-sm rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-[0.97] transition-all"
+            >
               Clear Response
             </button>
             <button
               onClick={() => saveAnswer(true)}
-              disabled={saving || isPaused}
-              className="px-4 py-2.5 text-sm rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 transition-colors disabled:opacity-50"
+              disabled={isPaused}
+              className="px-4 py-2.5 text-sm rounded-xl border border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 active:scale-[0.97] transition-all disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Mark for Review & Next"}
+              Mark for Review &amp; Next
             </button>
             <button
               onClick={() => saveAnswer(false)}
-              disabled={saving || isPaused}
-              className="px-4 py-2.5 text-sm rounded-xl bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-hover)] transition-colors disabled:opacity-50"
+              disabled={isPaused}
+              className="px-4 py-2.5 text-sm rounded-xl bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-hover)] active:scale-[0.97] transition-all disabled:opacity-50"
             >
-              {saving ? "Saving..." : "Save & Next"}
+              Save &amp; Next
             </button>
           </div>
 
