@@ -116,6 +116,7 @@ export default function EbookReaderClient({
         triggerXpCelebration();
       } else if (data.completionNumber >= 3) {
         setXpStatus("already_earned");
+        triggerXpCelebration();
       } else {
         setXpStatus("none");
       }
@@ -175,8 +176,28 @@ export default function EbookReaderClient({
         </div>
       )}
       {xpStatus === "already_earned" && (
-        <div className="mt-4 rounded-xl px-4 py-3 text-sm" style={{ background: "#fef9c3", border: "1.5px solid #fde047", color: "#78350f" }}>
-          ⚡ You've already earned XP for this lesson. Great work keeping up!
+        <div className="mt-4 flex flex-col gap-3">
+          {/* Card 1 — No XP notice */}
+          <div className="rounded-xl px-4 py-4 flex items-start gap-3" style={{ background: "#FFF7ED", border: "1.5px solid #FED7AA" }}>
+            <span className="text-2xl leading-none mt-0.5">🏆</span>
+            <div>
+              <p className="text-sm font-bold text-orange-800 mb-1">No Sadhana Points for this read</p>
+              <p className="text-xs text-orange-700 leading-relaxed">
+                From the 3rd read or attempt onwards, Sadhana Points (XP) will not be allocated for revisiting this lesson. You've already earned the maximum XP for this content.
+              </p>
+            </div>
+          </div>
+
+          {/* Card 2 — Motivational */}
+          <div className="rounded-xl px-4 py-4 flex items-start gap-3" style={{ background: "linear-gradient(135deg, #2D1B69 0%, #6D4BCB 100%)", border: "none" }}>
+            <span className="text-2xl leading-none mt-0.5">🌟</span>
+            <div>
+              <p className="text-sm font-bold text-white mb-1">Keep up the good effort!</p>
+              <p className="text-xs text-purple-200 leading-relaxed">
+                With every effort you are moving closer to your dream job. Consistent revision is what separates toppers from the rest — keep going!
+              </p>
+            </div>
+          </div>
         </div>
       )}
       {xpStatus === "none" && !xpEnabled && (
