@@ -1,0 +1,77 @@
+Implement Saphala’s Single Device Policy as a true device-binding rule at the core authentication level.
+
+Goal:
+Restrict each student account to exactly ONE registered web device by default. This is NOT “one active session at a time.” It is “one account permanently bound to one device unless admin resets or explicitly allows an exception.”
+
+Policy to enforce:
+1. On the first successful login, bind the account to that device.
+2. After device binding, login from any other device must be blocked.
+3. Logging out from device A must NOT allow login from device B.
+4. Clearing cookies/local storage should not silently bypass the policy.
+5. Existing sessions from the same registered device may continue normally.
+6. Blocked login attempts from a different device must show a clear message card explaining the Single Device Policy.
+
+Important:
+This must be implemented as a core device-registration/device-binding system, not just session limiting.
+
+Tasks:
+
+A. Audit current auth/device logic
+1. Read the current user/session/device enforcement flow.
+2. Identify where the app currently behaves like “one active session” instead of “one registered device only”.
+3. Find all existing fields/models related to:
+   - maxWebDevices
+   - sessions
+   - device tracking
+   - device reset/admin overrides
+
+B. Implement true single-device binding
+1. Create or finalize a reliable server-side device registration mechanism.
+2. On first successful login, register and bind that device to the user.
+3. On later login attempts:
+   - same registered device → allow
+   - different device → deny login
+4. Ensure the rule survives logout/session expiration.
+5. Ensure API/session checks continue to enforce that the current request comes from an allowed device.
+6. Keep admin override/reset capability compatible with this policy.
+
+C. UX changes
+Update Registration and Login pages to clearly explain the correct policy.
+
+Registration page message card:
+Title: Single Device Policy
+Body:
+Your account can be used on only one device. Once you first log in, that device will be linked to your account. Login from another device will not be allowed unless admin/support resets your device access.
+
+Login page message card:
+Title: Single Device Policy
+Body:
+This account is restricted to one registered device only. If your account is already linked to another device, login on this device will not be allowed.
+
+Blocked login message card:
+Title: Login Blocked — Single Device Policy
+Body:
+This account is already linked to another device. For account protection and access control, login on a new device is not allowed. Please use your registered device or contact support/admin if a reset is genuinely required.
+
+D. Engineering requirements
+1. Do not implement this as only a cookie check.
+2. Do not weaken the rule by allowing device switching after logout.
+3. Keep the policy strict by default for rollout.
+4. Previous historical multi-device behavior can be ignored; enforce policy cleanly going forward.
+5. Add clear logging for:
+   - first device registration
+   - same-device login
+   - blocked different-device login
+   - admin reset / override actions
+
+E. Validation
+Test these flows:
+1. First login on new account → device gets bound
+2. Logout and login again on same device → allowed
+3. Login on different device after first binding → blocked
+4. Existing registered device session refresh/relogin → allowed
+5. Admin reset → new device can be registered after reset
+6. Admin dual-device allowance (if already supported) still works correctly
+
+Expected outcome:
+Saphala should enforce a true one-account-one-device policy, with correct messaging on registration/login and a clear blocked-login card for attempts from another device.

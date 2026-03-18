@@ -343,15 +343,18 @@ export default function RegisterForm() {
           )}
         </div>
 
-        {/* One-device policy notice */}
+        {/* Single Device Policy notice */}
         <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 space-y-3">
           <div className="flex items-start gap-2.5">
             <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-            <p className="text-xs text-blue-800 leading-relaxed">
-              <span className="font-semibold">One-device policy:</span> Your account can be used on only one device at a time. If you log in on another device, access may be blocked until reset by an admin.
-            </p>
+            <div>
+              <p className="text-xs font-semibold text-blue-800 mb-1">Single Device Policy</p>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                Your account can be used on only one device. Once you first log in, that device will be linked to your account. Login from another device will not be allowed unless admin/support resets your device access.
+              </p>
+            </div>
           </div>
           <label className="flex items-start gap-2.5 cursor-pointer">
             <input
@@ -366,7 +369,7 @@ export default function RegisterForm() {
               className="mt-0.5 w-4 h-4 shrink-0 accent-purple-600 cursor-pointer"
             />
             <span className="text-xs text-blue-700 leading-relaxed">
-              I understand that my account can be used on only one device at a time.
+              I understand that my account will be permanently linked to the first device I log in from.
             </span>
           </label>
           {errors.devicePolicy && (

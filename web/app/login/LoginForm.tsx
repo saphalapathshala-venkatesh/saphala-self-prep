@@ -1,14 +1,26 @@
 "use client";
 
-import { useState, type FormEvent, type ChangeEvent } from "react";
+import { useState, useEffect, type FormEvent, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 interface FormErrors {
   identifier?: string;
   password?: string;
-  devicePolicy?: string;
   general?: string;
+}
+
+function getOrCreateDeviceId(): string {
+  try {
+    let id = localStorage.getItem("sdp_device_id");
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem("sdp_device_id", id);
+    }
+    return id;
+  } catch {
+    return "";
+  }
 }
 
 export default function LoginForm() {
@@ -20,8 +32,13 @@ export default function LoginForm() {
   const [loginSuccess, setLoginSuccess] = useState(false);
   const [formData, setFormData] = useState({ identifier: "", password: "" });
   const [errors, setErrors] = useState<FormErrors>({});
-  const [devicePolicyAccepted, setDevicePolicyAccepted] = useState(false);
+  const [deviceBlocked, setDeviceBlocked] = useState(false);
   const [activeSessionBlock, setActiveSessionBlock] = useState(false);
+  const [deviceId, setDeviceId] = useState<string>("");
+
+  useEffect(() => {
+    setDeviceId(getOrCreateDeviceId());
+  }, []);
 
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
@@ -33,43 +50,41 @@ export default function LoginForm() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setDeviceBlocked(false);
     setActiveSessionBlock(false);
-
-    if (!devicePolicyAccepted) {
-      setErrors({ devicePolicy: "Please confirm you understand the one-device policy before logging in." });
-      return;
-    }
-
     setIsSubmitting(true);
     setErrors({});
+
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (deviceId) headers["X-Device-Id"] = deviceId;
 
     let response: Response;
     try {
       response = await fetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(formData),
         credentials: "include",
       });
     } catch {
-      // fetch() itself threw — network offline or DNS failure
       setIsSubmitting(false);
       setErrors({ general: "Unable to reach the server. Please check your internet connection and try again." });
       return;
     }
 
-    // Parse JSON safely — server may return HTML on 502/503/gateway errors
     let data: { error?: string; code?: string; success?: boolean; redirectTo?: string } = {};
     try {
       data = await response.json();
     } catch {
-      // Non-JSON body (e.g. Next.js HTML error page)
       data = {};
     }
 
     if (!response.ok) {
       if (response.status === 503 || response.status === 502) {
         setErrors({ general: "Login service is temporarily unavailable. Please try again in a moment." });
+      } else if (data.code === "DEVICE_BLOCKED") {
+        setDeviceBlocked(true);
+        setErrors({});
       } else if (data.code === "ACTIVE_SESSION_EXISTS") {
         setActiveSessionBlock(true);
         setErrors({});
@@ -124,7 +139,24 @@ export default function LoginForm() {
     <>
       <form className="space-y-6" onSubmit={onSubmit}>
 
-        {/* Active session block — shown when another device is already logged in */}
+        {/* Device blocked — different device attempted */}
+        {deviceBlocked && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-4 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-red-800">Login Blocked — Single Device Policy</p>
+              <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                This account is already linked to another device. For account protection and access control, login on a new device is not allowed. Please use your registered device or contact support/admin if a reset is genuinely required.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Active session block — fallback for no-deviceId edge case */}
         {activeSessionBlock && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 flex items-start gap-3">
             <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -135,7 +167,7 @@ export default function LoginForm() {
             <div>
               <p className="text-sm font-semibold text-amber-800">Account already active on another device</p>
               <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-                This account is currently logged in on another device or browser. For security and fair usage, only one active session is allowed at a time. Please sign out from your other device, or contact support to reset your session.
+                This account is currently logged in on another device or browser. Please sign out from your other device, or contact support to reset your session.
               </p>
             </div>
           </div>
@@ -186,35 +218,19 @@ export default function LoginForm() {
           />
         </div>
 
-        {/* One-device policy notice */}
-        <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 space-y-3">
+        {/* Single Device Policy notice */}
+        <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
           <div className="flex items-start gap-2.5">
             <svg className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
-            <p className="text-xs text-blue-800 leading-relaxed">
-              <span className="font-semibold">One-device policy:</span> This account supports one active device at a time. If this account is already active on another device, login will be blocked until you sign out there or contact support.
-            </p>
+            <div>
+              <p className="text-xs font-semibold text-blue-800 mb-1">Single Device Policy</p>
+              <p className="text-xs text-blue-700 leading-relaxed">
+                This account is restricted to one registered device only. If your account is already linked to another device, login on this device will not be allowed.
+              </p>
+            </div>
           </div>
-          <label className="flex items-start gap-2.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={devicePolicyAccepted}
-              onChange={(e) => {
-                setDevicePolicyAccepted(e.target.checked);
-                if (errors.devicePolicy) {
-                  setErrors((prev) => ({ ...prev, devicePolicy: undefined }));
-                }
-              }}
-              className="mt-0.5 w-4 h-4 shrink-0 accent-purple-600 cursor-pointer"
-            />
-            <span className="text-xs text-blue-700 leading-relaxed">
-              I understand the one-device policy.
-            </span>
-          </label>
-          {errors.devicePolicy && (
-            <p className="text-red-500 text-xs ml-6">{errors.devicePolicy}</p>
-          )}
         </div>
 
         <button

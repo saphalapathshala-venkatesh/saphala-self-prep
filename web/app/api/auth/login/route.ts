@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { createSessionCookie } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { normalizeIdentifier } from "@/lib/validation";
+import { randomBytes } from "crypto";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -135,28 +136,108 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // One-device enforcement: block if user already has an active session
-    // (unless the user is explicitly allowed multi-device access)
+    // ── Single Device Policy (true device-binding) ──────────────────────────
+    // Admins with allowMultiDevice=true are exempt from device binding.
+    const deviceId = request.headers.get("X-Device-Id")?.trim() || "";
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "";
+    const userAgent = request.headers.get("user-agent") || "";
+
     if (!user.allowMultiDevice) {
-      const existingSession = await prisma.session.findFirst({
-        where: {
-          userId: user.id,
-          expiresAt: { gt: new Date() },
-          revokedAt: null,
-        },
-        select: { id: true },
-      });
-      if (existingSession) {
-        console.log(`[login] Rejected — active session already exists for user ${user.id}`);
-        return NextResponse.json(
-          {
-            error: "This account is already active on another device. Please sign out from your other device first, or contact support.",
-            code: "ACTIVE_SESSION_EXISTS",
+      if (deviceId) {
+        // ── Device-binding path ─────────────────────────────────────────────
+        // Fetch the primary registered device for this user.
+        let devices: Array<{ id: string; deviceKey: string }> = [];
+        try {
+          devices = await prisma.$queryRawUnsafe<Array<{ id: string; deviceKey: string }>>(
+            `SELECT id, "deviceKey" FROM "UserDevice"
+             WHERE "userId" = $1 AND "isActive" = true AND "isBlocked" = false
+             ORDER BY "firstSeenAt" ASC`,
+            user.id
+          );
+        } catch (devErr) {
+          console.error("[login] UserDevice query failed:", devErr);
+          // Non-fatal — fall through and allow login; device binding is best-effort on DB error
+        }
+
+        const primaryDevice = devices[0];
+
+        if (!primaryDevice) {
+          // First-ever login — permanently bind this device to the account
+          const deviceRowId = randomBytes(12).toString("hex");
+          try {
+            await prisma.$queryRawUnsafe(
+              `INSERT INTO "UserDevice" (id, "userId", "deviceKey", "deviceType", "userAgent", "ipAddressLast", "updatedAt")
+               VALUES ($1, $2, $3, 'UNKNOWN'::"DeviceType", $4, $5, NOW())
+               ON CONFLICT ("userId", "deviceKey") DO UPDATE
+               SET "lastSeenAt" = NOW(), "updatedAt" = NOW(), "ipAddressLast" = EXCLUDED."ipAddressLast"`,
+              deviceRowId,
+              user.id,
+              deviceId,
+              userAgent,
+              ip
+            );
+            console.log(`[login] Device bound (first login) — user ${user.id}, device …${deviceId.slice(-8)}`);
+          } catch (insertErr) {
+            console.error("[login] Device registration failed (non-fatal):", insertErr);
+          }
+        } else if (primaryDevice.deviceKey === deviceId) {
+          // Same registered device — allow and refresh timestamps
+          try {
+            await prisma.$queryRawUnsafe(
+              `UPDATE "UserDevice" SET "lastSeenAt" = NOW(), "updatedAt" = NOW(), "ipAddressLast" = $2 WHERE id = $1`,
+              primaryDevice.id,
+              ip
+            );
+          } catch (updateErr) {
+            console.error("[login] Device lastSeenAt update failed (non-fatal):", updateErr);
+          }
+          console.log(`[login] Same-device login — user ${user.id}`);
+        } else {
+          // Different device — permanently blocked
+          console.log(
+            `[login] DEVICE_BLOCKED — user ${user.id}, ` +
+            `registered …${primaryDevice.deviceKey.slice(-8)}, ` +
+            `attempted …${deviceId.slice(-8)}`
+          );
+          return NextResponse.json(
+            {
+              error:
+                "This account is already linked to another device. For account protection and access control, login on a new device is not allowed. Please use your registered device or contact support/admin if a reset is genuinely required.",
+              code: "DEVICE_BLOCKED",
+            },
+            { status: 409 }
+          );
+        }
+      } else {
+        // ── No deviceId sent — fallback to active-session check ────────────
+        // This covers API clients or edge cases where localStorage is unavailable.
+        const existingSession = await prisma.session.findFirst({
+          where: {
+            userId: user.id,
+            expiresAt: { gt: new Date() },
+            revokedAt: null,
           },
-          { status: 409 }
-        );
+          select: { id: true },
+        });
+        if (existingSession) {
+          console.log(`[login] ACTIVE_SESSION_EXISTS (no deviceId header) — user ${user.id}`);
+          return NextResponse.json(
+            {
+              error:
+                "This account is already active on another device. Please sign out from your other device first, or contact support.",
+              code: "ACTIVE_SESSION_EXISTS",
+            },
+            { status: 409 }
+          );
+        }
       }
+    } else {
+      console.log(`[login] Multi-device allowed — skipping device check for user ${user.id}`);
     }
+    // ── End Single Device Policy ────────────────────────────────────────────
 
     // Session creation — retry once on transient failure
     let cookie;
