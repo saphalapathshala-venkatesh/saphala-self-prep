@@ -1,0 +1,504 @@
+Upgrade the Saphala student frontend test-result and review experience immediately so that Reports, Rank, Topper Comparison, Leaderboard, Heat Maps, Focus Areas, and Saphala Mentor Suggestions are available for existing tests as well, using current stored attempt data wherever possible.
+
+Goal:
+Build a premium, competitive, rule-based analytics and review system for tests without AI generation. All insights must work from current attempt data and must be understandable even for non-technical students.
+
+Important:
+- Do NOT use AI-generated suggestions yet
+- Use only explicit rule-based logic
+- Keep existing result/review flows where possible; enhance them cleanly
+- Support existing tests and existing attempts as far as current data allows
+
+==================================================
+A. RANK SYSTEM
+==================================================
+
+1. Show learner rank on the result card.
+2. Rank must be computed ONLY from first attempts for that specific test.
+3. Repeat attempts must not affect leaderboard positions.
+4. Rank must be dynamic:
+   - if new first-attempt learners attempt the same test later, rankings must update accordingly
+5. Learner’s displayed rank should reflect current standing among all first-attempt test takers for that test.
+
+==================================================
+B. CORRECT TOTAL TIME CALCULATION (CRITICAL)
+==================================================
+
+1. Total exam time must be computed as:
+   total_exam_time_ms = submittedAt - startedAt
+
+2. This total exam time must be used everywhere:
+   - result card
+   - topper comparison
+   - leaderboard
+   - reports
+   - mentor suggestions
+   - analytics summary
+
+3. Do NOT use sum(timeSpentMs) for total exam time.
+4. Per-question timeSpentMs should be used only for micro-analysis and review mode.
+5. If startedAt is missing for older records:
+   - derive it from the most reliable available field (Attempt createdAt or earliest known start timestamp)
+   - apply one consistent fallback rule for all old records
+
+==================================================
+C. RESULT CARD UPGRADES
+==================================================
+
+Add directly on the result card:
+
+1. Learner rank
+2. Topper comparison summary:
+   - learner marks vs topper marks
+   - learner accuracy vs topper accuracy
+   - learner total exam time vs topper total exam time
+   - learner rank vs topper rank
+3. Link/card for Full Report
+4. Link/card for Saphala Mentor Suggestions / Focus Areas / Heat Maps
+5. Feedback link/surface if already built but not clearly shown
+
+==================================================
+D. TOP 10 LEADERBOARD
+==================================================
+
+Build a test-specific leaderboard/dashboard based only on first attempts.
+
+Show:
+1. Rank badge
+2. Learner name
+3. Marks
+4. Accuracy %
+
+Also:
+5. Show the current learner’s own rank separately even if outside the top 10
+
+Leaderboard sort order:
+1. marks descending
+2. accuracy descending
+3. total_exam_time ascending
+4. submittedAt ascending
+
+==================================================
+E. FULL REPORT PAGE
+==================================================
+
+Enhance the detailed report page to include:
+
+1. Score summary
+2. Correct / wrong / unattempted
+3. Subject/topic/subtopic breakdown where data exists
+4. Heat maps
+5. Focus area summary
+6. Recommended next focus areas
+7. Time analysis
+8. Topper comparison details
+9. Review access
+10. Summary tables for non-technical students
+
+Important:
+Heat map calculations must NOT be shown only visually.
+They must also be explained using clean summary tables so students understand:
+- what the metric means
+- whether they are doing well or poorly
+- what action they should take
+
+==================================================
+F. PER-QUESTION TIME ANALYSIS (REVIEW MODE ONLY)
+==================================================
+
+Visibility rule:
+- ONLY available in Review page after submission
+- NOT visible during test
+- NOT cluttering the main result summary
+
+For each question in review mode, show:
+
+1. Student time taken
+   - from timeSpentMs
+
+2. Average time taken
+   - computed from all students for that question
+   - use FIRST ATTEMPTS ONLY for fairness and consistency
+
+3. Optional comparison text:
+   - faster than average
+   - slower than average
+   - near average
+
+4. Example display:
+   - You: 32 sec | Avg: 21 sec
+
+5. Dynamic update:
+   - average must update as more first-attempt learners attempt the test
+
+6. Edge handling:
+   - exclude unattempted records from the question-average calculation
+   - if sample size is small, show:
+     “Average based on limited attempts”
+
+==================================================
+G. TOPPER COMPARISON
+==================================================
+
+Topper must be selected from first attempts only for that test.
+
+Topper selection order:
+1. marks descending
+2. accuracy descending
+3. total_exam_time ascending
+4. earliest submission time ascending
+
+On result card show summary comparison.
+
+On detailed report page include:
+1. topper marks
+2. topper accuracy
+3. topper total exam time
+4. learner total exam time
+5. optional topper per-question time where feasible
+6. gap metrics:
+   - marks gap
+   - accuracy gap
+   - time gap
+
+==================================================
+H. HEAT MAP SYSTEM
+==================================================
+
+Build 3 rule-based heat maps.
+
+----------------------------------------
+H1. Accuracy Heat Map
+----------------------------------------
+
+Purpose:
+Show strong and weak subject/topic/subtopic areas.
+
+Per bucket:
+- bucket_correct
+- bucket_wrong
+- bucket_unattempted
+- bucket_attempted = bucket_correct + bucket_wrong
+
+Formula:
+bucket_accuracy_pct = (bucket_correct / max(bucket_attempted, 1)) * 100
+
+Color logic:
+- Green: accuracy >= 75
+- Yellow: 50–74.99
+- Orange: 30–49.99
+- Red: < 30
+- Gray: no useful attempt data / fully unattempted
+
+Also provide a summary table with columns like:
+- Subject/Topic
+- Questions
+- Attempted
+- Correct
+- Wrong
+- Unattempted
+- Accuracy %
+- Status
+- What it means
+
+----------------------------------------
+H2. Time Efficiency Heat Map
+----------------------------------------
+
+Purpose:
+Show where learner is faster/slower than average.
+
+Per attempted question:
+- learner_q_time_ms
+- avg_q_time_ms from first-attempt learners for that question
+
+Formula:
+time_ratio = learner_q_time_ms / max(avg_q_time_ms, 1)
+
+Interpretation:
+- < 0.85 = faster than average
+- 0.85 to 1.15 = near average
+- > 1.15 to 1.5 = slower than average
+- > 1.5 = much slower than average
+
+Also provide a student-friendly summary table with columns like:
+- Topic / Question count
+- Your avg time
+- Avg student time
+- Time ratio
+- Status
+- Suggested meaning
+
+----------------------------------------
+H3. Risk / Mistake Heat Map
+----------------------------------------
+
+Purpose:
+Show the type of mistakes and time-behavior pattern.
+
+Per question classify into one state:
+
+1. Correct & Efficient
+   - correct
+   - time_ratio <= 1.15
+
+2. Correct but Time-Heavy
+   - correct
+   - time_ratio > 1.15
+
+3. Wrong & Rushed
+   - wrong
+   - time_ratio < 0.75
+
+4. Wrong & Time-Heavy
+   - wrong
+   - time_ratio > 1.15
+
+5. Unattempted
+   - unanswered
+
+Also provide a clean summary table such as:
+- Question behavior type
+- Count
+- Meaning
+- What to improve
+
+This table is important for non-technical students.
+
+==================================================
+I. FOCUS AREA SCORING
+==================================================
+
+For each topic/subtopic, compute a Focus Score out of 100.
+
+Inputs:
+
+1. Accuracy risk
+accuracy_risk = 100 - topic_accuracy_pct
+
+2. Unattempted risk
+topic_unattempted_rate_pct = (topic_unattempted / max(topic_total_questions, 1)) * 100
+
+3. Time inefficiency risk
+Based on topic_time_ratio:
+- ratio <= 1.0 → 0 risk
+- 1.0 < ratio <= 1.2 → 25 risk
+- 1.2 < ratio <= 1.5 → 60 risk
+- ratio > 1.5 → 100 risk
+
+4. Wrong density risk
+wrong_density_risk = (topic_wrong / max(topic_total_questions, 1)) * 100
+
+Weighted formula:
+focus_score =
+  (0.45 * accuracy_risk) +
+  (0.20 * topic_unattempted_rate_pct) +
+  (0.20 * time_inefficiency_risk) +
+  (0.15 * wrong_density_risk)
+
+Priority labels:
+- High Priority: score >= 70
+- Moderate Priority: 45–69
+- Low Priority: 25–44
+- Strong Area: < 25
+
+Also provide a summary table:
+- Topic
+- Accuracy %
+- Unattempted %
+- Time status
+- Focus score
+- Priority
+- Action suggestion
+
+==================================================
+J. SAPHALA MENTOR SUGGESTIONS (RULE-BASED ONLY)
+==================================================
+
+Do NOT use AI.
+
+Generate suggestions only from explicit rule logic.
+
+----------------------------------------
+J1. Test-Level Suggestion Rules
+----------------------------------------
+
+Rule T1 — High speed, low accuracy
+If:
+- accuracy_pct < 55
+- total_exam_time_ms < 0.85 * cohort_avg_total_time_ms
+
+Suggestion:
+You are solving faster than most learners, but your accuracy is low. Slow down slightly and read questions more carefully.
+
+Rule T2 — Slow speed, low accuracy
+If:
+- accuracy_pct < 55
+- total_exam_time_ms > 1.15 * cohort_avg_total_time_ms
+
+Suggestion:
+You are spending more time than average, but accuracy is still low. Focus on concept clarity and better question selection.
+
+Rule T3 — Good accuracy, low attempts
+If:
+- accuracy_pct >= 70
+- attempt_rate_pct < 75
+
+Suggestion:
+Your accuracy is good, but you are leaving too many questions unattempted. Work on speed and confidence.
+
+Rule T4 — Good attempts, poor accuracy
+If:
+- attempt_rate_pct >= 85
+- accuracy_pct < 55
+
+Suggestion:
+Your attempt rate is high, but too many answers are incorrect. Focus on controlled attempts instead of aggressive attempting.
+
+Rule T5 — Strong overall performance
+If:
+- accuracy_pct >= 75
+- attempt_rate_pct >= 80
+- rank is strong / top band
+
+Suggestion:
+This is a strong performance. Maintain this speed-accuracy balance and focus on reducing small mistakes.
+
+----------------------------------------
+J2. Topic-Level Suggestion Rules
+----------------------------------------
+
+Rule P1 — Weak accuracy
+If topic_accuracy_pct < 50
+Suggestion:
+Your accuracy in {topic} is low. Revise the core concepts and practice more standard questions from this area.
+
+Rule P2 — High unattempted
+If topic_unattempted_rate_pct > 40
+Suggestion:
+You left many {topic} questions unattempted. This suggests low confidence or slow recall. Revise basics and do timed drills.
+
+Rule P3 — Slow but correct
+If:
+- topic_accuracy_pct >= 70
+- topic_time_ratio > 1.2
+Suggestion:
+You are getting {topic} questions correct, but taking more time than average. Improve speed through repeated timed practice.
+
+Rule P4 — Fast but wrong
+If:
+- topic_accuracy_pct < 50
+- topic_time_ratio < 0.85
+Suggestion:
+You are solving {topic} questions quickly, but accuracy is weak. Slow down and focus on careful reading.
+
+Rule P5 — Strong topic
+If:
+- topic_accuracy_pct >= 75
+- topic_time_ratio <= 1.1
+- topic_unattempted_rate_pct <= 20
+Suggestion:
+{topic} is one of your strong areas. Maintain this performance and use it to secure confident marks.
+
+----------------------------------------
+J3. Question-Level Review Tags
+----------------------------------------
+
+In review mode, use short tags:
+
+1. Wrong & rushed
+If:
+- wrong
+- time_ratio < 0.75
+Tag:
+Rushed Error
+
+2. Wrong & time-heavy
+If:
+- wrong
+- time_ratio > 1.15
+Tag:
+Time-Heavy Mistake
+
+3. Correct but slow
+If:
+- correct
+- time_ratio > 1.25
+Tag:
+Correct but Slow
+
+4. Correct and efficient
+If:
+- correct
+- time_ratio <= 0.9
+Tag:
+Efficient Solve
+
+==================================================
+K. EXISTING TESTS SUPPORT
+==================================================
+
+1. Must work for existing attempts wherever current data permits.
+2. Do not make this feature only for future attempts.
+3. Compute aggregates dynamically or via safe cached summaries.
+4. Do not break old result/review routes.
+
+==================================================
+L. STUDENT-FRIENDLY PRESENTATION RULE
+==================================================
+
+This is critical.
+
+For every technical metric or heat map, also provide a simple explanation table/card so non-technical students understand:
+- what this metric means
+- whether their performance is good / average / weak
+- what they should do next
+
+Do NOT rely only on charts, colors, or jargon.
+
+Keep language simple, exam-oriented, and student-friendly.
+
+==================================================
+M. ENGINEERING CONSTRAINTS
+==================================================
+
+1. Keep all comparisons test-specific.
+2. Ranking and leaderboard must use first attempts only.
+3. Total exam time must use startedAt → submittedAt.
+4. Per-question time must use timeSpentMs.
+5. Avg question time must dynamically update with more first-attempt data.
+6. Preserve existing pages and enhance them instead of creating unnecessary duplicate flows.
+7. Optimize with caching if needed, but do not change visible logic.
+
+==================================================
+N. DELIVERABLES
+==================================================
+
+1. Result card upgraded with:
+   - rank
+   - topper comparison
+   - report/suggestions links
+
+2. Dynamic first-attempt rank logic
+
+3. Top 10 leaderboard plus learner’s own rank
+
+4. Full report page enhancements
+
+5. Review page per-question time vs average
+
+6. 3 heat maps:
+   - accuracy
+   - time efficiency
+   - risk/mistake
+
+7. Student-friendly summary tables for all heat map areas
+
+8. Focus score calculation and priority labels
+
+9. Rule-based Saphala Mentor Suggestions
+
+10. Support for existing tests using current data
+
+Expected outcome:
+The test-result and review experience should become premium, competitive, transparent, and easy to understand for all students, while using only rule-based analytics and no AI generation for now.

@@ -31,8 +31,10 @@ interface ReviewQuestion {
   userSelectedOption: string | null;
   isMarkedForReview: boolean;
   timeSpentMs: number;
-  medianTimeMs: number | null;
+  avgTimeMs: number | null;
+  limitedSample: boolean;
   validAttemptsCount: number;
+  behaviorTag: string | null;
 }
 
 interface ReviewData {
@@ -61,12 +63,20 @@ function formatTimeShort(ms: number): string {
   return `${m}m ${s}s`;
 }
 
-function getPaceLabel(timeMs: number, medianMs: number): { label: string; color: string } {
-  const ratio = timeMs / medianMs;
-  if (ratio <= 0.7) return { label: "Very Fast", color: "text-blue-600 bg-blue-50" };
-  if (ratio <= 1.25) return { label: "Ideal", color: "text-green-600 bg-green-50" };
-  return { label: "Too Slow", color: "text-red-600 bg-red-50" };
+function getPaceLabel(timeMs: number, avgMs: number): { label: string; color: string } {
+  const ratio = timeMs / avgMs;
+  if (ratio <= 0.75) return { label: "Very Fast", color: "text-blue-600 bg-blue-50" };
+  if (ratio <= 1.15) return { label: "Ideal", color: "text-green-600 bg-green-50" };
+  if (ratio <= 1.5) return { label: "Slower than avg", color: "text-orange-600 bg-orange-50" };
+  return { label: "Much Slower", color: "text-red-600 bg-red-50" };
 }
+
+const BEHAVIOR_TAG_STYLES: Record<string, string> = {
+  "Efficient Solve": "bg-green-100 text-green-700",
+  "Correct but Slow": "bg-yellow-100 text-yellow-700",
+  "Rushed Error": "bg-orange-100 text-orange-700",
+  "Time-Heavy Mistake": "bg-red-100 text-red-700",
+};
 
 const ISSUE_TYPES = [
   { value: "incorrect_answer_key", label: "Incorrect answer key" },
@@ -440,26 +450,36 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
         </div>
 
         <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-100">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock size={14} className="text-gray-500" />
-            <span className="text-xs font-semibold text-gray-600">Timing Insight</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Clock size={14} className="text-gray-500" />
+              <span className="text-xs font-semibold text-gray-600">Timing Insight</span>
+            </div>
+            {q.behaviorTag && (
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${BEHAVIOR_TAG_STYLES[q.behaviorTag] ?? 'bg-gray-100 text-gray-500'}`}>
+                {q.behaviorTag}
+              </span>
+            )}
           </div>
-          {q.medianTimeMs !== null ? (
-            <div className="flex items-center gap-4 text-sm">
+          {q.avgTimeMs !== null ? (
+            <div className="flex items-center gap-4 text-sm flex-wrap">
               <div>
-                <span className="text-gray-500">Your Time: </span>
+                <span className="text-gray-500">You: </span>
                 <span className="font-semibold text-gray-700">{formatTimeShort(q.timeSpentMs)}</span>
               </div>
               <div>
-                <span className="text-gray-500">Median: </span>
-                <span className="font-semibold text-gray-700">{formatTimeShort(q.medianTimeMs)}</span>
+                <span className="text-gray-500">Avg{q.limitedSample ? '*' : ''}: </span>
+                <span className="font-semibold text-gray-700">{formatTimeShort(q.avgTimeMs)}</span>
               </div>
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getPaceLabel(q.timeSpentMs, q.medianTimeMs).color}`}>
-                {getPaceLabel(q.timeSpentMs, q.medianTimeMs).label}
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getPaceLabel(q.timeSpentMs, q.avgTimeMs).color}`}>
+                {getPaceLabel(q.timeSpentMs, q.avgTimeMs).label}
               </span>
             </div>
           ) : (
-            <p className="text-xs text-gray-500">Timing insights will appear after more learners attempt.</p>
+            <p className="text-xs text-gray-500">Timing insights will appear after more learners attempt this test.</p>
+          )}
+          {q.limitedSample && q.avgTimeMs !== null && (
+            <p className="text-[10px] text-gray-400 mt-1.5">* Average based on limited attempts ({q.validAttemptsCount}). Will improve as more students take the test.</p>
           )}
         </div>
 

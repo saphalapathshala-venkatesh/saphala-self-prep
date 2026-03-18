@@ -1,10 +1,18 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getAttemptById, getDbTestById } from "@/lib/testhubDb";
-import { getAllResultsForTest } from "@/lib/resultStore";
+import { getAttemptById, getDbTestById, getFirstAttemptsForTest } from "@/lib/testhubDb";
 import { computeOrGetResult } from "@/lib/resultComputer";
 
 export const dynamic = "force-dynamic";
+
+function computeExamTimeMs(startedAt: Date, submittedAt: Date | null): number {
+  if (submittedAt) return submittedAt.getTime() - startedAt.getTime();
+  return 0;
+}
+
+function computeNetMarks(correctCount: number, wrongCount: number, marksPerQ: number, negMarks: number): number {
+  return Math.round((correctCount * marksPerQ - wrongCount * negMarks) * 100) / 100;
+}
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
@@ -32,7 +40,6 @@ export async function GET(request: Request) {
     return Response.json({ error: "Attempt not yet submitted" }, { status: 400 });
   }
 
-  // Primary: in-memory cache. Fallback: recompute from DB (handles server restarts).
   const result = await computeOrGetResult(attemptId, user.id);
   if (!result) {
     return Response.json({ error: "Result not available." }, { status: 404 });
@@ -41,7 +48,6 @@ export async function GET(request: Request) {
   const test = await getDbTestById(attempt.testId);
   const maxMarks = test ? test.totalQuestions * test.marksPerQuestion : 0;
 
-  // XP breakdown from ledger meta — always read from DB
   const xpEntry = await prisma.xpLedgerEntry.findFirst({
     where: { userId: user.id, refType: "Attempt", refId: attemptId },
     select: { delta: true, meta: true },
@@ -57,39 +63,71 @@ export async function GET(request: Request) {
       (attempt.attemptNumber === 1 ? 1.0 : attempt.attemptNumber === 2 ? 0.5 : 0),
   };
 
-  // Total XP always read from DB — never from in-memory store
   const totalXpAgg = await prisma.xpLedgerEntry.aggregate({
     where: { userId: user.id },
     _sum: { delta: true },
   });
   const totalXp = totalXpAgg._sum.delta ?? 0;
 
-  const allResults = getAllResultsForTest(attempt.testId);
-  const showLeaderboard = allResults.length >= 30;
+  const firstAttempts = await getFirstAttemptsForTest(attempt.testId);
+  const totalFirst = firstAttempts.length;
+  const showLeaderboard = totalFirst >= 5;
 
-  let top10: Array<{ displayName: string; netMarks: number; accuracyPercent: number; timeUsedMs: number }> = [];
-  let rank = result.rank;
-  let percentile = result.percentile;
+  const marksPerQ = test?.marksPerQuestion ?? 1;
+  const negMarks = test?.negativeMarks ?? 0;
 
-  if (showLeaderboard) {
-    const sorted = [...allResults].sort((a, b) => {
-      if (b.netMarksTotal !== a.netMarksTotal) return b.netMarksTotal - a.netMarksTotal;
-      if (b.accuracyPercent !== a.accuracyPercent) return b.accuracyPercent - a.accuracyPercent;
-      if (a.totalTimeUsedMs !== b.totalTimeUsedMs) return a.totalTimeUsedMs - b.totalTimeUsedMs;
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-    });
+  const sorted = [...firstAttempts].sort((a, b) => {
+    const aN = computeNetMarks(a.correctCount, a.wrongCount, marksPerQ, negMarks);
+    const bN = computeNetMarks(b.correctCount, b.wrongCount, marksPerQ, negMarks);
+    if (bN !== aN) return bN - aN;
+    if (b.scorePct !== a.scorePct) return b.scorePct - a.scorePct;
+    const aT = computeExamTimeMs(a.startedAt, a.submittedAt);
+    const bT = computeExamTimeMs(b.startedAt, b.submittedAt);
+    if (aT !== bT) return aT - bT;
+    const aS = a.submittedAt?.getTime() ?? 0;
+    const bS = b.submittedAt?.getTime() ?? 0;
+    return aS - bS;
+  });
 
-    rank = sorted.findIndex((r) => r.resultId === result.resultId) + 1;
-    const belowCount = allResults.filter((r) => r.netMarksTotal < result.netMarksTotal).length;
-    percentile = Math.round(((100 * belowCount) / allResults.length) * 100) / 100;
+  const userFirstAttempt = firstAttempts.find((a) => a.userId === user.id);
+  let rank: number | null = null;
+  let percentile: number | null = null;
 
-    top10 = sorted.slice(0, 10).map((r, i) => ({
-      displayName: `Learner #${i + 1}`,
-      netMarks: r.netMarksTotal,
-      accuracyPercent: r.accuracyPercent,
-      timeUsedMs: r.totalTimeUsedMs,
-    }));
+  if (userFirstAttempt && totalFirst > 0) {
+    const userNet = computeNetMarks(userFirstAttempt.correctCount, userFirstAttempt.wrongCount, marksPerQ, negMarks);
+    rank = sorted.findIndex((a) => a.id === userFirstAttempt.id) + 1;
+    const belowCount = firstAttempts.filter((a) => {
+      const n = computeNetMarks(a.correctCount, a.wrongCount, marksPerQ, negMarks);
+      return n < userNet;
+    }).length;
+    percentile = Math.round(((100 * belowCount) / totalFirst) * 100) / 100;
   }
+
+  let topper: { marks: number; accuracy: number; examTimeMs: number } | null = null;
+  if (sorted.length > 0) {
+    const t = sorted[0];
+    topper = {
+      marks: computeNetMarks(t.correctCount, t.wrongCount, marksPerQ, negMarks),
+      accuracy: Math.round(t.scorePct * 100) / 100,
+      examTimeMs: computeExamTimeMs(t.startedAt, t.submittedAt),
+    };
+  }
+
+  const cohortAvgTimeMs =
+    firstAttempts.length > 0
+      ? Math.round(
+          firstAttempts.reduce((sum, a) => sum + computeExamTimeMs(a.startedAt, a.submittedAt), 0) /
+            firstAttempts.length
+        )
+      : 0;
+
+  const top10 = sorted.slice(0, 10).map((a, i) => ({
+    rank: i + 1,
+    displayName: `Learner #${i + 1}`,
+    netMarks: computeNetMarks(a.correctCount, a.wrongCount, marksPerQ, negMarks),
+    accuracyPercent: Math.round(a.scorePct * 10) / 10,
+    examTimeMs: computeExamTimeMs(a.startedAt, a.submittedAt),
+  }));
 
   return Response.json({
     resultId: result.resultId,
@@ -99,16 +137,19 @@ export async function GET(request: Request) {
     maxMarks,
     durationMinutes: test?.durationMinutes ?? 0,
     showLeaderboard,
+    totalFirstAttempts: totalFirst,
     totals: {
       grossMarksTotal: result.grossMarksTotal,
       negativeMarksTotal: result.negativeMarksTotal,
       netMarksTotal: result.netMarksTotal,
       accuracyPercent: result.accuracyPercent,
-      totalTimeUsedMs: result.totalTimeUsedMs,
+      totalExamTimeMs: result.totalTimeUsedMs,
     },
     subjectBreakdown: result.subjectBreakdown,
-    rank,
-    percentile,
+    rank: showLeaderboard ? rank : null,
+    percentile: showLeaderboard ? percentile : null,
+    topper: showLeaderboard ? topper : null,
+    cohortAvgTimeMs: showLeaderboard ? cohortAvgTimeMs : null,
     xpEarned: result.xpEarned,
     xpBreakdown,
     totalXp,

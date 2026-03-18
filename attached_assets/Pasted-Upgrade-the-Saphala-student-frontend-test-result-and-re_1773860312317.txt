@@ -1,0 +1,177 @@
+Upgrade the Saphala student frontend test-result and review experience so that Reports, Rank, Topper Comparison, Time Analytics, and Suggestions are available immediately for existing tests as well.
+
+Goal:
+Provide a premium, competitive, and analytical result + review system using existing attempt data.
+
+---------------------------------------------------------------------
+
+A. Rank system
+
+1. Show learner rank on the result card.
+2. Rank must be computed ONLY from first attempts.
+3. Repeat attempts must not affect ranking.
+4. Rank must be dynamic as new first attempts come in.
+
+---------------------------------------------------------------------
+
+B. Correct Total Time Calculation (CRITICAL)
+
+1. Total exam time must be:
+   totalTime = submittedAt - startedAt
+
+2. Use this everywhere:
+   - result card
+   - topper comparison
+   - leaderboard
+   - reports
+   - suggestions
+
+3. Do NOT use sum(timeSpentMs) for total time.
+
+---------------------------------------------------------------------
+
+C. Result card upgrades
+
+Add:
+
+1. Learner rank
+2. Topper comparison summary:
+   - marks
+   - accuracy
+   - total exam time (start → submit)
+3. Links:
+   - Full Report
+   - Saphala Mentor Suggestions / Focus Areas
+4. Feedback entry
+
+---------------------------------------------------------------------
+
+D. Top 10 leaderboard
+
+1. Show top 10 learners per test (first attempts only)
+2. Display:
+   - rank badge
+   - name
+   - marks
+   - accuracy %
+3. Show current learner rank even if outside top 10
+
+---------------------------------------------------------------------
+
+E. Full report page
+
+Include:
+
+1. score summary
+2. correct / wrong / unattempted
+3. subject/topic breakdown
+4. heat map
+5. recommended focus areas
+6. time analysis:
+   - total exam time (start → submit)
+   - per-question time (for micro analysis)
+
+---------------------------------------------------------------------
+
+F. NEW FEATURE — Per Question Time Analysis (Review Mode Only)
+
+Visibility:
+- ONLY available in Review page after submission
+- NOT visible during test or result summary
+
+For EACH question, display:
+
+1. Student time taken:
+   - from timeSpentMs
+
+2. Average time taken:
+   - computed from all students’ attempts for that question
+   - must use FIRST ATTEMPTS ONLY
+
+3. Comparison indicator:
+   - faster than average
+   - slower than average
+   - similar to average (optional threshold)
+
+4. Label example:
+   - "You: 32 sec | Avg: 21 sec"
+
+5. Dynamic update:
+   - average must update as more students attempt the test
+
+6. Edge handling:
+   - exclude unattempted questions from average
+   - if sample size is small:
+     show “Avg time based on limited attempts”
+
+7. Optional (future):
+   - percentile time comparison
+
+---------------------------------------------------------------------
+
+G. Topper comparison details
+
+Include:
+
+1. topper marks
+2. topper accuracy
+3. topper total exam time (start → submit)
+4. learner total exam time
+5. per-question time comparison (optional deeper layer)
+
+---------------------------------------------------------------------
+
+H. Saphala Mentor Suggestions
+
+1. Add a dedicated card
+2. Use:
+   - accuracy patterns
+   - total time vs expected time
+   - per-question time inefficiency
+   - weak topics
+   - unattempted count
+
+3. Example insights:
+   - “You are slower than average in Quant questions.”
+   - “You spent too much time on easy questions.”
+
+---------------------------------------------------------------------
+
+I. Existing tests support
+
+1. Must work for existing attempts
+2. Use current DB data
+3. Compute averages dynamically
+4. Avoid breaking old records
+
+---------------------------------------------------------------------
+
+J. Engineering constraints
+
+1. All analytics must be test-specific
+2. Ranking = first attempts only
+3. Total time = start → submit
+4. Per-question time = timeSpentMs
+5. Avg time = dynamic aggregation across attempts
+6. Optimize performance using caching if needed
+
+---------------------------------------------------------------------
+
+K. Deliverables
+
+1. Result card upgraded
+2. Dynamic rank system
+3. Top 10 leaderboard
+4. Full report enhancements
+5. Per-question time + average comparison (review page)
+6. Mentor suggestions
+7. Existing tests supported
+
+---------------------------------------------------------------------
+
+Expected outcome:
+
+1. Students get deep insight into time management
+2. Comparison becomes meaningful and actionable
+3. Review experience becomes highly competitive and premium
+4. Platform quality perception increases significantly

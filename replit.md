@@ -35,7 +35,17 @@ The `Attempt` model uses a `lockedSessionToken` to prevent concurrent test acces
 An administrative interface at `/admin` allows `ADMIN` users to manage users and roles.
 
 #### TestHub
-Allows users to take simulated exams with language selection, question palette, real-time timers, and auto-submission. Post-exam analysis includes XP, rank, percentile, correctness visualization, timing insights, and question issue reporting.
+Allows users to take simulated exams with language selection, question palette, real-time timers, and auto-submission. Post-exam analysis includes XP, rank, percentile, topper comparison, leaderboard, correctness visualization, timing insights, heat maps, focus areas, mentor suggestions, and question issue reporting.
+
+**Result page tabs**: Summary | Full Report | Suggestions. Summary shows score, XP, rank/percentile, topper comparison, leaderboard. Full Report shows accuracy heat map, time efficiency map, question behaviour map, focus area analysis, and time comparison. Suggestions tab shows Saphala Mentor Suggestions (rule-based, no AI).
+
+**Total exam time**: Always computed as `submittedAt - startedAt` (not sum of per-question times). Per-question `timeSpentMs` used only for micro-analysis.
+
+**Rank/leaderboard**: DB-based, first-attempt-only. Threshold: 5 first attempts. Topper selected by: marks desc → accuracy desc → exam time asc → submission time asc. Rank reflects user's first attempt standing.
+
+**Analytics API**: `GET /api/testhub/attempts/analytics?attemptId=` returns accuracy heat map, time efficiency heat map, risk/behaviour heat map, focus area scores (weighted formula per spec), and mentor suggestions (rule-based T1–T5 test-level, P1–P5 topic-level).
+
+**Per-question timing in review**: Uses first-attempt-only average (batch query). Minimum 5 samples for "sufficient data"; 1–4 samples show avg with "limited attempts" disclaimer. Behavior tags per question: Efficient Solve | Correct but Slow | Rushed Error | Time-Heavy Mistake.
 
 #### Student Dashboard
 Located at `/dashboard`, it provides an overview of student progress, including metrics, recent attempts, and a profile summary. Dedicated pages detail past exam performance and XP earnings.

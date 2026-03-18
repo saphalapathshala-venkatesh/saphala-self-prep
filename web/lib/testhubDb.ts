@@ -804,6 +804,36 @@ export async function getAllSubmittedAnswersForQuestion(questionId: string) {
   });
 }
 
+export async function getFirstAttemptsForTest(testId: string) {
+  return prisma.attempt.findMany({
+    where: { testId, status: "SUBMITTED", attemptNumber: 1 },
+    select: {
+      id: true,
+      userId: true,
+      testId: true,
+      startedAt: true,
+      submittedAt: true,
+      scorePct: true,
+      correctCount: true,
+      wrongCount: true,
+      unansweredCount: true,
+    },
+    orderBy: { submittedAt: "asc" },
+  });
+}
+
+export async function getFirstAttemptAnswersForQuestions(questionIds: string[], testId: string) {
+  if (questionIds.length === 0) return [];
+  return prisma.attemptAnswer.findMany({
+    where: {
+      questionId: { in: questionIds },
+      selectedOptionId: { not: null },
+      attempt: { testId, status: "SUBMITTED", attemptNumber: 1 },
+    },
+    select: { questionId: true, timeSpentMs: true },
+  });
+}
+
 export async function resolveOptionIdFromLetter(
   questionId: string,
   letter: string

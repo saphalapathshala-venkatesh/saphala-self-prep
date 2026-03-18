@@ -5,7 +5,7 @@ import {
   getDbTestById,
   getDbQuestionsForTest,
   getTestSectionsForAttempt,
-  getAllSubmittedAnswersForQuestion,
+  getFirstAttemptAnswersForQuestions,
 } from "@/lib/testhubDb";
 import { hasRealContent } from "@/lib/sanitizeHtml";
 
@@ -47,66 +47,93 @@ export async function GET(request: Request) {
     getAnswersForAttempt(attemptId),
     getTestSectionsForAttempt(test.id),
   ]);
+
+  const questionIds = questions.map((q) => q.id);
+  const firstAttemptAnswers = await getFirstAttemptAnswersForQuestions(questionIds, test.id);
+
+  const qTimeAccum = new Map<string, { sum: number; count: number }>();
+  for (const fa of firstAttemptAnswers) {
+    const acc = qTimeAccum.get(fa.questionId) ?? { sum: 0, count: 0 };
+    acc.sum += fa.timeSpentMs;
+    acc.count += 1;
+    qTimeAccum.set(fa.questionId, acc);
+  }
+
+  const MIN_SAMPLES = 5;
+
   const answerMap = new Map(answers.map((a) => [a.questionId, a]));
 
-  const reviewQuestions = await Promise.all(
-    questions.map(async (q) => {
-      const ans = answerMap.get(q.id);
-      const allSubmitted = await getAllSubmittedAnswersForQuestion(q.id);
-      const validCount = allSubmitted.length;
+  const reviewQuestions = questions.map((q) => {
+    const ans = answerMap.get(q.id);
+    const acc = qTimeAccum.get(q.id);
+    const validCount = acc?.count ?? 0;
 
-      let medianTimeMs: number | null = null;
-      if (validCount >= 20) {
-        const times = allSubmitted.map((a) => a.timeSpentMs).sort((a, b) => a - b);
-        const mid = Math.floor(times.length / 2);
-        medianTimeMs = times.length % 2 === 0
-          ? Math.round((times[mid - 1] + times[mid]) / 2)
-          : times[mid];
+    let avgTimeMs: number | null = null;
+    let limitedSample = false;
+    if (validCount >= MIN_SAMPLES && acc) {
+      avgTimeMs = Math.round(acc.sum / acc.count);
+    } else if (validCount > 0 && validCount < MIN_SAMPLES) {
+      avgTimeMs = Math.round(acc!.sum / acc!.count);
+      limitedSample = true;
+    }
+
+    const correctOption = q.options.find((o) => o.isCorrect);
+    const correctLetter = correctOption ? ["A", "B", "C", "D"][correctOption.order] || "A" : "A";
+
+    let userSelectedLetter: string | null = null;
+    if (ans?.selectedOptionId) {
+      const selectedOpt = q.options.find((o) => o.id === ans.selectedOptionId);
+      if (selectedOpt) {
+        userSelectedLetter = ["A", "B", "C", "D"][selectedOpt.order] || null;
       }
+    }
 
-      const correctOption = q.options.find((o) => o.isCorrect);
-      const correctLetter = correctOption ? ["A", "B", "C", "D"][correctOption.order] || "A" : "A";
+    const learnerTime = ans?.timeSpentMs ?? 0;
+    const ratio = avgTimeMs && avgTimeMs > 0 ? learnerTime / avgTimeMs : null;
 
-      let userSelectedLetter: string | null = null;
-      if (ans?.selectedOptionId) {
-        const selectedOpt = q.options.find((o) => o.id === ans.selectedOptionId);
-        if (selectedOpt) {
-          userSelectedLetter = ["A", "B", "C", "D"][selectedOpt.order] || null;
-        }
-      }
+    let behaviorTag: string | null = null;
+    const isAttempted = userSelectedLetter !== null;
+    const isCorrect = isAttempted && userSelectedLetter === correctLetter;
+    if (ratio !== null && isAttempted) {
+      if (isCorrect && ratio <= 0.9) behaviorTag = "Efficient Solve";
+      else if (isCorrect && ratio > 1.25) behaviorTag = "Correct but Slow";
+      else if (!isCorrect && ratio < 0.75) behaviorTag = "Rushed Error";
+      else if (!isCorrect && ratio > 1.15) behaviorTag = "Time-Heavy Mistake";
+    }
 
-      return {
-        questionId: q.id,
-        order: q.order,
-        sectionId: q.sectionId ?? null,
-        subjectName: q.subjectName || "General",
-        questionText_en: q.questionText_en,
-        questionText_te: q.questionText_te,
-        options_en: q.options.map((o, idx) => ({
-          key: ["A", "B", "C", "D"][idx] || "A",
-          text: o.textEn || "",
-        })),
-        options_te: q.options.map((o, idx) => ({
-          key: ["A", "B", "C", "D"][idx] || "A",
-          text: o.textTe || "",
-        })),
-        correctOption: correctLetter,
-        explanation_en: hasRealContent(q.explanation_en)
+    return {
+      questionId: q.id,
+      order: q.order,
+      sectionId: q.sectionId ?? null,
+      subjectName: q.subjectName || "General",
+      questionText_en: q.questionText_en,
+      questionText_te: q.questionText_te,
+      options_en: q.options.map((o, idx) => ({
+        key: ["A", "B", "C", "D"][idx] || "A",
+        text: o.textEn || "",
+      })),
+      options_te: q.options.map((o, idx) => ({
+        key: ["A", "B", "C", "D"][idx] || "A",
+        text: o.textTe || "",
+      })),
+      correctOption: correctLetter,
+      explanation_en: hasRealContent(q.explanation_en)
+        ? q.explanation_en!
+        : `The correct answer is Option ${correctLetter}.`,
+      explanation_te: hasRealContent(q.explanation_te)
+        ? q.explanation_te!
+        : (hasRealContent(q.explanation_en)
           ? q.explanation_en!
-          : `The correct answer is Option ${correctLetter}.`,
-        explanation_te: hasRealContent(q.explanation_te)
-          ? q.explanation_te!
-          : (hasRealContent(q.explanation_en)
-            ? q.explanation_en!
-            : `The correct answer is Option ${correctLetter}.`),
-        userSelectedOption: userSelectedLetter,
-        isMarkedForReview: ans?.isMarkedForReview ?? false,
-        timeSpentMs: ans?.timeSpentMs ?? 0,
-        medianTimeMs,
-        validAttemptsCount: validCount,
-      };
-    })
-  );
+          : `The correct answer is Option ${correctLetter}.`),
+      userSelectedOption: userSelectedLetter,
+      isMarkedForReview: ans?.isMarkedForReview ?? false,
+      timeSpentMs: learnerTime,
+      avgTimeMs,
+      limitedSample,
+      validAttemptsCount: validCount,
+      behaviorTag,
+    };
+  });
 
   return Response.json({
     testMeta: {

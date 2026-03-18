@@ -48,7 +48,6 @@ export async function computeOrGetResult(
   let totalCorrect = 0;
   let totalIncorrect = 0;
   let totalUnattempted = 0;
-  let totalTimeUsedMs = 0;
 
   for (const q of questions) {
     const sid = q.subjectId || "general";
@@ -73,17 +72,13 @@ export async function computeOrGetResult(
     if (!ans || ans.selectedOptionId === null) {
       sub.unattempted++;
       totalUnattempted++;
-      if (ans) {
-        sub.timeUsedMs += ans.timeSpentMs;
-        totalTimeUsedMs += ans.timeSpentMs;
-      }
+      if (ans) sub.timeUsedMs += ans.timeSpentMs;
       continue;
     }
 
     const correctOption = q.options.find((o) => o.isCorrect);
     const isCorrect = correctOption ? ans.selectedOptionId === correctOption.id : false;
     sub.timeUsedMs += ans.timeSpentMs;
-    totalTimeUsedMs += ans.timeSpentMs;
 
     if (isCorrect) {
       sub.correct++;
@@ -123,6 +118,10 @@ export async function computeOrGetResult(
     attempt.attemptNumber === 1 ? 1.0 : attempt.attemptNumber === 2 ? 0.5 : 0;
   const xpEarned = Math.round((baseXP + bonusXP) * xpMultiplier);
 
+  const totalExamTimeMs = attempt.submittedAt
+    ? attempt.submittedAt.getTime() - attempt.startedAt.getTime()
+    : Object.values(subjectAgg).reduce((sum, s) => sum + s.timeUsedMs, 0);
+
   const result: MockResult = {
     resultId: `result_${attemptId}_${Date.now()}`,
     attemptId,
@@ -132,7 +131,7 @@ export async function computeOrGetResult(
     negativeMarksTotal,
     netMarksTotal,
     accuracyPercent,
-    totalTimeUsedMs,
+    totalTimeUsedMs: totalExamTimeMs,
     rank: null,
     percentile: null,
     xpEarned,
@@ -154,7 +153,7 @@ export async function computeOrGetResult(
         correctCount: totalCorrect,
         wrongCount: totalIncorrect,
         unansweredCount: totalUnattempted,
-        totalTimeUsedMs,
+        totalTimeUsedMs: totalExamTimeMs,
       },
     }),
     ...(!existingXpEntry
