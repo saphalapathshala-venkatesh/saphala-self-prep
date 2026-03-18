@@ -32,8 +32,8 @@ export default function EbookPageShell({
       style={{
         border: `3px solid ${accentColor}`,
         position: "relative",
-        height: "calc(100vh - 260px)",
-        minHeight: 420,
+        height: "calc(100vh - 200px)",
+        minHeight: 380,
       }}
     >
       {/* ── Watermark ── */}
@@ -92,7 +92,7 @@ export default function EbookPageShell({
 
         {/* ── Title gradient header — shrink-0 so it never scrolls away ── */}
         <div
-          className="px-8 py-8 shrink-0"
+          className="px-6 py-3 shrink-0"
           style={{
             background: `linear-gradient(135deg, ${BRAND_DARK} 0%, ${accentColor} 100%)`,
           }}

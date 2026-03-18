@@ -186,7 +186,7 @@ export default function EbookReaderClient({
       )}
 
       {/* Navigation buttons */}
-      <div className="mt-4 flex justify-between items-center gap-3">
+      <div className="mt-3 mb-3 flex justify-between items-center gap-3">
         {/* Left button */}
         {isFirst ? (
           <a

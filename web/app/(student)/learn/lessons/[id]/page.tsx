@@ -24,8 +24,8 @@ export default async function LessonReaderPage({
   ].filter(Boolean) as string[];
 
   return (
-    <div className="py-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="pt-4 pb-0 px-0">
+      <div className="max-w-4xl mx-auto px-3 sm:px-6">
         <EbookReaderClient
           lessonId={lesson.id}
           title={lesson.title}
