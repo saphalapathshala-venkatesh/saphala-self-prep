@@ -1,0 +1,249 @@
+Perform an audit and implement (only if missing) a complete Attempt History + Result Access system for tests and quizzes inside the Saphala student frontend.
+
+Goal:
+Allow students to:
+1. Reattempt tests
+2. View results of ALL past attempts
+3. Compare performance across attempts
+4. Access full analytics (rank, topper comparison, heat maps, suggestions) for each attempt
+
+This must work for:
+- standalone tests
+- test series
+- quizzes inside courses
+
+==================================================
+PHASE 1 — AUDIT (MANDATORY)
+==================================================
+
+Check current system behavior:
+
+1. TEST CARD / COURSE TEST UI
+- Verify what happens after a test is attempted:
+  - Does it show "Reattempt"?
+  - Is there any "View Result" button?
+
+2. ATTEMPT STORAGE
+- Verify:
+  - attemptNumber exists
+  - multiple attempts stored per user per test
+  - submittedAt available
+  - result data retrievable per attempt
+
+3. RESULT ACCESS
+- Check:
+  - Can user access old attempts?
+  - Or only latest attempt?
+
+4. REVIEW ACCESS
+- Check:
+  - Can user review questions for past attempts?
+  - Or only latest attempt?
+
+Return audit summary:
+A. What exists
+B. What is missing
+C. What is partially implemented
+
+DO NOT IMPLEMENT YET.
+
+==================================================
+PHASE 2 — IMPLEMENTATION (IF MISSING)
+==================================================
+
+----------------------------------------
+A. TEST CARD / UI CHANGES
+----------------------------------------
+
+For any test already attempted by the user:
+
+Show TWO buttons:
+
+1. Reattempt
+2. View Results
+
+Rules:
+- If attemptCount >= 1:
+  → show both buttons
+- If no attempts:
+  → show Start Test only
+
+This must apply to:
+- test listing page
+- course test section
+- quiz cards inside courses
+
+----------------------------------------
+B. VIEW RESULTS FLOW
+----------------------------------------
+
+On clicking "View Results":
+
+Open a new Result History page:
+
+/tests/[testId]/results
+
+----------------------------------------
+C. ATTEMPT HISTORY LIST
+----------------------------------------
+
+Display all attempts for that test:
+
+For each attempt show:
+
+- Attempt Number (Attempt 1, Attempt 2, etc.)
+- Marks
+- Accuracy %
+- Total Time (start → submit)
+- Rank (ONLY for Attempt 1)
+- Attempt Date
+
+Sorting:
+- newest first (Attempt N at top)
+
+----------------------------------------
+D. ATTEMPT SELECTION
+----------------------------------------
+
+Each attempt card must have:
+
+- "View Detailed Result" button
+
+Click → opens:
+
+/tests/[testId]/result?attemptId=XYZ
+
+----------------------------------------
+E. RESULT PAGE (PER ATTEMPT)
+----------------------------------------
+
+The existing result system must now work PER ATTEMPT.
+
+For selected attempt show:
+
+1. Score summary
+2. Accuracy
+3. Total time (correct formula)
+4. Rank (ONLY if attemptNumber = 1)
+5. Topper comparison (based on first attempts only)
+6. Leaderboard (first attempts only)
+7. Heat maps
+8. Focus areas
+9. Mentor suggestions
+10. Review questions
+
+----------------------------------------
+F. RANK RULE (VERY IMPORTANT)
+----------------------------------------
+
+- Rank must be shown ONLY for Attempt 1
+- For Attempt 2+:
+  show label:
+  "Rank is applicable only for first attempt"
+
+- Leaderboard must always be based on:
+  attemptNumber = 1
+
+----------------------------------------
+G. TOPPER COMPARISON RULE
+----------------------------------------
+
+- Always compare against topper from first attempts
+- Even if user is viewing Attempt 2 or 3
+
+----------------------------------------
+H. REVIEW PAGE (PER ATTEMPT)
+----------------------------------------
+
+When reviewing questions:
+
+- Must load answers from selected attemptId
+- Must show:
+  - selected options
+  - correct answers
+  - time per question
+  - avg time
+  - behavior tags
+
+----------------------------------------
+I. DATA FETCHING
+----------------------------------------
+
+Backend must support:
+
+GET /api/tests/[testId]/attempts
+→ returns list of attempts
+
+GET /api/tests/[testId]/result?attemptId=
+→ returns result for specific attempt
+
+GET /api/tests/[testId]/review?attemptId=
+→ returns review data per attempt
+
+----------------------------------------
+J. EXISTING DATA SUPPORT
+----------------------------------------
+
+- Must work for old attempts
+- Must not break existing routes
+- Default behavior:
+  → latest attempt shown if attemptId not passed
+
+----------------------------------------
+K. UI / UX RULES
+----------------------------------------
+
+- Keep it clean and simple
+- Do not clutter result page
+- Attempt History page must be:
+  - easy to scan
+  - clearly show improvement over attempts
+
+Optional (future):
+- improvement indicator (↑ ↓)
+
+----------------------------------------
+L. TAXONOMY SAFETY
+----------------------------------------
+
+- All analytics must still respect:
+  subject → topic → subtopic hierarchy
+
+- No hardcoding allowed
+
+----------------------------------------
+M. FINAL VALIDATION
+----------------------------------------
+
+Verify:
+
+1. Student sees BOTH:
+   - Reattempt
+   - View Results
+
+2. Attempt history loads correctly
+
+3. Each attempt opens correct result
+
+4. Rank only for Attempt 1
+
+5. Topper comparison consistent
+
+6. Review loads correct attempt data
+
+7. Works for:
+   - standalone tests
+   - course quizzes
+
+==================================================
+FINAL OUTCOME
+==================================================
+
+Students can:
+
+- Reattempt tests anytime
+- View past performance
+- Analyze mistakes across attempts
+- Learn and improve systematically
+
+This makes Saphala feel like a serious exam platform.

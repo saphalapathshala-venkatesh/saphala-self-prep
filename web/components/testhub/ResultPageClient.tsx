@@ -508,9 +508,17 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
             )}
 
             <div className="bg-white rounded-xl border border-gray-200 p-5 mb-6 shadow-sm">
-              <h2 className="text-sm font-semibold text-[#2D1B69] mb-4 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-[#2D1B69] mb-2 flex items-center gap-2">
                 <Award size={16} /> Rank & Percentile
               </h2>
+              {data.xpBreakdown && data.xpBreakdown.attemptNumber > 1 && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4">
+                  <Info size={13} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700">
+                    Rank applies to first attempts only. The rank shown below is based on your first attempt performance.
+                  </p>
+                </div>
+              )}
               {showLeaderboard ? (
                 <>
                   <div className="grid grid-cols-2 gap-4 mb-4">

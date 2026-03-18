@@ -138,9 +138,14 @@ export default function BriefClient({ test }: BriefClientProps) {
         <p className="text-gray-400 text-sm mb-8">
           You have used all {test.attemptsAllowed} attempt{test.attemptsAllowed !== 1 ? "s" : ""} for this test.
         </p>
-        <Link href="/testhub" className="btn-glossy-primary px-8 py-3">
-          Back to Tests
-        </Link>
+        <div className="flex gap-3 justify-center">
+          <Link href="/testhub" className="btn-glossy-secondary px-6 py-3">
+            Back to Tests
+          </Link>
+          <Link href={`/testhub/tests/${test.id}/attempts`} className="btn-glossy-primary px-6 py-3">
+            View Results
+          </Link>
+        </div>
       </div>
     );
   }
@@ -250,25 +255,41 @@ export default function BriefClient({ test }: BriefClientProps) {
         </div>
       )}
 
-      <div className="flex gap-4 mt-8">
-        <Link href="/testhub" className="btn-glossy-secondary flex-1 text-center py-3">
-          Go Back
-        </Link>
-        <button
-          onClick={handleStart}
-          disabled={(!activeAttempt && !agreed) || loading}
-          className="btn-glossy-primary flex-1 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading
-            ? "Starting..."
-            : activeAttempt
-              ? "Resume Test"
-              : isReattempt
-                ? "Reattempt"
+      {isReattempt && !activeAttempt ? (
+        <div className="flex gap-4 mt-8">
+          <Link
+            href={`/testhub/tests/${test.id}/attempts`}
+            className="btn-glossy-secondary flex-1 text-center py-3"
+          >
+            View Results
+          </Link>
+          <button
+            onClick={handleStart}
+            disabled={!agreed || loading}
+            className="btn-glossy-primary flex-1 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "Starting..." : "Reattempt"}
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-4 mt-8">
+          <Link href="/testhub" className="btn-glossy-secondary flex-1 text-center py-3">
+            Go Back
+          </Link>
+          <button
+            onClick={handleStart}
+            disabled={(!activeAttempt && !agreed) || loading}
+            className="btn-glossy-primary flex-1 py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading
+              ? "Starting..."
+              : activeAttempt
+                ? "Resume Test"
                 : "Start Test"
-          }
-        </button>
-      </div>
+            }
+          </button>
+        </div>
+      )}
     </div>
   );
 }
