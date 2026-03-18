@@ -145,6 +145,8 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
   }
 
   if (showOverlay) {
+    const isThirdPlusAttempt = data.xpBreakdown?.xpMultiplier === 0;
+
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
         <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-8 relative animate-in fade-in zoom-in duration-300">
@@ -159,7 +161,9 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 mx-auto mb-4 flex items-center justify-center">
               <Star size={32} className="text-white" fill="white" />
             </div>
-            <h2 className="text-xl font-bold text-[#2D1B69] mb-1">XP Earned!</h2>
+            <h2 className="text-xl font-bold text-[#2D1B69] mb-1">
+              {isThirdPlusAttempt ? "Test Complete!" : "XP Earned!"}
+            </h2>
             {data.xpBreakdown && (
               <span className="inline-block text-xs text-purple-600 bg-purple-50 px-3 py-1 rounded-full">
                 Attempt #{data.xpBreakdown.attemptNumber}
@@ -167,36 +171,60 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
             )}
           </div>
 
-          <div className="mb-4 space-y-3">
-            <XpEarnedBadge xp={data.xpEarned} label="Earned This Test" />
-            <div className="flex items-center justify-between bg-gradient-to-br from-green-50 to-green-100 rounded-xl px-4 py-3 border border-green-200">
-              <div className="text-xs text-green-600 font-semibold uppercase tracking-wide">Total XP</div>
-              <div className="text-xl font-bold text-green-700">{data.totalXp.toLocaleString()} <span className="text-sm font-medium">XP</span></div>
-            </div>
-          </div>
-
-          {data.xpBreakdown && (
-            <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 mb-5 text-center">
-              <div className="text-sm font-medium text-[#2D1B69]">
-                {data.xpBreakdown.xpMultiplier === 1 && "First attempt — you earned full XP!"}
-                {data.xpBreakdown.xpMultiplier === 0.5 && "Reattempt — you earned 50% of the base XP."}
-                {data.xpBreakdown.xpMultiplier === 0 && "XP is not awarded from the third attempt onward."}
+          {isThirdPlusAttempt ? (
+            /* ── 3rd+ attempt: no XP — two message cards ── */
+            <div className="flex flex-col gap-3 mb-6">
+              <div className="rounded-xl px-4 py-4 flex items-start gap-3" style={{ background: "#FFF7ED", border: "1.5px solid #FED7AA" }}>
+                <span className="text-2xl leading-none mt-0.5">🏆</span>
+                <div>
+                  <p className="text-sm font-bold text-orange-800 mb-1">No Sadhana Points for this attempt</p>
+                  <p className="text-xs text-orange-700 leading-relaxed">
+                    From the 3rd attempt onwards, Sadhana Points (XP) will not be allocated for reattempting this test. You've already earned the maximum XP for this content.
+                  </p>
+                </div>
               </div>
-              {data.xpBreakdown.xpMultiplier > 0 && (data.xpBreakdown.baseXP > 0 || data.xpBreakdown.bonusXP > 0) && (
-                <div className="text-xs text-purple-500 mt-1">
-                  {data.xpBreakdown.baseXP} base
-                  {data.xpBreakdown.bonusXP > 0 ? ` + ${data.xpBreakdown.bonusXP} accuracy bonus` : ""}
-                  {data.xpBreakdown.xpMultiplier === 0.5 ? " × 50%" : ""}
+              <div className="rounded-xl px-4 py-4 flex items-start gap-3" style={{ background: "linear-gradient(135deg, #2D1B69 0%, #6D4BCB 100%)" }}>
+                <span className="text-2xl leading-none mt-0.5">🌟</span>
+                <div>
+                  <p className="text-sm font-bold text-white mb-1">Keep up the good effort!</p>
+                  <p className="text-xs text-purple-200 leading-relaxed">
+                    With every effort you are moving closer to your dream job. Consistent revision is what separates toppers from the rest — keep going!
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ── 1st / 2nd attempt: show XP earned ── */
+            <>
+              <div className="mb-4 space-y-3">
+                <XpEarnedBadge xp={data.xpEarned} label="Earned This Test" />
+                <div className="flex items-center justify-between bg-gradient-to-br from-green-50 to-green-100 rounded-xl px-4 py-3 border border-green-200">
+                  <div className="text-xs text-green-600 font-semibold uppercase tracking-wide">Total XP</div>
+                  <div className="text-xl font-bold text-green-700">{data.totalXp.toLocaleString()} <span className="text-sm font-medium">XP</span></div>
+                </div>
+              </div>
+
+              {data.xpBreakdown && (
+                <div className="bg-purple-50 border border-purple-100 rounded-xl px-4 py-3 mb-5 text-center">
+                  <div className="text-sm font-medium text-[#2D1B69]">
+                    {data.xpBreakdown.xpMultiplier === 1 && "First attempt — you earned full XP!"}
+                    {data.xpBreakdown.xpMultiplier === 0.5 && "Reattempt — you earned 50% of the base XP."}
+                  </div>
+                  {(data.xpBreakdown.baseXP > 0 || data.xpBreakdown.bonusXP > 0) && (
+                    <div className="text-xs text-purple-500 mt-1">
+                      {data.xpBreakdown.baseXP} base
+                      {data.xpBreakdown.bonusXP > 0 ? ` + ${data.xpBreakdown.bonusXP} accuracy bonus` : ""}
+                      {data.xpBreakdown.xpMultiplier === 0.5 ? " × 50%" : ""}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-          )}
 
-          <p className="text-center text-sm text-gray-500 mb-6">
-            {data.xpBreakdown?.xpMultiplier === 0
-              ? "Keep practising — accuracy and consistency are what matter most."
-              : "Well done — your effort is building real exam confidence."}
-          </p>
+              <p className="text-center text-sm text-gray-500 mb-6">
+                Well done — your effort is building real exam confidence.
+              </p>
+            </>
+          )}
 
           <button
             onClick={() => setShowOverlay(false)}

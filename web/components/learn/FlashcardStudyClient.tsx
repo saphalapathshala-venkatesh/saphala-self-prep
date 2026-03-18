@@ -1428,7 +1428,7 @@ export default function FlashcardStudyClient({
       setXpAwarded(data.xpAwarded);
       setXpCompletionNumber(data.completionNumber);
       setXpMultiplier(data.xpMultiplier);
-      if (data.xpAwarded > 0 && !celebrationFiredRef.current) {
+      if ((data.xpAwarded > 0 || data.completionNumber >= 3) && !celebrationFiredRef.current) {
         celebrationFiredRef.current = true;
         triggerXpCelebration();
       }
@@ -1515,11 +1515,27 @@ export default function FlashcardStudyClient({
                 </div>
               )}
 
-              {/* 3rd+ attempt — no XP */}
+              {/* 3rd+ attempt — no XP, two message cards */}
               {xpAwarded !== null && xpAwarded === 0 && xpMultiplier === 0 && (
-                <div className="rounded-xl px-4 py-3 text-center" style={{ background: "#f9fafb", border: "1px solid #e5e7eb" }}>
-                  <p className="text-sm font-medium text-gray-500">No XP from the 3rd study onwards.</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Keep studying — your knowledge is what counts!</p>
+                <div className="flex flex-col gap-3 text-left">
+                  <div className="rounded-xl px-4 py-4 flex items-start gap-3" style={{ background: "#FFF7ED", border: "1.5px solid #FED7AA" }}>
+                    <span className="text-2xl leading-none mt-0.5">🏆</span>
+                    <div>
+                      <p className="text-sm font-bold text-orange-800 mb-1">No Sadhana Points for this study</p>
+                      <p className="text-xs text-orange-700 leading-relaxed">
+                        From the 3rd study onwards, Sadhana Points (XP) will not be allocated for revisiting this deck. You've already earned the maximum XP for this content.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rounded-xl px-4 py-4 flex items-start gap-3" style={{ background: "linear-gradient(135deg, #2D1B69 0%, #6D4BCB 100%)" }}>
+                    <span className="text-2xl leading-none mt-0.5">🌟</span>
+                    <div>
+                      <p className="text-sm font-bold text-white mb-1">Keep up the good effort!</p>
+                      <p className="text-xs text-purple-200 leading-relaxed">
+                        With every effort you are moving closer to your dream job. Consistent revision is what separates toppers from the rest — keep going!
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
