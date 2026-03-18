@@ -1,12 +1,12 @@
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
-import { getActiveCourses } from "@/lib/courseDb";
+import { getActiveCourses, getExamsForCategory } from "@/lib/courseDb";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-// ── Product category metadata ─────────────────────────────────────────────────
+// ── Product category metadata ──────────────────────────────────────────────────
 
 const PRODUCT_META: Record<string, { label: string; badge: string; badgeColor: string; emptyMsg: string }> = {
   FREE_DEMO:          { label: "Free Demo Courses & Tests", badge: "Free Demo",       badgeColor: "bg-green-100 text-green-800",   emptyMsg: "No free demo courses are available yet. Check back soon — new free content is added regularly." },
@@ -19,13 +19,18 @@ const PRODUCT_META: Record<string, { label: string; badge: string; badgeColor: s
   CURRENT_AFFAIRS:    { label: "Current Affairs",           badge: "Current Affairs", badgeColor: "bg-teal-100 text-teal-800",     emptyMsg: "Current Affairs courses are being put together. Daily digests and quiz-based revision will appear here." },
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── URL helpers ────────────────────────────────────────────────────────────────
 
-function tabUrl(categoryId: string | "ALL", activeProductCategory: string | null): string {
-  const params = new URLSearchParams();
-  if (activeProductCategory) params.set("productCategory", activeProductCategory);
-  if (categoryId !== "ALL") params.set("category", categoryId);
-  const qs = params.toString();
+function buildUrl(params: {
+  category?: string | null;
+  exam?: string | null;
+  productCategory?: string | null;
+}): string {
+  const p = new URLSearchParams();
+  if (params.productCategory) p.set("productCategory", params.productCategory);
+  if (params.category) p.set("category", params.category);
+  if (params.exam) p.set("exam", params.exam);
+  const qs = p.toString();
   return qs ? `/courses?${qs}` : "/courses";
 }
 
@@ -34,59 +39,101 @@ function tabUrl(categoryId: string | "ALL", activeProductCategory: string | null
 export default async function CoursesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ category?: string; productCategory?: string }>;
+  searchParams: Promise<{ category?: string; exam?: string; productCategory?: string }>;
 }) {
   const sp = await searchParams;
-  const activeCategory = sp.category ?? "ALL";
+  const activeCategory       = sp.category        ?? null;
+  const activeExam           = sp.exam            ?? null;
   const activeProductCategory = sp.productCategory ?? null;
 
-  const [courses, categories] = await Promise.all([
+  // Fetch courses + all categories + exams for active category in parallel
+  const [courses, categories, exams] = await Promise.all([
     getActiveCourses({
-      categoryId: activeCategory !== "ALL" ? activeCategory : undefined,
+      categoryId:      activeCategory        ?? undefined,
+      examId:          activeExam            ?? undefined,
       productCategory: activeProductCategory ?? undefined,
-      limit: 50,
+      limit: 60,
     }),
     prisma.category.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    activeCategory ? getExamsForCategory(activeCategory) : Promise.resolve([]),
   ]);
 
-  const productMeta = activeProductCategory ? PRODUCT_META[activeProductCategory] : null;
-
-  // Only show tabs for categories that have at least one active course (unfiltered)
-  // We fetch unfiltered counts only when no productCategory is active (simple heuristic)
-  const categoryIdsWithCourses = new Set(courses.map((c) => c.categoryId).filter(Boolean));
-  const tabs = [
-    { id: "ALL", name: activeProductCategory ? "All" : "All Courses" },
-    ...categories,
-  ];
-
-  // Active category name (for empty-state message)
-  const activeCategoryName = activeCategory !== "ALL"
-    ? categories.find((c) => c.id === activeCategory)?.name ?? null
-    : null;
+  const productMeta      = activeProductCategory ? PRODUCT_META[activeProductCategory] : null;
+  const activeCatObj     = categories.find((c) => c.id === activeCategory) ?? null;
+  const activeExamObj    = exams.find((e) => e.id === activeExam) ?? null;
 
   const isFreeDemo = (productCategory: string) => productCategory === "FREE_DEMO";
 
-  // Hero gradient and title based on active filter
-  const heroTitle = productMeta?.label ?? (activeCategoryName ? `${activeCategoryName} Courses` : "Course Catalog");
-  const heroSub = productMeta
-    ? "Browse all available courses in this category"
-    : activeCategoryName
-    ? `All courses available for ${activeCategoryName} exam preparation`
-    : "Pick your exam, choose your course, and start preparing today.";
+  // ── Derived labels for header ──
+  let heroTitle = "Course Catalog";
+  if (activeExamObj)        heroTitle = `${activeExamObj.name} Courses`;
+  else if (activeCatObj && productMeta)  heroTitle = `${activeCatObj.name} — ${productMeta.label}`;
+  else if (activeCatObj)    heroTitle = `${activeCatObj.name} Courses`;
+  else if (productMeta)     heroTitle = productMeta.label;
+
+  const heroSub =
+    activeExamObj
+      ? `All courses for ${activeExamObj.name}${activeCatObj ? ` · ${activeCatObj.name}` : ""}`
+      : activeCatObj && productMeta
+      ? `${productMeta.label} courses for ${activeCatObj.name} exam preparation`
+      : activeCatObj
+      ? `All courses for ${activeCatObj.name} exam preparation`
+      : productMeta
+      ? "Browse all available courses in this category"
+      : "Pick your exam, choose your course, and start preparing today.";
+
+  // ── Empty-state message ──
+  let emptyTitle = "No courses available yet";
+  let emptyBody  = productMeta?.emptyMsg ?? "New courses are being added. Check back soon.";
+  if (activeExamObj) {
+    emptyTitle = `No courses for ${activeExamObj.name} yet`;
+    emptyBody  = "Courses for this exam are being prepared. Check back soon.";
+  } else if (activeCatObj && !productMeta) {
+    emptyTitle = `No courses available for ${activeCatObj.name} yet`;
+    emptyBody  = "New courses are being added. Check back soon.";
+  } else if (activeCatObj && productMeta) {
+    emptyTitle = `No ${productMeta.label} for ${activeCatObj.name} yet`;
+  }
+
+  const emptyEmoji =
+    activeProductCategory === "FREE_DEMO"          ? "🎁"
+    : activeProductCategory === "VIDEO_ONLY"       ? "🎬"
+    : activeProductCategory === "FLASHCARDS_ONLY"  ? "🃏"
+    : activeProductCategory === "TEST_SERIES"      ? "✏️"
+    : activeProductCategory === "CURRENT_AFFAIRS"  ? "📰"
+    : "📚";
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50">
       <Header />
 
-      {/* Page Header */}
+      {/* ── Hero ── */}
       <div className="bg-gradient-to-br from-[#2D1B69] via-[#4A2E9E] to-[#6D4BCB] text-white py-10 px-4">
         <div className="max-w-5xl mx-auto">
-          <nav className="flex items-center gap-2 text-purple-300 text-xs mb-3">
+          {/* Breadcrumb */}
+          <nav className="flex flex-wrap items-center gap-1.5 text-purple-300 text-xs mb-3">
             <Link href="/courses" className="hover:text-white transition-colors">All Courses</Link>
-            {(productMeta || activeCategoryName) && (
+            {activeCatObj && (
               <>
                 <span>/</span>
-                <span className="text-purple-200">{productMeta?.label ?? activeCategoryName}</span>
+                <Link
+                  href={buildUrl({ category: activeCategory, productCategory: activeProductCategory })}
+                  className="hover:text-white transition-colors"
+                >
+                  {activeCatObj.name}
+                </Link>
+              </>
+            )}
+            {activeExamObj && (
+              <>
+                <span>/</span>
+                <span className="text-purple-200">{activeExamObj.name}</span>
+              </>
+            )}
+            {!activeCatObj && productMeta && (
+              <>
+                <span>/</span>
+                <span className="text-purple-200">{productMeta.label}</span>
               </>
             )}
           </nav>
@@ -95,79 +142,105 @@ export default async function CoursesPage({
         </div>
       </div>
 
-      {/* Active product-category filter pill */}
+      {/* ── Active product-category filter pill ── */}
       {activeProductCategory && productMeta && (
         <div className="border-b border-gray-200 bg-white">
-          <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center gap-3">
-            <span className="text-xs text-gray-500">Showing:</span>
+          <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center gap-3">
+            <span className="text-xs text-gray-500">Type:</span>
             <span className={`text-xs font-bold px-3 py-1 rounded-full ${productMeta.badgeColor}`}>
               {productMeta.label}
             </span>
             <Link
-              href="/courses"
+              href={buildUrl({ category: activeCategory, exam: activeExam })}
               className="text-xs text-gray-400 hover:text-[#6D4BCB] transition-colors flex items-center gap-1"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
-              Clear filter
+              Clear
             </Link>
           </div>
         </div>
       )}
 
-      {/* Exam Category Tabs */}
-      <div className={`border-b border-gray-200 bg-white sticky top-0 z-10 shadow-sm ${activeProductCategory ? "" : ""}`}>
+      {/* ── Category tabs ── */}
+      <div className="border-b border-gray-200 bg-white sticky top-0 z-10 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 overflow-x-auto">
-          <div className="flex gap-1 py-3 min-w-max">
-            {tabs.map((tab) => {
-              const isActive = tab.id === activeCategory;
-              const hasCourses = tab.id === "ALL" || categoryIdsWithCourses.has(tab.id);
-              return (
-                <Link
-                  key={tab.id}
-                  href={tabUrl(tab.id, activeProductCategory)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors relative ${
-                    isActive
-                      ? "bg-[#6D4BCB] text-white shadow-sm"
-                      : "text-gray-600 hover:bg-purple-50 hover:text-[#6D4BCB]"
-                  }`}
-                >
-                  {tab.name}
-                  {tab.id !== "ALL" && !hasCourses && (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-gray-200" title="No courses yet" />
-                  )}
-                </Link>
-              );
-            })}
+          <div className="flex gap-1 py-2.5 min-w-max">
+            {/* All tab */}
+            <Link
+              href={buildUrl({ productCategory: activeProductCategory })}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors ${
+                !activeCategory
+                  ? "bg-[#6D4BCB] text-white shadow-sm"
+                  : "text-gray-600 hover:bg-purple-50 hover:text-[#6D4BCB]"
+              }`}
+            >
+              All
+            </Link>
+
+            {categories.map((cat) => (
+              <Link
+                key={cat.id}
+                href={buildUrl({ category: cat.id, productCategory: activeProductCategory })}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors ${
+                  cat.id === activeCategory
+                    ? "bg-[#6D4BCB] text-white shadow-sm"
+                    : "text-gray-600 hover:bg-purple-50 hover:text-[#6D4BCB]"
+                }`}
+              >
+                {cat.name}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
 
+      {/* ── Exam filter row (only when a category is selected and exams exist) ── */}
+      {activeCategory && exams.length > 0 && (
+        <div className="border-b border-gray-100 bg-gray-50">
+          <div className="max-w-5xl mx-auto px-4 overflow-x-auto">
+            <div className="flex items-center gap-2 py-2.5 min-w-max">
+              <span className="text-xs font-semibold text-gray-400 mr-1 shrink-0">Exam:</span>
+
+              {/* All exams pill */}
+              <Link
+                href={buildUrl({ category: activeCategory, productCategory: activeProductCategory })}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors border ${
+                  !activeExam
+                    ? "bg-[#2D1B69] text-white border-[#2D1B69]"
+                    : "bg-white text-gray-600 border-gray-200 hover:border-[#6D4BCB] hover:text-[#6D4BCB]"
+                }`}
+              >
+                All {activeCatObj?.name} Exams
+              </Link>
+
+              {exams.map((exam) => (
+                <Link
+                  key={exam.id}
+                  href={buildUrl({ category: activeCategory, exam: exam.id, productCategory: activeProductCategory })}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors border ${
+                    exam.id === activeExam
+                      ? "bg-[#2D1B69] text-white border-[#2D1B69]"
+                      : "bg-white text-gray-600 border-gray-200 hover:border-[#6D4BCB] hover:text-[#6D4BCB]"
+                  }`}
+                >
+                  {exam.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Main content ── */}
       <div className="max-w-5xl mx-auto px-4 py-8 flex-1 w-full">
         {courses.length === 0 ? (
-          /* ── Empty state ──────────────────────────────────────────────────── */
+          /* ── Empty state ── */
           <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-16 px-6 text-center max-w-lg mx-auto">
-            <div className="text-5xl mb-4">
-              {activeProductCategory === "FREE_DEMO" ? "🎁"
-                : activeProductCategory === "VIDEO_ONLY" ? "🎬"
-                : activeProductCategory === "FLASHCARDS_ONLY" ? "🃏"
-                : activeProductCategory === "TEST_SERIES" ? "✏️"
-                : activeProductCategory === "CURRENT_AFFAIRS" ? "📰"
-                : "📚"}
-            </div>
-            <p className="text-gray-700 font-semibold text-base mb-2">
-              {activeCategoryName && activeProductCategory
-                ? `No ${productMeta?.label ?? activeProductCategory} courses for ${activeCategoryName} yet`
-                : activeCategoryName
-                ? `No courses available for ${activeCategoryName} yet`
-                : productMeta?.label
-                ? `No ${productMeta.label} yet`
-                : "No courses available yet"}
-            </p>
-            <p className="text-gray-400 text-sm leading-relaxed mb-6">
-              {productMeta?.emptyMsg ?? "New courses are being added. Check back soon."}
-            </p>
+            <div className="text-5xl mb-4">{emptyEmoji}</div>
+            <p className="text-gray-700 font-semibold text-base mb-2">{emptyTitle}</p>
+            <p className="text-gray-400 text-sm leading-relaxed mb-6">{emptyBody}</p>
             <Link
               href="/courses"
               className="inline-flex items-center gap-2 text-sm font-semibold bg-[#6D4BCB] text-white px-5 py-2.5 rounded-xl hover:bg-[#5C3DB5] transition-colors"
@@ -176,13 +249,15 @@ export default async function CoursesPage({
             </Link>
           </div>
         ) : (
-          /* ── Course grid ──────────────────────────────────────────────────── */
+          /* ── Course grid ── */
           <>
             <p className="text-sm text-gray-400 mb-5">
               {courses.length} course{courses.length !== 1 ? "s" : ""} found
-              {activeCategoryName ? ` · ${activeCategoryName}` : ""}
-              {productMeta ? ` · ${productMeta.label}` : ""}
+              {activeCatObj   ? ` · ${activeCatObj.name}`   : ""}
+              {activeExamObj  ? ` › ${activeExamObj.name}`  : ""}
+              {productMeta    ? ` · ${productMeta.label}`   : ""}
             </p>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {courses.map((course) => {
                 const meta = PRODUCT_META[course.productCategory];
@@ -194,7 +269,7 @@ export default async function CoursesPage({
                     href={`/courses/${course.id}`}
                     className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
                   >
-                    {/* Thumbnail or gradient */}
+                    {/* Thumbnail */}
                     {course.thumbnailUrl ? (
                       <div className="h-36 overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -225,7 +300,12 @@ export default async function CoursesPage({
                             {meta.badge}
                           </span>
                         )}
-                        {course.categoryName && (
+                        {course.examName && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
+                            {course.examName}
+                          </span>
+                        )}
+                        {course.categoryName && !course.examName && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">
                             {course.categoryName}
                           </span>

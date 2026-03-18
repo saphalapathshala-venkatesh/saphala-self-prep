@@ -65,7 +65,15 @@ The curriculum is a 5-level tree: `Course → CourseSubjectSection → Chapter �
 - Dashboard: "Start Learning" section shows FREE_DEMO courses as compact cards
 
 #### Course Catalog (`/courses`)
-A database-driven server component that dynamically displays active `Course` records with category tab filters (server-side via URL search params) and content-type capability badges. Uses `web/lib/courseDb.ts` for raw SQL queries.
+A database-driven server component that dynamically displays active `Course` records. Supports three stackable URL filters (all server-side):
+
+- `?category=<id>` — Exam category tab (AP Police, APPSC, TGPSC, etc.)
+- `?productCategory=<enum>` — Product type pill filter (FREE_DEMO, TEST_SERIES, VIDEO_ONLY, etc.)
+- `?exam=<id>` — Specific exam within a category (APPSC Group 1, APPSC Group 2, etc.)
+
+**Exam filter row**: Appears automatically below the category tabs when a category is selected AND that category has `Exam` records in the DB. Each exam is shown as a pill button. Admin creates exams in the admin app under the category; they appear here immediately. `Exam` table: `id, name, slug, categoryId`. `Course.examId` links to `Exam.id`.
+
+`getActiveCourses()` and `getExamsForCategory()` in `web/lib/courseDb.ts` use raw SQL (admin-owned tables). Public API: `GET /api/public/exams?categoryId=<id>` returns exams for a given category.
 
 ### APIs
 Public APIs for daily quotes, categories, and contact forms. Authenticated APIs for TestHub operations (start, save, submit, results, review, reporting, feedback). Admin APIs for user/role management.

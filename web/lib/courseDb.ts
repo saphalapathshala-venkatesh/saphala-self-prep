@@ -15,6 +15,13 @@ export const PRODUCT_CATEGORY_LABEL: Record<string, string> = {
   PACKAGE: "Package",
 };
 
+export interface ExamItem {
+  id: string;
+  name: string;
+  slug: string;
+  categoryId: string;
+}
+
 export interface CourseListItem {
   id: string;
   name: string;
@@ -22,6 +29,8 @@ export interface CourseListItem {
   thumbnailUrl: string | null;
   categoryId: string | null;
   categoryName: string | null;
+  examId: string | null;
+  examName: string | null;
   productCategory: string;
   productCategoryLabel: string;
   featured: boolean;
@@ -70,9 +79,6 @@ export interface CourseDetail extends CourseListItem {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-// Maps a LessonItem to the correct student-facing URL.
-// HTML_PAGE → ebook reader, FLASHCARD_DECK → flashcard player,
-// PDF → PDF list, VIDEO → coming soon, EXTERNAL_LINK → external URL.
 export function itemUrl(item: LessonItemRow): string | null {
   switch (item.itemType) {
     case "HTML_PAGE":
@@ -108,6 +114,8 @@ type RawCourse = {
   thumbnailUrl: string | null;
   categoryId: string | null;
   categoryName: string | null;
+  examId: string | null;
+  examName: string | null;
   productCategory: string;
   featured: boolean;
   hasVideoCourse: boolean;
@@ -127,17 +135,34 @@ function mapCourse(r: RawCourse): CourseListItem {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
+ * Return all exams belonging to a given category.
+ * Exam is admin-owned → raw SQL.
+ */
+export async function getExamsForCategory(categoryId: string): Promise<ExamItem[]> {
+  const safeId = categoryId.replace(/'/g, "''");
+  const rows = await prisma.$queryRawUnsafe<ExamItem[]>(`
+    SELECT id, name, slug, "categoryId"
+    FROM "Exam"
+    WHERE "categoryId" = '${safeId}'
+    ORDER BY name ASC
+  `);
+  return rows;
+}
+
+/**
  * Fetch active courses with optional filters.
  * Course is admin-owned → queried via raw SQL.
  */
 export async function getActiveCourses(opts?: {
   categoryId?: string;
+  examId?: string;
   productCategory?: string;
   featured?: boolean;
   limit?: number;
 }): Promise<CourseListItem[]> {
   const conditions: string[] = [`c."isActive" = true`];
-  if (opts?.categoryId) conditions.push(`c."categoryId" = '${opts.categoryId.replace(/'/g, "''")}'`);
+  if (opts?.categoryId)      conditions.push(`c."categoryId"      = '${opts.categoryId.replace(/'/g, "''")}'`);
+  if (opts?.examId)          conditions.push(`c."examId"          = '${opts.examId.replace(/'/g, "''")}'`);
   if (opts?.productCategory) conditions.push(`c."productCategory" = '${opts.productCategory.replace(/'/g, "''")}'`);
   if (opts?.featured === true) conditions.push(`c.featured = true`);
 
@@ -152,6 +177,8 @@ export async function getActiveCourses(opts?: {
       c."thumbnailUrl",
       c."categoryId",
       cat.name AS "categoryName",
+      c."examId",
+      e.name   AS "examName",
       c."productCategory",
       c.featured,
       c."hasVideoCourse",
@@ -161,6 +188,7 @@ export async function getActiveCourses(opts?: {
       c."hasFlashcardDecks"
     FROM "Course" c
     LEFT JOIN "Category" cat ON cat.id = c."categoryId"
+    LEFT JOIN "Exam"     e   ON e.id   = c."examId"
     WHERE ${where}
     ORDER BY c.featured DESC, c."createdAt" DESC
     ${limitClause}
@@ -176,7 +204,6 @@ export async function getActiveCourses(opts?: {
 export async function getCourseWithCurriculum(courseId: string): Promise<CourseDetail | null> {
   const safeId = courseId.replace(/'/g, "''");
 
-  // 1. Fetch the course itself
   const courses = await prisma.$queryRawUnsafe<RawCourse[]>(`
     SELECT
       c.id,
@@ -185,6 +212,8 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
       c."thumbnailUrl",
       c."categoryId",
       cat.name AS "categoryName",
+      c."examId",
+      e.name   AS "examName",
       c."productCategory",
       c.featured,
       c."hasVideoCourse",
@@ -194,13 +223,13 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
       c."hasFlashcardDecks"
     FROM "Course" c
     LEFT JOIN "Category" cat ON cat.id = c."categoryId"
+    LEFT JOIN "Exam"     e   ON e.id   = c."examId"
     WHERE c.id = '${safeId}' AND c."isActive" = true
     LIMIT 1
   `);
   if (!courses.length) return null;
   const course = mapCourse(courses[0]);
 
-  // 2. Fetch sections (CourseSubjectSection joined with Subject for name)
   type RawSection = { sectionId: string; subjectName: string; label: string | null; sortOrder: number };
   const rawSections = await prisma.$queryRawUnsafe<RawSection[]>(`
     SELECT
@@ -219,7 +248,6 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
 
   const sectionIds = rawSections.map((s) => `'${s.sectionId}'`).join(",");
 
-  // 3. Fetch all chapters for these sections
   type RawChapter = { chapterId: string; sectionId: string; title: string; sortOrder: number };
   const rawChapters = await prisma.$queryRawUnsafe<RawChapter[]>(`
     SELECT id AS "chapterId", "sectionId", title, "sortOrder"
@@ -237,7 +265,6 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
 
   const chapterIds = rawChapters.map((c) => `'${c.chapterId}'`).join(",");
 
-  // 4. Fetch all published lessons for these chapters
   type RawLesson = { lessonId: string; chapterId: string; title: string; sortOrder: number };
   const rawLessons = await prisma.$queryRawUnsafe<RawLesson[]>(`
     SELECT id AS "lessonId", "chapterId", title, "sortOrder"
@@ -262,7 +289,6 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
 
   const lessonIds = rawLessons.map((l) => `'${l.lessonId}'`).join(",");
 
-  // 5. Fetch all lesson items for these lessons
   type RawItem = {
     itemId: string;
     lessonId: string;
@@ -288,7 +314,6 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
     ORDER BY "sortOrder" ASC
   `);
 
-  // 6. Assemble the tree
   const itemsByLesson = new Map<string, LessonItemRow[]>();
   rawItems.forEach((item) => {
     if (!itemsByLesson.has(item.lessonId)) itemsByLesson.set(item.lessonId, []);
