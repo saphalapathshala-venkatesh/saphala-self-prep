@@ -40,6 +40,8 @@ Allows users to take simulated exams with language selection, question palette, 
 #### Student Dashboard
 Located at `/dashboard`, it provides an overview of student progress, including metrics, recent attempts, and a profile summary. Dedicated pages detail past exam performance and XP earnings.
 
+**"Your Daily Practice" card**: Appears on the dashboard for every logged-in student. Built in `web/lib/practiceDb.ts` via `getDailyPractice(userId)`. Shows 1–3 personalised suggestions (tests, flashcards, ebooks — never videos or PDFs). Priority logic: (1) unattempted content first ("Not started yet"), (2) low-scoring test attempts < 60% ("You scored X% — improve it"), (3) seen-but-worth-revisiting fallback. Guaranteed to always return at least 1 item. Each row shows a type badge (colour-coded), reason pill (blue=new, amber=retry, grey=revise), title, and a direct CTA button ("Start Test" / "Study Cards" / "Read Now").
+
 #### Homepage
 A dynamic layout with sections for quotes, a hero slider, database-driven exam categories, featured courses, product types, and a contact form. Most content is accessible to guests, with learning materials requiring login.
 

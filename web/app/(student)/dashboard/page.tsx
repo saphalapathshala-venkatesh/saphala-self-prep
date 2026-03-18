@@ -4,6 +4,7 @@ import Link from "next/link";
 import LoginSuccessToast from "@/components/dashboard/LoginSuccessToast";
 import { getDashboardData } from "@/lib/dashboardData";
 import { getActiveCourses } from "@/lib/courseDb";
+import { getDailyPractice, type PracticeSuggestion } from "@/lib/practiceDb";
 import { PRODUCTS, ROUTES } from "@/config/terminology";
 
 export const dynamic = "force-dynamic";
@@ -48,9 +49,10 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [data, freeCourses] = await Promise.all([
+  const [data, freeCourses, practiceSuggestions] = await Promise.all([
     getDashboardData(user.id),
     getActiveCourses({ productCategory: "FREE_DEMO", limit: 4 }),
+    getDailyPractice(user.id),
   ]);
 
   const salutation =
@@ -217,6 +219,11 @@ export default async function DashboardPage() {
               Resume
             </Link>
           </div>
+        )}
+
+        {/* ── Your Daily Practice ─────────────────────────────────────── */}
+        {practiceSuggestions.length > 0 && (
+          <DailyPracticeCard suggestions={practiceSuggestions} />
         )}
 
         {/* Start Learning — free courses */}
@@ -619,6 +626,115 @@ export default async function DashboardPage() {
         )}
       </div>
     </>
+  );
+}
+
+// ── Practice card config ──────────────────────────────────────────────────────
+
+const PRACTICE_CONFIG = {
+  test: {
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+      </svg>
+    ),
+    iconBg: "bg-purple-100 text-[#6D4BCB]",
+    badge: "Test",
+    badgeColor: "bg-purple-100 text-purple-700",
+    ctaColor: "bg-[#6D4BCB] hover:bg-[#5C3DB5] text-white",
+  },
+  flashcard: {
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
+      </svg>
+    ),
+    iconBg: "bg-yellow-100 text-yellow-600",
+    badge: "Flashcards",
+    badgeColor: "bg-yellow-100 text-yellow-700",
+    ctaColor: "bg-yellow-500 hover:bg-yellow-600 text-white",
+  },
+  ebook: {
+    icon: (
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+      </svg>
+    ),
+    iconBg: "bg-green-100 text-green-600",
+    badge: "E-Book",
+    badgeColor: "bg-green-100 text-green-700",
+    ctaColor: "bg-emerald-600 hover:bg-emerald-700 text-white",
+  },
+} as const;
+
+const REASON_PILL: Record<string, string> = {
+  new:    "bg-blue-50 text-blue-700",
+  retry:  "bg-amber-50 text-amber-700",
+  revise: "bg-gray-100 text-gray-600",
+};
+
+function DailyPracticeCard({ suggestions }: { suggestions: PracticeSuggestion[] }) {
+  return (
+    <section>
+      {/* Card header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center flex-shrink-0">
+            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-[#2D1B69] leading-tight">Your Daily Practice</h2>
+            <p className="text-[11px] text-gray-400">Picked to help you improve today</p>
+          </div>
+        </div>
+        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-purple-100 text-purple-700 uppercase tracking-wide">
+          {suggestions.length} suggestion{suggestions.length !== 1 ? "s" : ""}
+        </span>
+      </div>
+
+      {/* Suggestion rows */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50">
+        {suggestions.map((s, idx) => {
+          const cfg = PRACTICE_CONFIG[s.type];
+          return (
+            <div key={`${s.type}-${s.id}-${idx}`} className="flex items-center gap-4 px-5 py-4">
+              {/* Type icon */}
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${cfg.iconBg}`}>
+                {cfg.icon}
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cfg.badgeColor}`}>
+                    {cfg.badge}
+                  </span>
+                  <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${REASON_PILL[s.reasonKind]}`}>
+                    {s.reason}
+                  </span>
+                  {s.meta && (
+                    <span className="text-[10px] text-gray-400">{s.meta}</span>
+                  )}
+                </div>
+                <p className="text-sm font-semibold text-[#2D1B69] truncate leading-snug">
+                  {s.title}
+                </p>
+              </div>
+
+              {/* CTA */}
+              <Link
+                href={s.href}
+                className={`flex-shrink-0 text-xs font-bold px-4 py-2 rounded-xl transition-colors whitespace-nowrap ${cfg.ctaColor}`}
+              >
+                {s.cta}
+              </Link>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
