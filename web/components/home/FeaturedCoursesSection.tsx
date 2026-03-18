@@ -1,33 +1,84 @@
 import Link from "next/link";
 import { prisma } from "@/lib/db";
 
+const PRODUCT_CATEGORY_LABEL: Record<string, string> = {
+  FREE_DEMO: "Free Demo",
+  STANDARD: "Standard",
+  PACKAGE: "Package",
+  COMPLETE_PREP_PACK: "Complete Prep",
+  VIDEO_ONLY: "Video Course",
+  SELF_PREP: "Self Prep",
+  PDF_ONLY: "PDF Course",
+  TEST_SERIES: "Test Series",
+  FLASHCARDS_ONLY: "Flashcards",
+  CURRENT_AFFAIRS: "Current Affairs",
+};
+
 function formatPrice(paise: number): string {
   return `₹${(paise / 100).toLocaleString("en-IN")}`;
 }
 
-export default async function FeaturedCoursesSection() {
-  // Wrapped in try/catch so a DB failure at runtime returns an empty state
-  // instead of crashing the page render.  The same guard also protects the
-  // build: with `dynamic = "force-dynamic"` on app/page.tsx this component is
-  // never executed at build time, but the try/catch is kept as an extra layer
-  // of defence.
-  let rawSeries: {
-    id: string;
-    title: string;
-    description: string | null;
-    pricePaise: number;
-    discountPaise: number;
-    categoryId: string | null;
-  }[] = [];
+type UnifiedCard = {
+  id: string;
+  title: string;
+  description: string | null;
+  categoryName: string | null;
+  isFree: boolean;
+  price: number | null;
+  originalPrice: number | null;
+  badge: string | null;
+  href: string;
+  cta: string;
+};
 
-  let catMap = new Map<string, string>();
+export default async function FeaturedCoursesSection() {
+  const cards: UnifiedCard[] = [];
 
   try {
-    const [series, categories] = await Promise.all([
-      prisma.testSeries.findMany({
+    const categories = await prisma.category.findMany({
+      select: { id: true, name: true },
+    });
+    const catMap = new Map(categories.map((c) => [c.id, c.name]));
+
+    // 1. Featured Courses from the Course table (admin-owned — raw SQL read-only)
+    type RawCourse = {
+      id: string;
+      name: string;
+      description: string | null;
+      productCategory: string;
+      categoryId: string | null;
+    };
+    const featuredCourses = await prisma.$queryRaw<RawCourse[]>`
+      SELECT id, name, description, "productCategory", "categoryId"
+      FROM "Course"
+      WHERE featured = true AND "isActive" = true
+      ORDER BY "createdAt" DESC
+      LIMIT 4
+    `;
+
+    for (const c of featuredCourses) {
+      const isFree = c.productCategory === "FREE_DEMO";
+      cards.push({
+        id: `course-${c.id}`,
+        title: c.name,
+        description: c.description,
+        categoryName: c.categoryId ? (catMap.get(c.categoryId) ?? null) : null,
+        isFree,
+        price: null,
+        originalPrice: null,
+        badge: PRODUCT_CATEGORY_LABEL[c.productCategory] ?? c.productCategory,
+        href: "/courses",
+        cta: isFree ? "Start Free" : "View Course",
+      });
+    }
+
+    // 2. Fill remaining slots (up to 4 total) with published TestSeries
+    const remaining = 4 - cards.length;
+    if (remaining > 0) {
+      const series = await prisma.testSeries.findMany({
         where: { isPublished: true },
         orderBy: { createdAt: "desc" },
-        take: 4,
+        take: remaining,
         select: {
           id: true,
           title: true,
@@ -36,16 +87,26 @@ export default async function FeaturedCoursesSection() {
           discountPaise: true,
           categoryId: true,
         },
-      }),
-      prisma.category.findMany({ select: { id: true, name: true } }),
-    ]);
+      });
 
-    rawSeries = series;
-    catMap = new Map(categories.map((c) => [c.id, c.name]));
+      for (const s of series) {
+        const isFree = s.pricePaise === 0;
+        cards.push({
+          id: `series-${s.id}`,
+          title: s.title,
+          description: s.description,
+          categoryName: s.categoryId ? (catMap.get(s.categoryId) ?? null) : null,
+          isFree,
+          price: s.pricePaise,
+          originalPrice: s.discountPaise > 0 ? s.pricePaise + s.discountPaise : null,
+          badge: null,
+          href: "/testhub",
+          cta: isFree ? "Start Free" : "View Tests",
+        });
+      }
+    }
   } catch (err) {
-    // Log clearly so the failing query is visible in Vercel / server logs.
-    console.error("[FeaturedCoursesSection] Prisma query failed — rendering empty state.", err);
-    // rawSeries stays [] → the empty-state UI is rendered below.
+    console.error("[FeaturedCoursesSection] Query failed — rendering empty state.", err);
   }
 
   return (
@@ -61,14 +122,14 @@ export default async function FeaturedCoursesSection() {
             </p>
           </div>
           <Link
-            href="/testhub"
+            href="/courses"
             className="shrink-0 ml-4 bg-white border-2 border-[#8050C0] text-[#8050C0] hover:bg-[#F6F2FF] hover:text-[#6D3DB0] text-sm font-semibold px-4 py-2 rounded-xl transition-colors duration-150"
           >
-            Browse All Tests
+            Browse All Courses
           </Link>
         </div>
 
-        {rawSeries.length === 0 ? (
+        {cards.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 py-14 text-center">
             <p className="text-gray-400 text-sm">
               New courses being added soon. Check back shortly.
@@ -76,60 +137,61 @@ export default async function FeaturedCoursesSection() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {rawSeries.map((s) => {
-              const catName = s.categoryId
-                ? (catMap.get(s.categoryId) ?? null)
-                : null;
-              const price = s.pricePaise;
-              const originalPrice =
-                s.discountPaise > 0 ? price + s.discountPaise : undefined;
-              const isFree = price === 0;
+            {cards.map((card) => (
+              <div
+                key={card.id}
+                className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col"
+              >
+                <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] h-32 flex flex-col items-center justify-center px-5 gap-2">
+                  {card.badge && (
+                    <span className="text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white px-2.5 py-0.5 rounded-full">
+                      {card.badge}
+                    </span>
+                  )}
+                  <h3 className="text-white font-bold text-sm text-center leading-snug line-clamp-3">
+                    {card.title}
+                  </h3>
+                </div>
 
-              return (
-                <div
-                  key={s.id}
-                  className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col"
-                >
-                  <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] h-32 flex items-center justify-center px-5">
-                    <h3 className="text-white font-bold text-sm text-center leading-snug line-clamp-3">
-                      {s.title}
-                    </h3>
-                  </div>
+                <div className="p-4 flex flex-col flex-1">
+                  {card.categoryName && (
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
+                      {card.categoryName}
+                    </span>
+                  )}
+                  {card.description && (
+                    <p className="text-xs text-gray-500 mb-3 line-clamp-2 flex-1">
+                      {card.description}
+                    </p>
+                  )}
 
-                  <div className="p-4 flex flex-col flex-1">
-                    {catName && (
-                      <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
-                        {catName}
-                      </span>
-                    )}
-                    {s.description && (
-                      <p className="text-xs text-gray-500 mb-3 line-clamp-2 flex-1">
-                        {s.description}
-                      </p>
-                    )}
-
-                    <div className="flex items-center justify-between mt-auto">
-                      <div>
-                        <span className="text-lg font-bold text-[#2D1B69]">
-                          {isFree ? "Free" : formatPrice(price)}
-                        </span>
-                        {originalPrice !== undefined && (
-                          <span className="text-xs text-gray-400 line-through ml-1.5">
-                            {formatPrice(originalPrice)}
+                  <div className="flex items-center justify-between mt-auto">
+                    <div>
+                      {card.isFree ? (
+                        <span className="text-lg font-bold text-[#2D1B69]">Free</span>
+                      ) : card.price !== null ? (
+                        <>
+                          <span className="text-lg font-bold text-[#2D1B69]">
+                            {formatPrice(card.price)}
                           </span>
-                        )}
-                      </div>
-                      <Link
-                        href="/testhub"
-                        className="text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors"
-                      >
-                        {isFree ? "Start Free" : "View Tests"}
-                      </Link>
+                          {card.originalPrice !== null && (
+                            <span className="text-xs text-gray-400 line-through ml-1.5">
+                              {formatPrice(card.originalPrice)}
+                            </span>
+                          )}
+                        </>
+                      ) : null}
                     </div>
+                    <Link
+                      href={card.href}
+                      className="text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors"
+                    >
+                      {card.cta}
+                    </Link>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         )}
 
