@@ -1,0 +1,63 @@
+Let me search the codebase for any report or suggestion functionality related to test submission:
+
+Let me check the Attempt model and search specifically for any result/suggestion pages in the student-facing areas:
+
+I now have a complete picture. Let me give you a direct, honest answer.
+
+Test Reports & Suggestions — Current State
+Short answer: Neither feature exists yet. The data infrastructure is partially in place, but no student-facing report page and no suggestion/feedback system has been built. Here is exactly what is and isn't there:
+
+What Currently Exists
+1. Score Storage (backend only)
+
+When a student submits a test, the system computes and saves these fields on the Attempt record:
+
+Field	What it stores
+scorePct	Percentage score (0–100)
+correctCount	Number of correct answers
+wrongCount	Number of wrong answers
+unansweredCount	Questions left unattempted
+totalTimeUsedMs	Total time taken in milliseconds
+submittedAt	Exact time of submission
+attemptNumber	Which attempt (1st, 2nd, 3rd...)
+Per-question detail is also saved in AttemptAnswer:
+
+Field	What it stores
+selectedOptionIds	What the student selected
+isCorrect	Whether it was correct
+isMarkedForReview	Was it flagged for review during the test
+timeSpentMs	How long the student spent on this question
+2. Admin Analytics Page (admin-only)
+
+There is a reports section in the admin console under /admin/analytics with four report types — but these are admin-only dashboards, not student-facing:
+
+Daily attempt counts and unique users
+XP points earned per day
+Revenue per day (by payment stream)
+Category-wise average scores
+3. rrGenerated flag
+
+The Attempt model has a rrGenerated boolean (Report Ready Generated). It is stored but nothing generates it or reads it yet — it was added as a placeholder for a future report generation pipeline.
+
+What Does NOT Exist
+Feature	Status
+Student-facing test result page	❌ Not built
+Score summary screen after submission	❌ Not built
+Question-by-question answer review	❌ Not built
+Subject/topic-wise performance breakdown	❌ Not built
+Rank / Percentile among all test-takers	❌ Not built
+Suggestion / Question flagging by students	❌ Not built — no schema model
+"Report a question" feature	❌ Not built — no schema model
+Feedback form after test	❌ Not built — no schema model
+Comparative performance (vs. topper, vs. average)	❌ Not built
+What Needs to Be Built
+For the Test Report page (student-facing), all the raw data already exists in the database — it just needs an API and UI:
+
+GET /api/student/attempts/[id]/result — returns the submitted attempt with score summary + per-question breakdown (question text, correct option, student's selected option, time spent)
+Student result screen — score card, correct/wrong/unanswered counts, subject-wise performance chart, and question review list
+For the Suggestion / Question Report feature, new schema models are needed:
+
+QuestionReport model — student reports an issue (wrong answer key, typo, image not loading) on a specific question in an attempt
+Admin review screen — admin sees flagged questions, can mark as resolved or escalate to fix the question in the Question Bank
+Would you like me to build either or both of these? I can start with the test result API and student result page, since all the data is already there.
+
