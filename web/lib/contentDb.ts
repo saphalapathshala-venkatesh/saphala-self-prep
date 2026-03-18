@@ -23,6 +23,72 @@ function subjectColorFallback(subjectName: string | null | undefined): string | 
   return SUBJECT_COLOR_MAP[subjectName.toLowerCase()] ?? null;
 }
 
+// ── EBook block-to-HTML converter ─────────────────────────────────────────────
+// Converts contentBlocks JSON (admin block editor format) to HTML for rendering.
+// Block types: paragraph, box, table. Children inside box are rendered recursively.
+
+type Block = {
+  id: string;
+  type: string;
+  props: Record<string, unknown>;
+};
+
+function renderBlock(block: Block): string {
+  switch (block.type) {
+    case "paragraph": {
+      const html = (block.props.html as string) ?? "";
+      const align = (block.props.align as string) ?? "left";
+      if (!html) return "";
+      if (align && align !== "left") {
+        return `<div style="text-align:${align}">${html}</div>`;
+      }
+      return html;
+    }
+    case "box": {
+      const title = (block.props.title as string) ?? "";
+      const accent = (block.props.accent as string) ?? "#e5e7eb";
+      const bodyBg = (block.props.bodyBg as string) ?? "#f9fafb";
+      const headerBg = (block.props.headerBg as string) ?? accent;
+      const children = (block.props.children as Block[]) ?? [];
+      const inner = children.map(renderBlock).join("\n");
+      return `<div style="border-radius:10px;overflow:hidden;margin:1em 0;border:1.5px solid ${accent}">` +
+        `<div style="background:${headerBg};padding:7px 14px;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#1e1b4b">${title}</div>` +
+        `<div style="background:${bodyBg};padding:12px 16px">${inner}</div>` +
+        `</div>`;
+    }
+    case "table": {
+      const headers = (block.props.headers as string[]) ?? [];
+      const rows = (block.props.rows as string[][]) ?? [];
+      const caption = (block.props.caption as string) ?? "";
+      const width = (block.props.width as string) ?? "full";
+      const tableStyle = `width:${width === "full" ? "100%" : "auto"};border-collapse:collapse;margin:1em 0;font-size:0.85rem`;
+      const cellStyle = `border:1px solid #e5e7eb;padding:7px 10px;vertical-align:top`;
+      const thStyle = `${cellStyle};background:#f3f4f6;font-weight:700`;
+      let html = `<div style="overflow-x:auto"><table style="${tableStyle}">`;
+      if (caption) html += `<caption style="caption-side:bottom;font-size:0.75rem;color:#6b7280;padding-top:4px">${caption}</caption>`;
+      if (headers.length) {
+        html += `<thead><tr>${headers.map((h) => `<th style="${thStyle}">${h}</th>`).join("")}</tr></thead>`;
+      }
+      if (rows.length) {
+        html += `<tbody>${rows.map((row) =>
+          `<tr>${row.map((cell) => `<td style="${cellStyle}">${cell}</td>`).join("")}</tr>`
+        ).join("")}</tbody>`;
+      }
+      html += `</table></div>`;
+      return html;
+    }
+    default:
+      return "";
+  }
+}
+
+function blocksToHtml(contentBlocks: unknown): string {
+  if (!contentBlocks || typeof contentBlocks !== "object") return "";
+  const doc = contentBlocks as { v?: number; blocks?: Block[] };
+  if (!Array.isArray(doc.blocks)) return "";
+  return doc.blocks.map(renderBlock).join("\n");
+}
+
 // ── Shared taxonomy helpers ───────────────────────────────────────────────────
 
 async function buildTaxonomyMaps(
@@ -176,6 +242,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
           id: true,
           title: true,
           contentHtml: true,
+          contentBlocks: true,
           orderIndex: true,
         },
       },
@@ -198,18 +265,23 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     subjectColor = colorDeck?.subjectColor ?? subjectColorFallback(subjectName);
   }
 
+  // Helper: resolve the display HTML for an EBookPage.
+  // Priority: contentHtml (if non-empty) → blocksToHtml(contentBlocks) → ""
+  function resolvePageHtml(ep: { contentHtml: string; contentBlocks: unknown }): string {
+    if (ep.contentHtml && ep.contentHtml.trim()) return ep.contentHtml;
+    return blocksToHtml(ep.contentBlocks);
+  }
+
   // Build the body from EBookPage chapters if they exist;
   // fall back to the legacy ContentPage.body for older ebooks.
   let resolvedBody: string;
   if (page.ebookPages.length > 0) {
-    // Concatenate chapters. Each chapter gets a heading (if it has a title)
-    // followed by its HTML content.
     resolvedBody = page.ebookPages
       .map((chapter) => {
         const heading = chapter.title
           ? `<h2 class="ebook-chapter-heading">${chapter.title}</h2>`
           : "";
-        return `${heading}${chapter.contentHtml}`;
+        return `${heading}${resolvePageHtml(chapter)}`;
       })
       .join("\n");
   } else {
@@ -224,7 +296,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
       ? page.ebookPages.map((ep) => ({
           id: ep.id,
           title: ep.title ?? null,
-          contentHtml: ep.contentHtml,
+          contentHtml: resolvePageHtml(ep),
         }))
       : [{ id: page.id, title: null, contentHtml: page.body }];
 
