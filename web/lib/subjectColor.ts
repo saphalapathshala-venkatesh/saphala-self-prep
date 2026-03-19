@@ -41,8 +41,8 @@ export function colorTokens(hex: string | null | undefined): {
 } {
   const color = hex ?? BRAND_PURPLE;
   return {
-    bg:     color + "1A", // 10% opacity  (#RRGGBBAA — broadly supported)
+    bg:     color + "26", // 15% opacity  (#RRGGBBAA — broadly supported)
     icon:   color,
-    border: color + "40", // 25% opacity
+    border: color + "4D", // 30% opacity
   };
 }
