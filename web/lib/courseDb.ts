@@ -67,10 +67,35 @@ export interface ChapterRow {
 
 export interface SectionRow {
   sectionId: string;
+  subjectId: string | null;
   subjectName: string;
   label: string | null;
   sortOrder: number;
   chapters: ChapterRow[];
+}
+
+const SUBJECT_PALETTE: Array<{ bg: string; icon: string; border: string }> = [
+  { bg: "#EDE9FE", icon: "#6D4BCB", border: "#C4B5FD" },
+  { bg: "#DBEAFE", icon: "#2563EB", border: "#93C5FD" },
+  { bg: "#D1FAE5", icon: "#059669", border: "#6EE7B7" },
+  { bg: "#FEF3C7", icon: "#D97706", border: "#FCD34D" },
+  { bg: "#FCE7F3", icon: "#DB2777", border: "#F9A8D4" },
+  { bg: "#FFEDD5", icon: "#EA580C", border: "#FED7AA" },
+  { bg: "#E0F2FE", icon: "#0284C7", border: "#7DD3FC" },
+  { bg: "#F0FDF4", icon: "#16A34A", border: "#86EFAC" },
+  { bg: "#FFF7ED", icon: "#C2410C", border: "#FDBA74" },
+  { bg: "#F5F3FF", icon: "#7C3AED", border: "#DDD6FE" },
+  { bg: "#FEF9C3", icon: "#CA8A04", border: "#FDE047" },
+  { bg: "#ECFDF5", icon: "#0F766E", border: "#99F6E4" },
+];
+
+export function subjectColor(id: string | null): { bg: string; icon: string; border: string } {
+  if (!id) return SUBJECT_PALETTE[0];
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  }
+  return SUBJECT_PALETTE[hash % SUBJECT_PALETTE.length];
 }
 
 export interface CourseDetail extends CourseListItem {
@@ -230,10 +255,11 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
   if (!courses.length) return null;
   const course = mapCourse(courses[0]);
 
-  type RawSection = { sectionId: string; subjectName: string; label: string | null; sortOrder: number };
+  type RawSection = { sectionId: string; subjectId: string | null; subjectName: string; label: string | null; sortOrder: number };
   const rawSections = await prisma.$queryRawUnsafe<RawSection[]>(`
     SELECT
       css.id AS "sectionId",
+      css."subjectId",
       COALESCE(css.label, s.name, 'Section') AS "subjectName",
       css.label,
       css."sortOrder"

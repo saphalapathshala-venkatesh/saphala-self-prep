@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { SectionRow, LessonItemRow } from "@/lib/courseDb";
-import { itemUrl, itemIcon } from "@/lib/courseDb";
+import { itemUrl, itemIcon, subjectColor } from "@/lib/courseDb";
 
 function isLocked(item: LessonItemRow): boolean {
   return !!item.unlockAt && new Date(item.unlockAt) > new Date();
@@ -151,14 +151,16 @@ export function CurriculumAccordion({ curriculum }: { curriculum: SectionRow[] }
           0
         );
 
+        const color = subjectColor(section.subjectId);
         return (
-          <div key={section.sectionId} className="rounded-2xl border border-gray-200 overflow-hidden">
+          <div key={section.sectionId} className="rounded-2xl border overflow-hidden" style={{ borderColor: color.border }}>
             {/* Section header */}
             <button
               onClick={() => toggleSection(section.sectionId)}
-              className="w-full flex items-center gap-3 px-5 py-4 bg-gradient-to-r from-[#2D1B69]/5 to-[#6D4BCB]/5 hover:from-[#2D1B69]/10 hover:to-[#6D4BCB]/10 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-5 py-4 transition-colors text-left"
+              style={{ backgroundColor: color.bg }}
             >
-              <div className="w-8 h-8 rounded-full bg-[#6D4BCB]/10 flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color.icon}22` }}>
                 <span className="text-sm">📚</span>
               </div>
               <div className="flex-1 min-w-0">
@@ -168,7 +170,8 @@ export function CurriculumAccordion({ curriculum }: { curriculum: SectionRow[] }
                 </p>
               </div>
               <svg
-                className={`w-4 h-4 text-[#6D4BCB] flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                style={{ color: color.icon }}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
