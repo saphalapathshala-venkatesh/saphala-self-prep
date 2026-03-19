@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, type FormEvent, type ChangeEvent } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 interface FormErrors {
@@ -24,7 +24,6 @@ function getOrCreateDeviceId(): string {
 }
 
 export default function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams?.get("from") || "/dashboard";
 
@@ -105,7 +104,7 @@ export default function LoginForm() {
     dest.searchParams.set("login", "success");
 
     setTimeout(() => {
-      router.replace(dest.pathname + dest.search);
+      window.location.href = dest.pathname + dest.search;
     }, 900);
   }
 
