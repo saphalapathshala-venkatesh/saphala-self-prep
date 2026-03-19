@@ -81,6 +81,12 @@ function Icon({ name, className }: { name: string; className?: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
         </svg>
       );
+    case "courses":
+      return (
+        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -89,13 +95,14 @@ function Icon({ name, className }: { name: string; className?: string }) {
 // ── Nav config ───────────────────────────────────────────────────────────────
 
 const PRIMARY_NAV = [
-  { key: "dashboard", label: "Dashboard", href: "/dashboard", icon: "home" },
-  { key: "testhub", label: "TestHub", href: "/testhub", icon: "clipboard" },
-  { key: "attempts", label: "My Attempts", href: "/dashboard/attempts", icon: "history" },
-  { key: "ebooks", label: "Ebooks", href: "/learn/lessons", icon: "brain" },
-  { key: "flashcards", label: "Flashcards", href: "/learn/flashcards", icon: "cards" },
-  { key: "pdfs", label: "PDFs", href: "/learn/pdfs", icon: "book" },
-  { key: "profile", label: "Profile", href: "/dashboard/profile", icon: "user" },
+  { key: "dashboard",  label: "Dashboard",   href: "/dashboard",          icon: "home"      },
+  { key: "courses",    label: "Courses",      href: "/dashboard/courses",  icon: "courses"   },
+  { key: "testhub",    label: "TestHub",      href: "/testhub",            icon: "clipboard" },
+  { key: "attempts",   label: "My Attempts",  href: "/dashboard/attempts", icon: "history"   },
+  { key: "ebooks",     label: "Ebooks",       href: "/learn/lessons",      icon: "brain"     },
+  { key: "flashcards", label: "Flashcards",   href: "/learn/flashcards",   icon: "cards"     },
+  { key: "pdfs",       label: "PDFs",         href: "/learn/pdfs",         icon: "book"      },
+  { key: "profile",    label: "Profile",      href: "/dashboard/profile",  icon: "user"      },
 ] as const;
 
 const UPCOMING_NAV = [
