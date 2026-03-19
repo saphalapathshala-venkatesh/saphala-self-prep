@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { subjectColorFromName } from "@/lib/subjectColor";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -69,33 +70,10 @@ export interface SectionRow {
   sectionId: string;
   subjectId: string | null;
   subjectName: string;
+  subjectColor: string | null;
   label: string | null;
   sortOrder: number;
   chapters: ChapterRow[];
-}
-
-const SUBJECT_PALETTE: Array<{ bg: string; icon: string; border: string }> = [
-  { bg: "#EDE9FE", icon: "#6D4BCB", border: "#C4B5FD" },
-  { bg: "#DBEAFE", icon: "#2563EB", border: "#93C5FD" },
-  { bg: "#D1FAE5", icon: "#059669", border: "#6EE7B7" },
-  { bg: "#FEF3C7", icon: "#D97706", border: "#FCD34D" },
-  { bg: "#FCE7F3", icon: "#DB2777", border: "#F9A8D4" },
-  { bg: "#FFEDD5", icon: "#EA580C", border: "#FED7AA" },
-  { bg: "#E0F2FE", icon: "#0284C7", border: "#7DD3FC" },
-  { bg: "#F0FDF4", icon: "#16A34A", border: "#86EFAC" },
-  { bg: "#FFF7ED", icon: "#C2410C", border: "#FDBA74" },
-  { bg: "#F5F3FF", icon: "#7C3AED", border: "#DDD6FE" },
-  { bg: "#FEF9C3", icon: "#CA8A04", border: "#FDE047" },
-  { bg: "#ECFDF5", icon: "#0F766E", border: "#99F6E4" },
-];
-
-export function subjectColor(id: string | null): { bg: string; icon: string; border: string } {
-  if (!id) return SUBJECT_PALETTE[0];
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  return SUBJECT_PALETTE[hash % SUBJECT_PALETTE.length];
 }
 
 export interface CourseDetail extends CourseListItem {
@@ -272,6 +250,25 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
     return { ...course, curriculum: [] };
   }
 
+  // ── Resolve subject colors (same priority as Flashcards / Ebooks) ────────
+  // Priority: FlashcardDeck.subjectColor (admin-set) → SUBJECT_COLOR_MAP → null
+  const uniqueSubjectIds = [...new Set(
+    rawSections.map((s) => s.subjectId).filter((id): id is string => !!id)
+  )];
+  const colorDecks = uniqueSubjectIds.length
+    ? await prisma.flashcardDeck.findMany({
+        where: { subjectId: { in: uniqueSubjectIds }, NOT: { subjectColor: null } },
+        select: { subjectId: true, subjectColor: true },
+        distinct: ["subjectId"],
+      })
+    : [];
+  const deckColorMap = new Map(colorDecks.map((d) => [d.subjectId!, d.subjectColor!]));
+  const resolveColor = (s: { subjectId: string | null; subjectName: string }): string | null =>
+    (s.subjectId ? deckColorMap.get(s.subjectId) : null)
+    ?? subjectColorFromName(s.subjectName)
+    ?? null;
+  // ─────────────────────────────────────────────────────────────────────────
+
   const sectionIds = rawSections.map((s) => `'${s.sectionId}'`).join(",");
 
   type RawChapter = { chapterId: string; sectionId: string; title: string; sortOrder: number };
@@ -285,7 +282,7 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
   if (!rawChapters.length) {
     return {
       ...course,
-      curriculum: rawSections.map((s) => ({ ...s, chapters: [] })),
+      curriculum: rawSections.map((s) => ({ ...s, subjectColor: resolveColor(s), chapters: [] })),
     };
   }
 
@@ -306,6 +303,7 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
       ...course,
       curriculum: rawSections.map((s) => ({
         ...s,
+        subjectColor: resolveColor(s),
         chapters: rawChapters
           .filter((c) => c.sectionId === s.sectionId)
           .map((c) => chapterMap.get(c.chapterId)!),
@@ -378,6 +376,7 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
 
   const curriculum: SectionRow[] = rawSections.map((s) => ({
     ...s,
+    subjectColor: resolveColor(s),
     chapters: chaptersBySection.get(s.sectionId) ?? [],
   }));
 

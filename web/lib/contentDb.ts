@@ -1,26 +1,8 @@
 import { prisma } from "@/lib/db";
-
-// ── Subject color fallback map ────────────────────────────────────────────────
-// Used when a subject has no FlashcardDeck with subjectColor set yet.
-// Keys are subject names (case-insensitive match).
-// Priority: FlashcardDeck.subjectColor > this map > brand purple (in EbookPageShell).
-// Add entries here whenever a new subject needs a fixed color before decks are created.
-const SUBJECT_COLOR_MAP: Record<string, string> = {
-  economy: "#2563EB",
-  economics: "#2563EB",
-  geography: "#2E8B57",
-  history: "#B45309",
-  polity: "#7C3AED",
-  "indian polity": "#7C3AED",
-  science: "#0891B2",
-  "general science": "#0891B2",
-  mathematics: "#DC2626",
-  environment: "#16A34A",
-};
+import { subjectColorFromName } from "@/lib/subjectColor";
 
 function subjectColorFallback(subjectName: string | null | undefined): string | null {
-  if (!subjectName) return null;
-  return SUBJECT_COLOR_MAP[subjectName.toLowerCase()] ?? null;
+  return subjectColorFromName(subjectName);
 }
 
 // ── EBook block-to-HTML converter ─────────────────────────────────────────────

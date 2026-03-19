@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { SectionRow, LessonItemRow } from "@/lib/courseDb";
-import { itemUrl, itemIcon, subjectColor } from "@/lib/courseDb";
+import { itemUrl, itemIcon } from "@/lib/courseDb";
+import { colorTokens } from "@/lib/subjectColor";
 
 function isLocked(item: LessonItemRow): boolean {
   return !!item.unlockAt && new Date(item.unlockAt) > new Date();
@@ -151,7 +152,7 @@ export function CurriculumAccordion({ curriculum }: { curriculum: SectionRow[] }
           0
         );
 
-        const color = subjectColor(section.subjectId);
+        const color = colorTokens(section.subjectColor);
         return (
           <div key={section.sectionId} className="rounded-2xl border overflow-hidden" style={{ borderColor: color.border }}>
             {/* Section header */}
