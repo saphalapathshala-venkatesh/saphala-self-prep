@@ -3,39 +3,92 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { SectionRow, LessonItemRow } from "@/lib/courseDb";
-import { itemUrl, itemIcon } from "@/lib/courseDb";
+import { itemUrl } from "@/lib/courseDb";
 import { colorTokens } from "@/lib/subjectColor";
 
 function isLocked(item: LessonItemRow): boolean {
   return !!item.unlockAt && new Date(item.unlockAt) > new Date();
 }
 
+// ── Product-type badge with icon ──────────────────────────────────────────────
+
+function TypeIcon({ type }: { type: string }) {
+  const cls = "w-3 h-3 flex-shrink-0";
+  switch (type) {
+    case "HTML_PAGE":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+      );
+    case "PDF":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
+      );
+    case "FLASHCARD_DECK":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      );
+    case "VIDEO":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
+    case "EXTERNAL_LINK":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+const TYPE_META: Record<string, { label: string; pill: string }> = {
+  HTML_PAGE:      { label: "E-Book",      pill: "bg-purple-50 text-purple-700 ring-purple-200"  },
+  PDF:            { label: "PDF",          pill: "bg-red-50 text-red-700 ring-red-200"           },
+  FLASHCARD_DECK: { label: "Flashcards",   pill: "bg-yellow-50 text-yellow-700 ring-yellow-200"  },
+  VIDEO:          { label: "Video",        pill: "bg-blue-50 text-blue-700 ring-blue-200"        },
+  EXTERNAL_LINK:  { label: "Link",         pill: "bg-gray-50 text-gray-600 ring-gray-200"        },
+};
+
 function ItemTypeLabel({ type }: { type: string }) {
-  const labels: Record<string, string> = {
-    HTML_PAGE: "E-Book",
-    PDF: "PDF",
-    FLASHCARD_DECK: "Flashcards",
-    VIDEO: "Video",
-    EXTERNAL_LINK: "Link",
-  };
-  const colors: Record<string, string> = {
-    HTML_PAGE: "bg-purple-50 text-purple-700",
-    PDF: "bg-red-50 text-red-700",
-    FLASHCARD_DECK: "bg-yellow-50 text-yellow-700",
-    VIDEO: "bg-blue-50 text-blue-700",
-    EXTERNAL_LINK: "bg-gray-50 text-gray-600",
-  };
+  const meta = TYPE_META[type] ?? { label: type, pill: "bg-gray-100 text-gray-500 ring-gray-200" };
   return (
-    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${colors[type] ?? "bg-gray-100 text-gray-500"}`}>
-      {labels[type] ?? type}
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ring-1 ${meta.pill}`}>
+      <TypeIcon type={type} />
+      {meta.label}
     </span>
   );
 }
 
+// ── Subject folder book icon ──────────────────────────────────────────────────
+
+function SubjectBookIcon({ color }: { color: string }) {
+  return (
+    <div
+      className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+      style={{ backgroundColor: `${color}20` }}
+    >
+      <svg className="w-4 h-4" style={{ color }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      </svg>
+    </div>
+  );
+}
+
+// ── Lesson item row ───────────────────────────────────────────────────────────
+
 function LessonItemRow_({ item }: { item: LessonItemRow }) {
   const locked = isLocked(item);
   const url = itemUrl(item);
-  const icon = itemIcon(item.itemType);
 
   const content = (
     <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150 ${
@@ -45,7 +98,16 @@ function LessonItemRow_({ item }: { item: LessonItemRow }) {
         ? "border-gray-100 bg-white hover:border-[#6D4BCB] hover:shadow-sm cursor-pointer"
         : "border-gray-100 bg-gray-50 cursor-default"
     }`}>
-      <span className="text-base flex-shrink-0">{locked ? "🔒" : icon}</span>
+      {locked ? (
+        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      ) : (
+        <div className="w-7 h-7 rounded-md bg-gray-50 flex items-center justify-center flex-shrink-0">
+          <TypeIcon type={item.itemType} />
+        </div>
+      )}
+
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-[#2D1B69] leading-snug line-clamp-1">
           {item.titleSnapshot}
@@ -56,7 +118,9 @@ function LessonItemRow_({ item }: { item: LessonItemRow }) {
           </p>
         )}
       </div>
+
       <ItemTypeLabel type={item.itemType} />
+
       {!locked && url && (
         <svg className="w-4 h-4 text-[#6D4BCB] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -70,6 +134,8 @@ function LessonItemRow_({ item }: { item: LessonItemRow }) {
   }
   return <div>{content}</div>;
 }
+
+// ── Chapter block ─────────────────────────────────────────────────────────────
 
 function ChapterBlock({ chapter }: { chapter: { chapterId: string; title: string; lessons: { lessonId: string; title: string; items: LessonItemRow[] }[] } }) {
   const [open, setOpen] = useState(true);
@@ -95,7 +161,6 @@ function ChapterBlock({ chapter }: { chapter: { chapterId: string; title: string
         <div className="px-4 py-3 space-y-2 bg-white">
           {chapter.lessons.map((lesson) => (
             <div key={lesson.lessonId}>
-              {/* Lesson label if more than 1 lesson in chapter */}
               {chapter.lessons.length > 1 && (
                 <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 mt-1">
                   {lesson.title}
@@ -120,6 +185,8 @@ function ChapterBlock({ chapter }: { chapter: { chapterId: string; title: string
     </div>
   );
 }
+
+// ── Main accordion ────────────────────────────────────────────────────────────
 
 export function CurriculumAccordion({ curriculum }: { curriculum: SectionRow[] }) {
   const [openSections, setOpenSections] = useState<Set<string>>(
@@ -151,37 +218,48 @@ export function CurriculumAccordion({ curriculum }: { curriculum: SectionRow[] }
           (n, ch) => n + ch.lessons.reduce((m, l) => m + l.items.length, 0),
           0
         );
-
         const color = colorTokens(section.subjectColor);
+
         return (
-          <div key={section.sectionId} className="rounded-2xl border overflow-hidden" style={{ borderColor: color.border }}>
+          <div key={section.sectionId} className="rounded-2xl border border-gray-200 overflow-hidden bg-white">
             {/* Section header */}
             <button
               onClick={() => toggleSection(section.sectionId)}
-              className="w-full flex items-center gap-3 px-5 py-4 transition-colors text-left"
-              style={{ backgroundColor: color.bg }}
+              className="w-full flex items-center gap-0 text-left hover:bg-gray-50 transition-colors"
             >
-              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color.icon}22` }}>
-                <span className="text-sm">📚</span>
+              {/* Left colored accent bar — matches admin pattern */}
+              <div
+                className="w-1 self-stretch flex-shrink-0"
+                style={{ backgroundColor: color.icon }}
+              />
+
+              {/* Header content */}
+              <div className="flex items-center gap-3 px-4 py-4 flex-1 min-w-0">
+                <SubjectBookIcon color={color.icon} />
+
+                <div className="flex-1 min-w-0">
+                  {/* Subject name in the subject's own color */}
+                  <p className="text-sm font-bold leading-snug" style={{ color: color.icon }}>
+                    {section.subjectName}
+                  </p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">
+                    {section.chapters.length} chapter{section.chapters.length !== 1 ? "s" : ""} · {totalItems} item{totalItems !== 1 ? "s" : ""}
+                  </p>
+                </div>
+
+                <svg
+                  className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                  style={{ color: color.icon }}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#2D1B69]">{section.subjectName}</p>
-                <p className="text-[10px] text-gray-400">
-                  {section.chapters.length} chapter{section.chapters.length !== 1 ? "s" : ""} · {totalItems} item{totalItems !== 1 ? "s" : ""}
-                </p>
-              </div>
-              <svg
-                className={`w-4 h-4 flex-shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                style={{ color: color.icon }}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
             </button>
 
             {/* Section body */}
             {isOpen && (
-              <div className="px-4 py-4 bg-white">
+              <div className="px-4 py-4 bg-gray-50/40 border-t border-gray-100">
                 {section.chapters.length === 0 ? (
                   <p className="text-xs text-gray-400 italic text-center py-4">No chapters yet</p>
                 ) : (
