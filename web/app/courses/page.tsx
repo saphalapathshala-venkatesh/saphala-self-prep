@@ -3,6 +3,8 @@ import { Footer } from "@/ui-core/Footer";
 import { getActiveCourses, getExamsForCategory } from "@/lib/courseDb";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import Image from "next/image";
+import { getCategoryImage } from "@/config/categoryImages";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +60,10 @@ export default async function CoursesPage({
     activeCategory ? getExamsForCategory(activeCategory) : Promise.resolve([]),
   ]);
 
-  const productMeta      = activeProductCategory ? PRODUCT_META[activeProductCategory] : null;
-  const activeCatObj     = categories.find((c) => c.id === activeCategory) ?? null;
-  const activeExamObj    = exams.find((e) => e.id === activeExam) ?? null;
+  const productMeta        = activeProductCategory ? PRODUCT_META[activeProductCategory] : null;
+  const activeCatObj       = categories.find((c) => c.id === activeCategory) ?? null;
+  const activeExamObj      = exams.find((e) => e.id === activeExam) ?? null;
+  const activeCategoryImage = activeCategory ? getCategoryImage(activeCategory) : null;
 
   const isFreeDemo = (productCategory: string) => productCategory === "FREE_DEMO";
 
@@ -229,6 +232,22 @@ export default async function CoursesPage({
                 </Link>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Category banner image (if one exists for the active category) ── */}
+      {activeCategoryImage && (
+        <div className="max-w-5xl mx-auto px-4 pt-6">
+          <div className="relative w-full rounded-2xl overflow-hidden shadow-sm">
+            <Image
+              src={activeCategoryImage}
+              alt={activeCatObj?.name ?? "Category"}
+              width={1200}
+              height={400}
+              className="w-full object-cover max-h-56 sm:max-h-72"
+              priority
+            />
           </div>
         </div>
       )}

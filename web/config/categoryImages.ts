@@ -1,0 +1,12 @@
+/**
+ * Static image map for exam categories.
+ * Keyed by Category.id from the database.
+ * Category table has no imageUrl column — images are served from /public/images/categories/.
+ */
+export const CATEGORY_IMAGE_MAP: Record<string, string> = {
+  cmmruwqhz000395x32wjb9s2w: "/images/categories/ap-police.png", // AP Police
+};
+
+export function getCategoryImage(categoryId: string): string | null {
+  return CATEGORY_IMAGE_MAP[categoryId] ?? null;
+}

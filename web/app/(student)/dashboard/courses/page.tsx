@@ -1,8 +1,10 @@
 import { getActiveCourses } from "@/lib/courseDb";
 import { prisma } from "@/lib/db";
 import Link from "next/link";
+import Image from "next/image";
 import { CoursesFilterBar } from "@/components/courses/CoursesFilterBar";
 import { Suspense } from "react";
+import { getCategoryImage } from "@/config/categoryImages";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +41,9 @@ export default async function DashboardCoursesPage({
     }),
   ]);
 
-  const activeCatName     = categories.find((c) => c.id === activeCategory)?.name ?? null;
-  const activeProductMeta = activeProduct ? PRODUCT_META[activeProduct] : null;
+  const activeCatName      = categories.find((c) => c.id === activeCategory)?.name ?? null;
+  const activeProductMeta  = activeProduct ? PRODUCT_META[activeProduct] : null;
+  const activeCategoryImage = activeCategory ? getCategoryImage(activeCategory) : null;
 
   const isFreeDemo = (p: string) => p === "FREE_DEMO";
 
@@ -110,6 +113,20 @@ export default async function DashboardCoursesPage({
           <span className="text-xs text-gray-400 ml-1">
             — {courses.length} course{courses.length !== 1 ? "s" : ""} found
           </span>
+        </div>
+      )}
+
+      {/* ── Category banner image (if one exists for the selected category) ── */}
+      {activeCategoryImage && (
+        <div className="relative w-full rounded-2xl overflow-hidden shadow-sm">
+          <Image
+            src={activeCategoryImage}
+            alt={activeCatName ?? "Category"}
+            width={1200}
+            height={400}
+            className="w-full object-cover max-h-56 sm:max-h-72"
+            priority
+          />
         </div>
       )}
 
