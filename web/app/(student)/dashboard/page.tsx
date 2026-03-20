@@ -5,6 +5,7 @@ import LoginSuccessToast from "@/components/dashboard/LoginSuccessToast";
 import { getDashboardData } from "@/lib/dashboardData";
 import { getActiveCourses } from "@/lib/courseDb";
 import { getDailyPractice, type PracticeSuggestion } from "@/lib/practiceDb";
+import { getUserStreak, type UserStreak } from "@/lib/streakDb";
 import { PRODUCTS, ROUTES } from "@/config/terminology";
 
 export const dynamic = "force-dynamic";
@@ -49,10 +50,11 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [data, freeCourses, practiceSuggestions] = await Promise.all([
+  const [data, freeCourses, practiceSuggestions, streak] = await Promise.all([
     getDashboardData(user.id),
     getActiveCourses({ productCategory: "FREE_DEMO", limit: 4 }),
     getDailyPractice(user.id),
+    getUserStreak(user.id),
   ]);
 
   const salutation =
@@ -183,13 +185,22 @@ export default async function DashboardPage() {
           />
           <MetricCard
             label="Sadhana Streak"
-            value="0 days"
-            subtitle="Begin today and build momentum"
+            value={streak.current === 0 ? "0 days" : `${streak.current} day${streak.current !== 1 ? "s" : ""}`}
+            subtitle={
+              streak.current === 0
+                ? "Begin today and build momentum"
+                : streak.todayActive
+                ? `Best: ${streak.longest} days · Active today!`
+                : `Best: ${streak.longest} days · Keep it alive!`
+            }
             icon="flame"
             color="orange"
-            isReal={false}
+            isReal={streak.current > 0}
           />
         </div>
+
+        {/* Sadhana Streak — 7-day activity strip */}
+        <StreakStrip streak={streak} />
 
         {/* Resume card */}
         {data.activeAttempt && (
@@ -765,6 +776,79 @@ function MetricCard({
           Soon
         </span>
       )}
+    </div>
+  );
+}
+
+function StreakStrip({ streak }: { streak: UserStreak }) {
+  // Build last-7-days array in IST, starting from 6 days ago → today
+  const days: { dateStr: string; label: string; active: boolean; isToday: boolean }[] = [];
+  const now = new Date();
+
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); // YYYY-MM-DD
+    const label = d.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short" }).slice(0, 2);
+    days.push({
+      dateStr,
+      label,
+      active: streak.activeDaysLast7.includes(dateStr),
+      isToday: i === 0,
+    });
+  }
+
+  if (streak.current === 0 && streak.activeDaysLast7.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 px-5 py-4">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🔥</span>
+          <div>
+            <p className="text-sm font-bold text-[#2D1B69] leading-none">
+              Sadhana Streak
+              {streak.current > 0 && (
+                <span className="ml-2 text-orange-500">{streak.current} day{streak.current !== 1 ? "s" : ""}</span>
+              )}
+            </p>
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              {streak.current > 0
+                ? streak.todayActive
+                  ? "You studied today — amazing!"
+                  : "Study today to keep your streak alive"
+                : "Start studying to begin your streak"}
+              {streak.longest > 1 && (
+                <span className="ml-1 text-gray-300">· Best: {streak.longest} days</span>
+              )}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 7-day dot strip */}
+      <div className="flex items-end gap-1.5">
+        {days.map((day) => (
+          <div key={day.dateStr} className="flex flex-col items-center gap-1.5 flex-1">
+            <div
+              className={`w-full rounded-md transition-all ${
+                day.active
+                  ? day.isToday
+                    ? "bg-orange-500 h-7"
+                    : "bg-orange-400 h-6"
+                  : day.isToday
+                  ? "bg-orange-100 h-5 border border-orange-300 border-dashed"
+                  : "bg-gray-100 h-4"
+              }`}
+            />
+            <span className={`text-[9px] font-semibold ${day.isToday ? "text-orange-500" : "text-gray-400"}`}>
+              {day.label}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
