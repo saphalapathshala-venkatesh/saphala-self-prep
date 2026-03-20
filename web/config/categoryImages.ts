@@ -5,6 +5,7 @@
  */
 export const CATEGORY_IMAGE_MAP: Record<string, string> = {
   cmmruwqhz000395x32wjb9s2w: "/images/categories/ap-police.png", // AP Police
+  cmmruwcuh000095x3ad4aah4g: "/images/categories/appsc.png", // APPSC
 };
 
 export function getCategoryImage(categoryId: string): string | null {
