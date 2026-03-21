@@ -67,19 +67,16 @@ export async function getSession(token: string): Promise<Session | null> {
     return null;
   }
 
-  // Step 2: roll the idle window (best-effort — if this fails, the session is still valid)
+  // Step 2: roll the idle window fire-and-forget (non-blocking — don't await this)
   const newExpiresAt = new Date(Date.now() + IDLE_TIMEOUT_MS);
-  try {
-    const updated = await prisma.session.update({
-      where: { id: token },
-      data: { expiresAt: newExpiresAt },
-    });
-    return updated;
-  } catch (rollErr) {
+  prisma.session.update({
+    where: { id: token },
+    data: { expiresAt: newExpiresAt },
+  }).catch((rollErr: unknown) => {
     console.warn("[getSession] expiresAt roll failed (non-critical):", (rollErr as Error).message ?? rollErr);
-    // Return the found session as-is — it's still valid for this request
-    return existing;
-  }
+  });
+
+  return existing;
 }
 
 export async function deleteSession(token: string): Promise<void> {

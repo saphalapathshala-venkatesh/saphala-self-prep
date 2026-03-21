@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME, SESSION_TTL_MS, IDLE_TIMEOUT_MS } from "./constants";
 import { getSession, createSession, deleteSession } from "./sessionStore";
@@ -23,7 +24,8 @@ const USER_SELECT = {
   infringementBlocked: true,
 } as const;
 
-export async function getCurrentUser() {
+// Cached per-request: layout + page both call this but only one DB hit occurs.
+export const getCurrentUser = cache(async function _getCurrentUser() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
 
@@ -49,7 +51,7 @@ export async function getCurrentUser() {
 
   const { isBlocked: _b, isActive: _a, deletedAt: _d, infringementBlocked: _i, ...user } = raw;
   return user;
-}
+});
 
 export async function getCurrentUserAndSession(): Promise<{
   user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
