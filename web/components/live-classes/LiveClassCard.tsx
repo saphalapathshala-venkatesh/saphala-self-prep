@@ -20,11 +20,23 @@ export interface LiveClassCardData {
   thumbnailUrl: string | null;
   replayVideoId: string | null;
   courseId: string | null;
+  isEntitled: boolean;
 }
 
 // ── Status badge ─────────────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: LiveStatus }) {
+function StatusBadge({ status, isEntitled }: { status: LiveStatus; isEntitled: boolean }) {
+  if (!isEntitled && status !== "COMPLETED") {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-amber-200">
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        Locked
+      </span>
+    );
+  }
+
   switch (status) {
     case "LIVE_NOW":
       return (
@@ -75,23 +87,15 @@ function StatusBadge({ status }: { status: LiveStatus }) {
 
 function PlatformBadge({ platform }: { platform: string }) {
   if (platform === "ZOOM") {
-    return (
-      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-600 text-white leading-none">
-        Zoom
-      </span>
-    );
+    return <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-blue-600 text-white leading-none">Zoom</span>;
   }
   if (platform === "YOUTUBE_LIVE") {
-    return (
-      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-red-600 text-white leading-none">
-        YouTube Live
-      </span>
-    );
+    return <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-red-600 text-white leading-none">YouTube Live</span>;
   }
   return null;
 }
 
-// ── Date/time display ─────────────────────────────────────────────────────────
+// ── Date/time ─────────────────────────────────────────────────────────────────
 
 function formatDate(sessionDate: string | null, startTime: string | null, endTime: string | null) {
   if (!sessionDate) return "Date TBA";
@@ -111,65 +115,62 @@ function formatDate(sessionDate: string | null, startTime: string | null, endTim
 // ── Card ──────────────────────────────────────────────────────────────────────
 
 export default function LiveClassCard({ cls }: { cls: LiveClassCardData }) {
-  const isLocked    = cls.liveStatus === "LOCKED";
-  const isLive      = cls.liveStatus === "LIVE_NOW";
-  const isCompleted = cls.liveStatus === "COMPLETED" || cls.liveStatus === "ENDED";
+  const effectiveLocked   = !cls.isEntitled || cls.liveStatus === "LOCKED";
+  const isLive            = cls.liveStatus === "LIVE_NOW" && cls.isEntitled;
+  const isUpcoming        = cls.liveStatus === "UPCOMING" && cls.isEntitled;
+  const isCompleted       = (cls.liveStatus === "COMPLETED" || cls.liveStatus === "ENDED");
 
   return (
     <div
       className={`
         relative bg-white rounded-2xl border overflow-hidden transition-shadow
         ${isLive ? "border-red-200 shadow-md shadow-red-50" : "border-gray-100 hover:shadow-md"}
-        ${isLocked ? "opacity-70" : ""}
+        ${effectiveLocked && !isCompleted ? "opacity-75" : ""}
       `}
     >
-      {/* Thumbnail or gradient banner */}
+      {/* Banner */}
       {cls.thumbnailUrl ? (
         <div className="h-36 overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={cls.thumbnailUrl}
-            alt={cls.title}
-            className="w-full h-full object-cover"
-          />
+          <img src={cls.thumbnailUrl} alt={cls.title} className="w-full h-full object-cover" />
         </div>
       ) : (
-        <div
-          className={`h-28 flex items-center justify-center ${
-            isLive
-              ? "bg-gradient-to-br from-red-600 to-orange-500"
-              : isCompleted
-              ? "bg-gradient-to-br from-gray-300 to-gray-400"
-              : "bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB]"
-          }`}
-        >
-          <svg className="w-12 h-12 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-          </svg>
+        <div className={`h-28 flex items-center justify-center ${
+          isLive        ? "bg-gradient-to-br from-red-600 to-orange-500"
+          : isCompleted ? "bg-gradient-to-br from-gray-300 to-gray-400"
+          : effectiveLocked ? "bg-gradient-to-br from-gray-200 to-gray-300"
+          : "bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB]"
+        }`}>
+          {effectiveLocked && !isCompleted ? (
+            <svg className="w-10 h-10 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          ) : (
+            <svg className="w-10 h-10 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+            </svg>
+          )}
         </div>
       )}
 
       <div className="p-4 space-y-3">
-        {/* Status + platform row */}
+        {/* Status + platform */}
         <div className="flex items-center gap-2 flex-wrap">
-          <StatusBadge status={cls.liveStatus} />
+          <StatusBadge status={cls.liveStatus} isEntitled={cls.isEntitled} />
           <PlatformBadge platform={cls.platform} />
         </div>
 
         {/* Title */}
-        <h3 className="font-semibold text-[#2D1B69] text-sm leading-snug line-clamp-2">
-          {cls.title}
-        </h3>
+        <h3 className="font-semibold text-[#2D1B69] text-sm leading-snug line-clamp-2">{cls.title}</h3>
 
         {/* Faculty */}
         {cls.facultyName && (
           <p className="text-xs text-gray-500">
-            {cls.facultyTitle ? `${cls.facultyTitle} ` : ""}
-            {cls.facultyName}
+            {cls.facultyTitle ? `${cls.facultyTitle} ` : ""}{cls.facultyName}
           </p>
         )}
 
-        {/* Date / time */}
+        {/* Date */}
         <p className="text-xs text-gray-400 flex items-center gap-1.5">
           <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -177,18 +178,20 @@ export default function LiveClassCard({ cls }: { cls: LiveClassCardData }) {
           {formatDate(cls.sessionDate, cls.startTime, cls.endTime)}
         </p>
 
-        {/* CTA area */}
+        {/* CTA */}
         <div className="pt-1">
-          {isLocked && (
+          {/* Locked — not entitled */}
+          {effectiveLocked && !isCompleted && (
             <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              Access restricted — check back later
+              Enroll to access this class
             </p>
           )}
 
-          {!isLocked && isLive && cls.canJoin && cls.joinUrl && (
+          {/* Live — canJoin */}
+          {isLive && cls.canJoin && cls.joinUrl && (
             <a
               href={cls.joinUrl}
               target="_blank"
@@ -198,22 +201,25 @@ export default function LiveClassCard({ cls }: { cls: LiveClassCardData }) {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
               </svg>
-              Join Class Now
+              Join LIVE Class
             </a>
           )}
 
-          {!isLocked && isLive && !cls.canJoin && (
-            <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-              This class is live — join link will be visible shortly.
-            </p>
+          {/* Live — join not ready yet */}
+          {isLive && !cls.canJoin && (
+            <button disabled className="w-full px-4 py-2.5 rounded-xl bg-gray-100 text-gray-400 text-sm font-semibold cursor-not-allowed">
+              Preparing join link…
+            </button>
           )}
 
-          {!isLocked && cls.liveStatus === "UPCOMING" && (
-            <p className="text-xs text-blue-700 bg-blue-50 rounded-lg px-3 py-2">
-              Join link will appear 10 minutes before class starts.
-            </p>
+          {/* Upcoming */}
+          {isUpcoming && (
+            <button disabled className="w-full px-4 py-2.5 rounded-xl bg-blue-50 text-blue-400 text-sm font-semibold cursor-not-allowed">
+              Join available closer to class time
+            </button>
           )}
 
+          {/* Completed with replay */}
           {isCompleted && cls.replayVideoId && (
             <Link
               href={`/live-classes/${cls.id}`}
@@ -227,14 +233,15 @@ export default function LiveClassCard({ cls }: { cls: LiveClassCardData }) {
             </Link>
           )}
 
+          {/* Completed without replay */}
           {isCompleted && !cls.replayVideoId && (
             <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2 text-center">
               Class completed — replay not available
             </p>
           )}
 
-          {/* View details link for upcoming/live (no replay) */}
-          {!isLocked && !isCompleted && (
+          {/* View details */}
+          {!effectiveLocked && !isCompleted && (
             <Link
               href={`/live-classes/${cls.id}`}
               className="mt-2 flex items-center justify-center gap-1 text-xs text-[#6D4BCB] hover:text-[#5C3DB5] font-medium transition-colors"

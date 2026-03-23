@@ -50,7 +50,10 @@ Learning content routes under `app/(student)/` are dynamically generated from th
 Courses are organized by `Exam Category` and `Product Category`. A 5-level curriculum tree (`Course → CourseSubjectSection → Chapter → Lesson → LessonItem`) defines the structure. `LessonItem.itemType` determines the viewer (ebook, PDF, flashcard, video, external link). `unlockAt` controls scheduled release. Free demo courses are accessible to all logged-in students. Course APIs use raw SQL for admin-owned tables.
 
 #### Live Classes (`/live-classes`)
-Student-facing live class feature with listings grouped by `LIVE NOW`, `Upcoming`, and `Past`. Join window for live classes is calculated server-side. Join credentials are only revealed when `canJoin = true`.
+Student-facing live class feature with listings grouped by `LIVE NOW`, `Upcoming`, and `Past`. Join window for live classes is calculated server-side. Join credentials are only revealed when `canJoin = true && isEntitled = true`. Entitlement check: FREE classes always accessible; PAID classes require active `UserEntitlement` matching `courseId` or `course.productCategory`. `liveStatus` states: `UPCOMING | LIVE_NOW | ENDED | COMPLETED | LOCKED`. Dashboard shows nearest published class via `getDashboardLiveClass(userId)` with state-aware CTA.
+
+#### Recorded Videos (`/videos`, `/videos/[id]`)
+Student-facing video library from the `Video` table (admin-owned, queried via raw SQL). Lists published videos with duration, faculty, and entitlement badge. Detail page embeds YouTube via `providerVideoId` for YOUTUBE provider; other providers use `hlsUrl`/`playbackUrl`. Non-entitled students see preview if `allowPreview=true`. XP awarded on first watch. Protected by `proxy.ts`.
 
 #### Course Catalog (`/courses`)
 A database-driven server component displaying active courses with stackable server-side filters for `category`, `productCategory`, and `exam`. An exam filter row dynamically appears when a category with associated exams is selected.

@@ -1,0 +1,256 @@
+Implement LIVE Classes and Recorded Videos UI in the Saphala student frontend with strict access control, real-time join logic, and clean UX.
+
+IMPORTANT:
+Follow Admin-first, DB-driven architecture. Do not hardcode any logic. Everything must reflect backend data.
+
+==================================================
+PHASE 1 — AUDIT FIRST (MANDATORY)
+==================================================
+
+Audit current frontend:
+
+1. Sidebar navigation
+- Check existing left menu structure
+- Identify where to add new items safely
+
+2. Dashboard
+- Check existing dashboard cards
+- Identify reusable card components
+
+3. Course access / entitlement logic
+- How purchased products are validated
+- How locked content is currently handled
+
+4. Existing APIs
+- Confirm usage of:
+  GET /api/student/live-classes
+  (and future recorded video endpoints if present)
+
+OUTPUT:
+A. What exists
+B. What can be reused
+C. What needs to be built
+
+Do not rebuild existing UI unnecessarily.
+
+==================================================
+PHASE 2 — LEFT SIDEBAR NAVIGATION
+==================================================
+
+Add 2 new menu items:
+
+1. LIVE Classes
+2. Recorded Videos
+
+Rules:
+- Place below Courses/TestHub logically
+- Highlight active state
+- Mobile responsive drawer support
+
+Routes:
+- /live-classes
+- /videos
+
+==================================================
+PHASE 3 — DASHBOARD LIVE CLASS CARD
+==================================================
+
+Add a Dashboard card:
+
+Title: "LIVE Classes"
+
+Content:
+- Show nearest upcoming LIVE class (or currently LIVE class)
+- Display:
+  - Title
+  - Faculty
+  - Date & Time
+  - Status badge:
+    - UPCOMING
+    - LIVE NOW
+    - COMPLETED
+
+CTA Button Logic:
+
+IF student NOT enrolled:
+→ Show "Locked" / "Enroll to Access"
+
+IF enrolled:
+    IF before join window:
+        → Show disabled button:
+           "Join available at [time]"
+    IF liveStatus == LIVE NOW:
+        → Enable button:
+           "Join LIVE Class"
+    IF completed:
+        → Show:
+           "Class Completed" or "Watch Replay" (if available)
+
+NO join button should be active before allowed time.
+
+==================================================
+PHASE 4 — LIVE CLASSES PAGE (/live-classes)
+==================================================
+
+Build full listing page.
+
+Group sections:
+
+1. LIVE NOW
+2. Upcoming Classes
+3. Completed Classes
+
+Each card must show:
+- Title
+- Faculty
+- Date & Time
+- Duration
+- Status badge
+- Course/package label (optional)
+
+CTA LOGIC (VERY IMPORTANT):
+
+IF NOT ENTITLED:
+→ Show LOCKED state
+→ No join button
+
+IF ENTITLED:
+    IF canJoin == true:
+        → Show active "Join LIVE Class"
+    ELSE IF UPCOMING:
+        → Show disabled "Join available soon"
+    ELSE IF COMPLETED:
+        → Show "Completed" or "Replay"
+
+Click behavior:
+- Join → open Zoom joinUrl
+- Replay → open video (future integration)
+
+==================================================
+PHASE 5 — ENTITLEMENT LOGIC (CRITICAL)
+==================================================
+
+Use backend-driven entitlement ONLY.
+
+Do NOT guess.
+
+Rules:
+
+1. If live class belongs to a course/package:
+   - Student must have entitlement for that product
+
+2. If not entitled:
+   - Do NOT show join button
+   - Show LOCKED UI
+
+3. If entitled:
+   - Allow join ONLY when:
+       canJoin == true (from backend)
+
+NEVER expose joinUrl unless allowed.
+
+==================================================
+PHASE 6 — JOIN BUTTON BEHAVIOR
+==================================================
+
+Strict rules:
+
+1. Join button becomes ACTIVE only when:
+   - liveStatus == "live_now"
+   OR
+   - canJoin == true (backend controlled window)
+
+2. Before that:
+   - Disabled button
+   - Show message:
+     "Join link will be available closer to class time"
+
+3. On click:
+   - Open joinUrl in new tab
+   - Show loading feedback
+
+==================================================
+PHASE 7 — RECORDED VIDEOS PAGE (/videos)
+==================================================
+
+Basic version (Phase 1):
+
+1. List videos (placeholder or API-driven)
+2. Show:
+   - Title
+   - Thumbnail
+   - Duration
+   - Course linkage
+3. Respect entitlement:
+   - locked vs unlocked
+
+Do not overbuild yet — Bunny integration will enhance this later.
+
+==================================================
+PHASE 8 — UI STATES (VERY IMPORTANT)
+==================================================
+
+Handle all states clearly:
+
+1. LOCKED
+- Lock icon
+- "Enroll to Access"
+
+2. UPCOMING
+- Grey button
+- Time display
+
+3. LIVE NOW
+- Highlight (green/red)
+- Active Join button
+
+4. COMPLETED
+- Greyed card
+- Replay if available
+
+Student should NEVER feel confused.
+
+==================================================
+PHASE 9 — PERFORMANCE + UX
+==================================================
+
+1. Navigation must feel instant
+2. Show:
+   - "Loading LIVE classes..."
+   - "Preparing your class..."
+3. Avoid blank states
+
+==================================================
+PHASE 10 — VALIDATION
+==================================================
+
+Test all cases:
+
+1. Student NOT enrolled
+2. Student enrolled but early
+3. Student during LIVE session
+4. Student after completion
+5. Multiple live classes
+6. Mobile responsiveness
+
+==================================================
+EXPECTED OUTCOME
+==================================================
+
+1. Sidebar:
+   - LIVE Classes
+   - Recorded Videos
+
+2. Dashboard:
+   - LIVE class card with real-time state
+
+3. LIVE Classes Page:
+   - grouped, clean UI
+   - correct entitlement enforcement
+
+4. Join button:
+   - enabled ONLY at correct time
+   - safe Zoom integration
+
+5. System fully DB-driven
+   - future-safe for new courses/topics

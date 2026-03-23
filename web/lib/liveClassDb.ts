@@ -18,6 +18,7 @@ export interface LiveClassRow {
   endTime: string | null;
   status: string;
   platform: string;
+  accessType: string;
   joinUrl: string | null;
   sessionCode: string | null;
   thumbnailUrl: string | null;
@@ -25,6 +26,7 @@ export interface LiveClassRow {
   unlockAt: Date | null;
   zoomPassword: string | null;
   durationMinutes: number | null;
+  isEntitled: boolean;
 }
 
 export interface LiveClassStudent extends LiveClassRow {
@@ -44,6 +46,11 @@ export function computeLiveStatus(row: LiveClassRow): { liveStatus: LiveStatus; 
 
   // UnlockAt gate — if not yet unlocked, class is LOCKED
   if (row.unlockAt && row.unlockAt > now) {
+    return { liveStatus: "LOCKED", canJoin: false };
+  }
+
+  // Entitlement gate — PAID class with no entitlement
+  if (!row.isEntitled) {
     return { liveStatus: "LOCKED", canJoin: false };
   }
 
@@ -89,6 +96,34 @@ export function computeLiveStatus(row: LiveClassRow): { liveStatus: LiveStatus; 
   return { liveStatus: "UPCOMING", canJoin: false };
 }
 
+// ── Entitlement SQL fragment ──────────────────────────────────────────────────
+
+/**
+ * Builds the SQL CASE expression for entitlement check.
+ * FREE classes → always entitled.
+ * PAID classes → check UserEntitlement by courseId or course productCategory.
+ */
+function entitlementExpr(userId: string): string {
+  const safeUserId = userId.replace(/'/g, "''");
+  return `
+    CASE
+      WHEN lc."accessType" = 'FREE' THEN true
+      WHEN lc."courseId" IS NULL    THEN false
+      ELSE EXISTS (
+        SELECT 1
+        FROM "UserEntitlement" ue
+        WHERE ue."userId"    = '${safeUserId}'
+          AND ue.status       = 'ACTIVE'
+          AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+          AND (
+            ue."productCode" = lc."courseId"
+            OR ue."productCode" = c."productCategory"
+          )
+      )
+    END
+  `.trim();
+}
+
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 /**
@@ -96,15 +131,14 @@ export function computeLiveStatus(row: LiveClassRow): { liveStatus: LiveStatus; 
  * Optional filters: courseId, categoryId.
  */
 export async function getLiveClassesForStudent(opts: {
+  userId: string;
   courseId?: string;
   categoryId?: string;
   limit?: number;
-} = {}): Promise<LiveClassStudent[]> {
-  const { courseId, categoryId, limit = 50 } = opts;
+} = { userId: "" }): Promise<LiveClassStudent[]> {
+  const { userId, courseId, categoryId, limit = 50 } = opts;
 
-  const conditions: string[] = [
-    `lc.status IN ('PUBLISHED', 'COMPLETED')`,
-  ];
+  const conditions: string[] = [`lc.status IN ('PUBLISHED', 'COMPLETED')`];
 
   if (courseId) {
     const safe = courseId.replace(/'/g, "''");
@@ -123,8 +157,8 @@ export async function getLiveClassesForStudent(opts: {
       lc.title,
       lc.description,
       lc."facultyId",
-      f.name AS "facultyName",
-      f.title AS "facultyTitle",
+      f.name       AS "facultyName",
+      f.title      AS "facultyTitle",
       lc."courseId",
       lc."categoryId",
       lc."sessionDate",
@@ -132,15 +166,18 @@ export async function getLiveClassesForStudent(opts: {
       lc."endTime",
       lc.status,
       lc.platform,
+      lc."accessType",
       lc."joinUrl",
       lc."sessionCode",
       lc."thumbnailUrl",
       lc."replayVideoId",
       lc."unlockAt",
       lc."zoomPassword",
-      NULL::int AS "durationMinutes"
+      NULL::int    AS "durationMinutes",
+      ${entitlementExpr(userId)} AS "isEntitled"
     FROM "LiveClass" lc
-    LEFT JOIN "Faculty" f ON f.id = lc."facultyId"
+    LEFT JOIN "Faculty" f  ON f.id  = lc."facultyId"
+    LEFT JOIN "Course"  c  ON c.id  = lc."courseId"
     WHERE ${where}
     ORDER BY lc."sessionDate" ASC NULLS LAST, lc."startTime" ASC NULLS LAST
     LIMIT ${Number(limit)}
@@ -152,7 +189,7 @@ export async function getLiveClassesForStudent(opts: {
 /**
  * Fetch a single student-visible live class by ID.
  */
-export async function getLiveClassById(id: string): Promise<LiveClassStudent | null> {
+export async function getLiveClassById(id: string, userId: string): Promise<LiveClassStudent | null> {
   const safeId = id.replace(/'/g, "''");
 
   const rows = await prisma.$queryRawUnsafe<LiveClassRow[]>(`
@@ -161,8 +198,8 @@ export async function getLiveClassById(id: string): Promise<LiveClassStudent | n
       lc.title,
       lc.description,
       lc."facultyId",
-      f.name AS "facultyName",
-      f.title AS "facultyTitle",
+      f.name       AS "facultyName",
+      f.title      AS "facultyTitle",
       lc."courseId",
       lc."categoryId",
       lc."sessionDate",
@@ -170,17 +207,79 @@ export async function getLiveClassById(id: string): Promise<LiveClassStudent | n
       lc."endTime",
       lc.status,
       lc.platform,
+      lc."accessType",
       lc."joinUrl",
       lc."sessionCode",
       lc."thumbnailUrl",
       lc."replayVideoId",
       lc."unlockAt",
       lc."zoomPassword",
-      NULL::int AS "durationMinutes"
+      NULL::int    AS "durationMinutes",
+      ${entitlementExpr(userId)} AS "isEntitled"
     FROM "LiveClass" lc
-    LEFT JOIN "Faculty" f ON f.id = lc."facultyId"
+    LEFT JOIN "Faculty" f  ON f.id  = lc."facultyId"
+    LEFT JOIN "Course"  c  ON c.id  = lc."courseId"
     WHERE lc.id = '${safeId}'
       AND lc.status IN ('PUBLISHED', 'COMPLETED')
+  `);
+
+  if (!rows.length) return null;
+  const r = rows[0];
+  return { ...r, ...computeLiveStatus(r) };
+}
+
+/**
+ * Fetch the nearest upcoming or live class for the dashboard card.
+ * Returns null if no relevant class exists.
+ */
+export async function getDashboardLiveClass(userId: string): Promise<LiveClassStudent | null> {
+  const safeUserId = userId.replace(/'/g, "''");
+
+  const rows = await prisma.$queryRawUnsafe<LiveClassRow[]>(`
+    SELECT
+      lc.id,
+      lc.title,
+      lc.description,
+      lc."facultyId",
+      f.name       AS "facultyName",
+      f.title      AS "facultyTitle",
+      lc."courseId",
+      lc."categoryId",
+      lc."sessionDate",
+      lc."startTime",
+      lc."endTime",
+      lc.status,
+      lc.platform,
+      lc."accessType",
+      lc."joinUrl",
+      lc."sessionCode",
+      lc."thumbnailUrl",
+      lc."replayVideoId",
+      lc."unlockAt",
+      lc."zoomPassword",
+      NULL::int    AS "durationMinutes",
+      CASE
+        WHEN lc."accessType" = 'FREE' THEN true
+        WHEN lc."courseId" IS NULL    THEN false
+        ELSE EXISTS (
+          SELECT 1
+          FROM "UserEntitlement" ue
+          WHERE ue."userId"    = '${safeUserId}'
+            AND ue.status       = 'ACTIVE'
+            AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+            AND (
+              ue."productCode" = lc."courseId"
+              OR ue."productCode" = c."productCategory"
+            )
+        )
+      END AS "isEntitled"
+    FROM "LiveClass" lc
+    LEFT JOIN "Faculty" f  ON f.id  = lc."facultyId"
+    LEFT JOIN "Course"  c  ON c.id  = lc."courseId"
+    WHERE lc.status = 'PUBLISHED'
+      AND (lc."unlockAt" IS NULL OR lc."unlockAt" <= NOW())
+    ORDER BY lc."sessionDate" ASC NULLS LAST, lc."startTime" ASC NULLS LAST
+    LIMIT 1
   `);
 
   if (!rows.length) return null;

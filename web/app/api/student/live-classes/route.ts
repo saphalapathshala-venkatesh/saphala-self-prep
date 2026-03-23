@@ -10,19 +10,19 @@ export async function GET(req: NextRequest) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
-    const courseId    = searchParams.get("courseId")    ?? undefined;
-    const categoryId  = searchParams.get("categoryId")  ?? undefined;
-    const limitParam  = searchParams.get("limit");
-    const limit       = limitParam ? Math.min(Number(limitParam), 100) : 50;
+    const courseId   = searchParams.get("courseId")   ?? undefined;
+    const categoryId = searchParams.get("categoryId") ?? undefined;
+    const limitParam = searchParams.get("limit");
+    const limit      = limitParam ? Math.min(Number(limitParam), 100) : 50;
 
-    const classes = await getLiveClassesForStudent({ courseId, categoryId, limit });
+    const classes = await getLiveClassesForStudent({ userId: user.id, courseId, categoryId, limit });
 
-    // Strip joinUrl / Zoom creds unless canJoin is true
+    // Strip join credentials unless canJoin is true AND student is entitled
     const safe = classes.map(({ joinUrl, zoomPassword, sessionCode, ...rest }) => ({
       ...rest,
-      joinUrl:      rest.canJoin ? joinUrl      : null,
-      sessionCode:  rest.canJoin ? sessionCode  : null,
-      zoomPassword: rest.canJoin ? zoomPassword : null,
+      joinUrl:      rest.canJoin && rest.isEntitled ? joinUrl      : null,
+      sessionCode:  rest.canJoin && rest.isEntitled ? sessionCode  : null,
+      zoomPassword: rest.canJoin && rest.isEntitled ? zoomPassword : null,
     }));
 
     return NextResponse.json(safe);

@@ -87,6 +87,13 @@ function Icon({ name, className }: { name: string; className?: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
         </svg>
       );
+    case "video":
+      return (
+        <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      );
     case "courses":
       return (
         <svg className={cn} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -108,8 +115,9 @@ const PRIMARY_NAV = [
   { key: "ebooks",     label: "Ebooks",       href: "/learn/lessons",      icon: "brain"     },
   { key: "flashcards", label: "Flashcards",   href: "/learn/flashcards",   icon: "cards"     },
   { key: "pdfs",        label: "PDFs",          href: "/learn/pdfs",        icon: "book"      },
-  { key: "live",        label: "Live Classes",  href: "/live-classes",      icon: "live"      },
-  { key: "profile",     label: "Profile",       href: "/dashboard/profile", icon: "user"      },
+  { key: "live",        label: "Live Classes",      href: "/live-classes",      icon: "live"  },
+  { key: "videos",      label: "Recorded Videos",  href: "/videos",            icon: "video" },
+  { key: "profile",     label: "Profile",           href: "/dashboard/profile", icon: "user"  },
 ] as const;
 
 const UPCOMING_NAV = [

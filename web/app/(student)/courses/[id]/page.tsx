@@ -40,7 +40,7 @@ export default async function CourseDetailPage({
 
   const [data, liveClasses] = await Promise.all([
     getCourseWithCurriculum(id),
-    getLiveClassesForStudent({ courseId: id, limit: 10 }),
+    getLiveClassesForStudent({ userId: user.id, courseId: id, limit: 10 }),
   ]);
   if (!data) notFound();
 
@@ -204,6 +204,7 @@ export default async function CourseDetailPage({
                 thumbnailUrl:  cls.thumbnailUrl,
                 replayVideoId: cls.replayVideoId,
                 courseId:      cls.courseId,
+                isEntitled:    cls.isEntitled,
               };
               return <LiveClassCard key={cls.id} cls={cardData} />;
             })}

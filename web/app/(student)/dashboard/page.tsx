@@ -6,6 +6,7 @@ import { getDashboardData } from "@/lib/dashboardData";
 import { getActiveCourses } from "@/lib/courseDb";
 import { getDailyPractice, type PracticeSuggestion } from "@/lib/practiceDb";
 import { getUserStreak, type UserStreak } from "@/lib/streakDb";
+import { getDashboardLiveClass, type LiveClassStudent } from "@/lib/liveClassDb";
 import { PRODUCTS, ROUTES } from "@/config/terminology";
 
 export const dynamic = "force-dynamic";
@@ -50,11 +51,12 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) return null;
 
-  const [data, freeCourses, practiceSuggestions, streak] = await Promise.all([
+  const [data, freeCourses, practiceSuggestions, streak, dashboardClass] = await Promise.all([
     getDashboardData(user.id),
     getActiveCourses({ productCategory: "FREE_DEMO", limit: 4 }),
     getDailyPractice(user.id),
     getUserStreak(user.id),
+    getDashboardLiveClass(user.id),
   ]);
 
   const salutation =
@@ -89,10 +91,16 @@ export default async function DashboardPage() {
       live: true,
     },
     {
-      label: PRODUCTS.pathshala,
-      sub: "Video lessons by faculty",
-      href: null,
-      live: false,
+      label: "Live Classes",
+      sub: "Join faculty-led live sessions",
+      href: "/live-classes",
+      live: true,
+    },
+    {
+      label: "Recorded Videos",
+      sub: "Watch recorded lessons anytime",
+      href: "/videos",
+      live: true,
     },
   ];
 
@@ -236,6 +244,9 @@ export default async function DashboardPage() {
         {practiceSuggestions.length > 0 && (
           <DailyPracticeCard suggestions={practiceSuggestions} />
         )}
+
+        {/* ── Live Classes Dashboard Card ────────────────────────────── */}
+        {dashboardClass && <DashboardLiveClassCard cls={dashboardClass} />}
 
         {/* Start Learning — free courses */}
         {freeCourses.length > 0 && (
@@ -637,6 +648,156 @@ export default async function DashboardPage() {
         )}
       </div>
     </>
+  );
+}
+
+// ── Dashboard Live Class Card ─────────────────────────────────────────────────
+
+function DashboardLiveClassCard({ cls }: { cls: LiveClassStudent }) {
+  const isLive      = cls.liveStatus === "LIVE_NOW"  && cls.isEntitled;
+  const isUpcoming  = cls.liveStatus === "UPCOMING"  && cls.isEntitled;
+  const isCompleted = cls.liveStatus === "COMPLETED" || cls.liveStatus === "ENDED";
+  const isLocked    = !cls.isEntitled || cls.liveStatus === "LOCKED";
+
+  function formatDate(sessionDate: Date | null, startTime: string | null) {
+    if (!sessionDate) return "Date TBA";
+    const d = new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    }).format(new Date(sessionDate));
+    return startTime ? `${new Intl.DateTimeFormat("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(new Date(sessionDate))} · ${startTime} IST` : d;
+  }
+
+  const accentColor = isLive ? "border-red-200 bg-red-50/30" : isLocked ? "border-amber-200 bg-amber-50/20" : "border-[#E0D5FF] bg-[#F6F2FF]/50";
+
+  return (
+    <div className={`rounded-2xl border p-5 ${accentColor}`}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          {isLive && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />}
+          <h2 className={`text-sm font-bold ${isLive ? "text-red-700" : "text-[#2D1B69]"}`}>
+            {isLive ? "Class Happening Now" : "Upcoming Live Class"}
+          </h2>
+        </div>
+        <Link
+          href="/live-classes"
+          className="text-xs font-semibold text-[#6D4BCB] hover:text-[#5C3DB5] transition-colors"
+        >
+          All Classes →
+        </Link>
+      </div>
+
+      {/* Class info */}
+      <div className="flex items-start gap-4">
+        {/* Video icon / thumbnail */}
+        <div className={`w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center ${
+          isLive ? "bg-red-100" : isLocked ? "bg-amber-100" : "bg-purple-100"
+        }`}>
+          {isLocked ? (
+            <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          ) : (
+            <svg className={`w-6 h-6 ${isLive ? "text-red-500" : "text-[#6D4BCB]"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+            </svg>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0 space-y-1">
+          {/* Status badge */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {isLive && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-600 text-white animate-pulse">
+                <span className="w-1 h-1 rounded-full bg-white" />LIVE NOW
+              </span>
+            )}
+            {isUpcoming && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Upcoming</span>
+            )}
+            {isCompleted && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">Completed</span>
+            )}
+            {isLocked && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">Enrollment Required</span>
+            )}
+            {cls.platform === "ZOOM" && (
+              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-600 text-white leading-none">Zoom</span>
+            )}
+          </div>
+
+          {/* Title */}
+          <p className="text-sm font-semibold text-[#2D1B69] leading-snug line-clamp-1">{cls.title}</p>
+
+          {/* Faculty */}
+          {cls.facultyName && (
+            <p className="text-xs text-gray-500">
+              {cls.facultyTitle ? `${cls.facultyTitle} ` : ""}{cls.facultyName}
+            </p>
+          )}
+
+          {/* Date / time */}
+          <p className="text-xs text-gray-400 flex items-center gap-1.5">
+            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {formatDate(cls.sessionDate, cls.startTime)}
+          </p>
+        </div>
+      </div>
+
+      {/* CTA */}
+      <div className="mt-4">
+        {isLive && cls.canJoin && cls.joinUrl ? (
+          <a
+            href={cls.joinUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+            </svg>
+            Join LIVE Class
+          </a>
+        ) : isLive && !cls.canJoin ? (
+          <button disabled className="w-full px-4 py-2.5 rounded-xl bg-red-100 text-red-400 text-sm font-semibold cursor-not-allowed">
+            Preparing join link…
+          </button>
+        ) : isUpcoming ? (
+          <button disabled className="w-full px-4 py-2.5 rounded-xl bg-blue-100 text-blue-400 text-sm font-semibold cursor-not-allowed text-center">
+            Join available at {cls.startTime ? `${cls.startTime} IST` : "class time"}
+          </button>
+        ) : isLocked ? (
+          <Link
+            href="/live-classes"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl border border-amber-300 text-amber-700 text-sm font-medium hover:bg-amber-50 transition-colors"
+          >
+            View Class →
+          </Link>
+        ) : isCompleted && cls.replayVideoId ? (
+          <Link
+            href={`/live-classes/${cls.id}`}
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-[#6D4BCB] hover:bg-[#5C3DB5] text-white text-sm font-semibold transition-colors"
+          >
+            Watch Replay
+          </Link>
+        ) : (
+          <Link
+            href="/live-classes"
+            className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl bg-[#6D4BCB] hover:bg-[#5C3DB5] text-white text-sm font-semibold transition-colors"
+          >
+            View Classes →
+          </Link>
+        )}
+      </div>
+    </div>
   );
 }
 

@@ -13,16 +13,15 @@ export async function GET(
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { id } = await params;
-    const cls = await getLiveClassById(id);
+    const cls = await getLiveClassById(id, user.id);
     if (!cls) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // Strip join creds unless canJoin is true
     const { joinUrl, zoomPassword, sessionCode, ...rest } = cls;
     return NextResponse.json({
       ...rest,
-      joinUrl:      cls.canJoin ? joinUrl      : null,
-      sessionCode:  cls.canJoin ? sessionCode  : null,
-      zoomPassword: cls.canJoin ? zoomPassword : null,
+      joinUrl:      cls.canJoin && cls.isEntitled ? joinUrl      : null,
+      sessionCode:  cls.canJoin && cls.isEntitled ? sessionCode  : null,
+      zoomPassword: cls.canJoin && cls.isEntitled ? zoomPassword : null,
     });
   } catch (err) {
     console.error("[GET /api/student/live-classes/[id]]", err);
