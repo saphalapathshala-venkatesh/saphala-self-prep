@@ -83,34 +83,19 @@ export default function CheckoutClient({
     setCouponState("checking");
     setCouponError("");
     try {
-      const res = await fetch("/api/student/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId, couponCode: code }),
-      });
-      if (res.status === 422) {
+      const res = await fetch(
+        `/api/student/coupon?code=${encodeURIComponent(code)}&packageId=${encodeURIComponent(packageId)}`
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.valid) {
         setCouponState("error");
-        setCouponError("Invalid or expired coupon code");
+        setCouponError(data.error ?? "Invalid or expired coupon code");
         return;
       }
-      if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        if (d.error?.toLowerCase().includes("coupon")) {
-          setCouponState("error");
-          setCouponError(d.error);
-          return;
-        }
-      }
-      const data = await res.json();
-      const disc = pricePaise - (data.netPaise ?? pricePaise);
-      if (disc > 0) {
-        setCouponDiscount(disc);
-        setAppliedCoupon(code.toUpperCase());
+      if (data.discountPaise > 0) {
+        setCouponDiscount(data.discountPaise);
+        setAppliedCoupon(data.couponCode ?? code.toUpperCase());
         setCouponState("applied");
-        // If already settled (free), redirect immediately
-        if (data.status === "PAID") {
-          router.push(`/checkout/result?orderId=${data.orderId}`);
-        }
       } else {
         setCouponState("error");
         setCouponError("Coupon does not apply to this package");
