@@ -154,13 +154,12 @@ export default function ResultClient({ orderId }: { orderId: string }) {
           </p>
         </div>
         <div className="flex flex-col gap-3 pt-2">
-          <Link
-            href={`/checkout?packageId=${/* stored in order name, use orders page */ ""}` }
-            onClick={(e) => { e.preventDefault(); window.history.back(); }}
+          <button
+            onClick={() => router.back()}
             className="w-full py-3 rounded-xl bg-[#6D4BCB] hover:bg-[#5C3DB5] text-white font-semibold text-sm transition-colors text-center"
           >
             Try Again
-          </Link>
+          </button>
           <Link
             href="/plans"
             className="w-full py-3 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium text-sm transition-colors text-center"

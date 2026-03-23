@@ -80,6 +80,13 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const requests = await listRefundRequestsForUser(user.id);
+  let requests;
+  try {
+    requests = await listRefundRequestsForUser(user.id);
+  } catch (err) {
+    console.error("[refund-requests] DB error:", err);
+    return NextResponse.json({ error: "Could not load refund requests. Please try again." }, { status: 500 });
+  }
+
   return NextResponse.json({ requests });
 }

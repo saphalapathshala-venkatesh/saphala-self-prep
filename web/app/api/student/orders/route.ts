@@ -54,6 +54,28 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const orders = await listOrdersForUser(user.id);
+  let rawOrders;
+  try {
+    rawOrders = await listOrdersForUser(user.id);
+  } catch (err) {
+    console.error("[orders] DB error:", err);
+    return NextResponse.json({ error: "Could not load orders. Please try again." }, { status: 500 });
+  }
+
+  // Normalize field names to match the client interface (finalAmountPaise → netPaise)
+  const orders = rawOrders.map((o) => ({
+    id: o.id,
+    status: o.status,
+    packageName: o.packageName,
+    packageCode: o.packageCode,
+    packageDescription: o.packageDescription,
+    grossPaise: o.grossPaise,
+    discountPaise: o.discountPaise,
+    netPaise: o.finalAmountPaise,
+    currency: o.currency,
+    paidAt: o.paidAt,
+    createdAt: o.createdAt,
+  }));
+
   return NextResponse.json({ orders });
 }

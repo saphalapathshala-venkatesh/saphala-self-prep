@@ -12,7 +12,7 @@ function paise(amount: number, currency = "INR") {
 }
 
 export default async function PlansPage() {
-  const packages = await listActivePackages();
+  const packages = await listActivePackages().catch(() => []);
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50">

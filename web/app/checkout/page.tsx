@@ -16,7 +16,7 @@ export default async function CheckoutPage({ searchParams }: Props) {
   const { packageId } = await searchParams;
   if (!packageId) redirect("/plans");
 
-  const pkg = await getActivePackage(packageId);
+  const pkg = await getActivePackage(packageId).catch(() => null);
   if (!pkg) redirect("/plans");
 
   return (

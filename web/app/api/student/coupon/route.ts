@@ -16,12 +16,26 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "code and packageId are required" }, { status: 400 });
   }
 
-  const pkg = await getActivePackage(packageId);
+  let pkg;
+  try {
+    pkg = await getActivePackage(packageId);
+  } catch (err) {
+    console.error("[coupon] DB error (package lookup):", err);
+    return NextResponse.json({ error: "Could not validate coupon. Please try again." }, { status: 500 });
+  }
+
   if (!pkg) {
     return NextResponse.json({ error: "Package not found or inactive" }, { status: 404 });
   }
 
-  const result = await validateCoupon(code, pkg);
+  let result;
+  try {
+    result = await validateCoupon(code, pkg);
+  } catch (err) {
+    console.error("[coupon] DB error (validate):", err);
+    return NextResponse.json({ error: "Could not validate coupon. Please try again." }, { status: 500 });
+  }
+
   if (!result) {
     return NextResponse.json({ valid: false, error: "Invalid or expired coupon code" }, { status: 422 });
   }

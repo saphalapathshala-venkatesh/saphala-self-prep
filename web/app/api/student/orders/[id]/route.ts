@@ -11,15 +11,28 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const order = await getOrderById(id, user.id);
+
+  let order;
+  try {
+    order = await getOrderById(id, user.id);
+  } catch (err) {
+    console.error("[orders/id] DB error:", err);
+    return NextResponse.json({ error: "Could not load order. Please try again." }, { status: 500 });
+  }
+
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
 
-  // Check for open refund request
-  const refundRequest = order.status === "PAID"
-    ? await getOpenRefundRequest(order.id)
-    : null;
+  // Check for open refund request — fail soft, not critical
+  let refundRequest = null;
+  if (order.status === "PAID") {
+    try {
+      refundRequest = await getOpenRefundRequest(order.id);
+    } catch {
+      // non-critical — continue without refund state
+    }
+  }
 
   return NextResponse.json({
     orderId: order.id,
