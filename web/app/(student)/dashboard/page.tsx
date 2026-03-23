@@ -53,10 +53,10 @@ export default async function DashboardPage() {
 
   const [data, freeCourses, practiceSuggestions, streak, dashboardClass] = await Promise.all([
     getDashboardData(user.id),
-    getActiveCourses({ productCategory: "FREE_DEMO", limit: 4 }),
+    getActiveCourses({ productCategory: "FREE_DEMO", limit: 4 }).catch(() => []),
     getDailyPractice(user.id),
     getUserStreak(user.id),
-    getDashboardLiveClass(user.id),
+    getDashboardLiveClass(user.id).catch(() => null),
   ]);
 
   const salutation =
