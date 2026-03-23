@@ -3,6 +3,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { CurriculumAccordion } from "@/components/courses/CurriculumAccordion";
+import { getLiveClassesForStudent } from "@/lib/liveClassDb";
+import LiveClassCard from "@/components/live-classes/LiveClassCard";
+import type { LiveClassCardData } from "@/components/live-classes/LiveClassCard";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +38,10 @@ export default async function CourseDetailPage({
   const user = await getCurrentUser();
   if (!user) redirect(`/login?from=/courses/${id}`);
 
-  const data = await getCourseWithCurriculum(id);
+  const [data, liveClasses] = await Promise.all([
+    getCourseWithCurriculum(id),
+    getLiveClassesForStudent({ courseId: id, limit: 10 }),
+  ]);
   if (!data) notFound();
 
   const isFree = data.productCategory === "FREE_DEMO";
@@ -161,6 +167,49 @@ export default async function CourseDetailPage({
           </div>
         )}
       </div>
+
+      {/* Live Classes for this course */}
+      {liveClasses.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-[#6D4BCB]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+              </svg>
+              <h2 className="text-base font-bold text-[#2D1B69]">Live Classes</h2>
+            </div>
+            <Link
+              href={`/live-classes?courseId=${id}`}
+              className="text-xs text-[#6D4BCB] hover:text-[#5C3DB5] font-medium transition-colors"
+            >
+              View all →
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {liveClasses.slice(0, 4).map((cls) => {
+              const cardData: LiveClassCardData = {
+                id:            cls.id,
+                title:         cls.title,
+                description:   cls.description,
+                facultyName:   cls.facultyName,
+                facultyTitle:  cls.facultyTitle,
+                sessionDate:   cls.sessionDate ? cls.sessionDate.toISOString() : null,
+                startTime:     cls.startTime,
+                endTime:       cls.endTime,
+                status:        cls.status,
+                liveStatus:    cls.liveStatus,
+                canJoin:       cls.canJoin,
+                joinUrl:       cls.joinUrl,
+                platform:      cls.platform,
+                thumbnailUrl:  cls.thumbnailUrl,
+                replayVideoId: cls.replayVideoId,
+                courseId:      cls.courseId,
+              };
+              return <LiveClassCard key={cls.id} cls={cardData} />;
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

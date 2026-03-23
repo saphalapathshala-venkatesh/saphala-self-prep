@@ -1,7 +1,7 @@
 # Saphala Pathshala
 
 ## Overview
-Saphala Pathshala is an educational platform offering self-paced learning and simulated tests for exam preparation. It provides Smart Learning (concept lessons, flashcards), TestHub (exam simulations), Pathshala (premium video lessons), and Prep Library (PDFs, study materials) to deliver a comprehensive learning experience. The project aims to empower students with effective tools for academic success.
+Saphala Pathshala is an educational platform designed to provide a comprehensive learning experience for exam preparation. It offers self-paced learning, simulated tests, premium video lessons, and a library of study materials. The platform aims to empower students with effective tools for academic success through features like Smart Learning (concept lessons, flashcards), TestHub (exam simulations), Pathshala (premium video lessons), and Prep Library (PDFs, study materials).
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -9,25 +9,22 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### Frontend
-The frontend uses **Next.js 16** (App Router, TypeScript, React 19) with **Tailwind CSS 4**, custom CSS, and `lucide-react` for icons. Layout components are standardized in `web/components/layout/`. The `app/(student)/layout.tsx` handles server-side authentication and acts as a dashboard shell for student pages. The homepage is modular and responsive, with content managed via the database where applicable. Key terminology is defined in `config/terminology.ts`.
+The frontend is built with Next.js 16 (App Router, TypeScript, React 19) and styled using Tailwind CSS 4, custom CSS, and `lucide-react` for icons. It features a modular and responsive design, with standard layout components and server-side authentication handled in `app/(student)/layout.tsx`. Key terminology is centrally defined.
 
 ### Backend & Database
-The backend uses **Prisma 7** ORM with **Neon PostgreSQL**. User authentication is cookie-based, storing sessions in PostgreSQL with `bcrypt` for password hashing. The database client uses `@prisma/adapter-neon` with `@neondatabase/serverless` in HTTP mode for serverless compatibility. User roles include `STUDENT`, `ADMIN`, and `SUPER_ADMIN`. User registration captures `fullName`, `email`, `mobile`, `state`, `gender`, and `password`, with `legalAccepted` and `legalVersion` tracking. A "one-device login" feature can prevent concurrent logins. Mobile numbers are normalized to 10 digits, and TestHub XP calculation includes an `xpMultiplier`.
-
-### Schema Governance
-The student frontend shares its database with the admin application, which is the schema owner. The student frontend's `web/prisma/schema.prisma` is a superset of the admin schema. Direct database alterations using `prisma db push --accept-data-loss` are forbidden against the shared production DB. Admin-only tables are not listed in the frontend schema. `Test.accessType` is a derived TypeScript value, not a database field. `unlockAt` fields on `Test`, `ContentPage`, `FlashcardDeck`, and `PdfAsset` control content availability.
+The backend utilizes Prisma 7 ORM with Neon PostgreSQL. User authentication is cookie-based, storing sessions in PostgreSQL with `bcrypt` for password hashing. The database client uses `@prisma/adapter-neon` for serverless compatibility. User roles include `STUDENT`, `ADMIN`, and `SUPER_ADMIN`. The system supports robust user registration, a "one-device login" feature, and an XP architecture that tracks user progress and awards points for various learning activities. The student frontend shares its database with the admin application, with schema governance ensuring that the student's `schema.prisma` is a superset of the admin schema and direct production database alterations are forbidden. Content availability is controlled by `unlockAt` fields.
 
 ### XP Architecture
-XP is stored in `XpLedgerEntry` rows. Each row has `delta` (points), `reason`, `refType`, and `refId`. `refType` distinguishes the source: `"Attempt"` = TestHub, `"FlashcardDeck"` = Flashcard, `"ContentPage"` = Ebooks, `"Video"` = Pathshala. Dashboard total = sum of all `delta` for the user. Dashboard breakdown groups by `refType`. `UserXpSourceProgress` and `UserXpWallet` exist in the DB (admin schema) but are not in the student Prisma schema — use raw SQL if needed. `XpRule` table is currently empty (rules not seeded). Idempotency: before awarding, check `findFirst` on `XpLedgerEntry` with same `userId + refType + refId`. Flashcard XP: `POST /api/student/flashcards/complete` — checks `deck.xpEnabled`, idempotent per deck per user. Test XP: committed in `lib/resultComputer.ts` during `computeOrGetResult`. XP celebration: `triggerXpCelebration()` from `lib/xpCelebration.ts` — reusable across all modules, dual crackers + ribbon effect.
+XP is managed via `XpLedgerEntry` rows, tracking points, reason, and reference type (`Attempt`, `FlashcardDeck`, `ContentPage`, `Video`). The dashboard displays total XP and a breakdown by `refType`. Idempotency checks prevent duplicate XP awards. XP celebrations are triggered via a reusable utility.
 
 ### Admin APIs
-Admin APIs manage user sessions, multi-device access, and retrieve user attempt records.
+Admin APIs facilitate user session management, multi-device access control, and retrieval of user attempt records.
 
 ### Learner Attempt Visibility APIs
-APIs provide data for learner attempts, including summaries, XP earned, and detailed breakdowns.
+APIs provide data for learner attempts, including summaries, earned XP, and detailed breakdowns.
 
 ### Concurrent Test Protection
-The `Attempt` model uses a `lockedSessionToken` to prevent concurrent test access, blocking subsequent attempts with a `409 Conflict` if an active session holds a lock.
+The `Attempt` model uses `lockedSessionToken` to prevent simultaneous test access, returning a `409 Conflict` for concurrent attempts.
 
 ### Core Features
 
@@ -35,84 +32,55 @@ The `Attempt` model uses a `lockedSessionToken` to prevent concurrent test acces
 An administrative interface at `/admin` allows `ADMIN` users to manage users and roles.
 
 #### TestHub
-Allows users to take simulated exams with language selection, question palette, real-time timers, and auto-submission. Post-exam analysis includes XP, rank, percentile, topper comparison, leaderboard, correctness visualization, timing insights, heat maps, focus areas, mentor suggestions, and question issue reporting.
-
-**Result page tabs**: Summary | Full Report | Suggestions. Summary shows score, XP, rank/percentile, topper comparison, leaderboard. Full Report shows accuracy heat map, time efficiency map, question behaviour map, focus area analysis, and time comparison. Suggestions tab shows Saphala Mentor Suggestions (rule-based, no AI).
-
-**Total exam time**: Always computed as `submittedAt - startedAt` (not sum of per-question times). Per-question `timeSpentMs` used only for micro-analysis.
-
-**Rank/leaderboard**: DB-based, first-attempt-only. Threshold: 5 first attempts. Topper selected by: marks desc → accuracy desc → exam time asc → submission time asc. Rank reflects user's first attempt standing.
-
-**Analytics API**: `GET /api/testhub/attempts/analytics?attemptId=` returns accuracy heat map, time efficiency heat map, risk/behaviour heat map, focus area scores (weighted formula per spec), and mentor suggestions (rule-based T1–T5 test-level, P1–P5 topic-level).
-
-**Per-question timing in review**: Uses first-attempt-only average (batch query). Minimum 5 samples for "sufficient data"; 1–4 samples show avg with "limited attempts" disclaimer. Behavior tags per question: Efficient Solve | Correct but Slow | Rushed Error | Time-Heavy Mistake.
+Provides simulated exams with language selection, question palette, real-time timers, and auto-submission. Post-exam analysis includes XP, rank, percentile, topper comparison, leaderboard, correctness visualization, timing insights, heat maps, focus areas, and mentor suggestions. Result pages offer Summary, Full Report, and Suggestions tabs. Rank and leaderboard are DB-based, calculated on first attempts only. Per-question timing analysis is available in review.
 
 #### Student Dashboard
-Located at `/dashboard`, it provides an overview of student progress, including metrics, recent attempts, and a profile summary. Dedicated pages detail past exam performance and XP earnings.
-
-**"Your Daily Practice" card**: Appears on the dashboard for every logged-in student. Built in `web/lib/practiceDb.ts` via `getDailyPractice(userId)`. Shows 1–3 personalised suggestions (tests, flashcards, ebooks — never videos or PDFs). Priority logic: (1) unattempted content first ("Not started yet"), (2) low-scoring test attempts < 60% ("You scored X% — improve it"), (3) seen-but-worth-revisiting fallback. Guaranteed to always return at least 1 item. Each row shows a type badge (colour-coded), reason pill (blue=new, amber=retry, grey=revise), title, and a direct CTA button ("Start Test" / "Study Cards" / "Read Now").
+Located at `/dashboard`, it offers an overview of student progress, metrics, recent attempts, and a profile summary. It includes a "Your Daily Practice" card, providing personalized content suggestions (tests, flashcards, ebooks) based on completion status and performance.
 
 #### Homepage
-A dynamic layout with sections for quotes, a hero slider, database-driven exam categories, featured courses, product types, and a contact form. Most content is accessible to guests, with learning materials requiring login.
+A dynamic layout featuring a hero slider, database-driven exam categories, featured courses, product types, and a contact form. Most content is accessible to guests, with learning materials requiring login.
 
 #### Content Library (Student Content Reflection Layer)
-Learning content routes are dynamically generated from the database under `app/(student)/` and require login. This includes:
-- **Ebooks (`/learn/lessons`)**: Listings of published `ContentPage` rows. Detail page uses `EbookReaderClient` (client component) — a paginated multi-chapter reader built on `EbookPageShell`. Each `EBookPage` row is a separate "page"; the student navigates with two-color buttons (purple #6D4BCB = Next/forward, emerald #10B981 = Back/Previous/Finish). Chapter progress dots shown for multi-chapter ebooks. On the last page, "Finish ✓" calls `POST /api/student/ebooks/complete` (XP policy: 1st=100%, 2nd=50%, 3rd+=0, refType="ContentPage") and triggers XP confetti. `getLessonById` returns both `body` (concatenated legacy) and `chapters[]` (individual EBookPage rows). Falls back to a single chapter from `ContentPage.body` for legacy ebooks. `Subject.subjectColor` removed from schema (column not in shared DB); ebooks always use brand purple fallback.
+Learning content routes under `app/(student)/` are dynamically generated from the database and require login. This includes:
+- **Ebooks (`/learn/lessons`)**: Listings of published `ContentPage` rows with a paginated, multi-chapter reader. XP is awarded upon completion.
 - **PDFs (`/learn/pdfs`)**: Listings of published `PdfAsset` rows for download.
-- **Flashcard Decks (`/learn/flashcards`)**: Listings of published `FlashcardDeck` rows with interactive study UI.
-All use `components/learn/LearnPageShell.tsx` for consistent presentation.
+- **Flashcard Decks (`/learn/flashcards`)**: Listings of published `FlashcardDeck` rows with an interactive study UI.
 
 #### Course Architecture
-Courses are organized by two dimensions: **Exam Category** (APPSC, AP Police, TGPSC, UPSC, etc. — `Course.categoryId` → `Category`) and **Product Category** (FREE_DEMO, VIDEO_ONLY, TEST_SERIES, etc. — `Course.productCategory` enum). `Course.featured` flags editorial picks shown in the home page hero. Only `Course.isActive = true` courses are visible to students.
+Courses are organized by `Exam Category` and `Product Category`. A 5-level curriculum tree (`Course → CourseSubjectSection → Chapter → Lesson → LessonItem`) defines the structure. `LessonItem.itemType` determines the viewer (ebook, PDF, flashcard, video, external link). `unlockAt` controls scheduled release. Free demo courses are accessible to all logged-in students. Course APIs use raw SQL for admin-owned tables.
 
-The curriculum is a 5-level tree: `Course → CourseSubjectSection → Chapter → Lesson (status=PUBLISHED) → LessonItem`. `LessonItem.itemType` determines which viewer to launch: `HTML_PAGE` → ebook reader, `PDF` → PDF viewer, `FLASHCARD_DECK` → flashcard player, `VIDEO` → video player, `EXTERNAL_LINK` → open in browser. `LessonItem.unlockAt` controls scheduled release. `Course` and curriculum tables are admin-owned and NOT in the student Prisma schema — always query via `prisma.$queryRawUnsafe` from `web/lib/courseDb.ts`.
-
-**Student Course APIs:** `GET /api/student/courses` (list with optional categoryId/productCategory/featured filters) and `GET /api/student/courses/[id]` (full course + curriculum tree). Both use raw SQL via `courseDb.ts`. `FREE_DEMO` courses are accessible to all logged-in students without entitlement check. Other product types show a "Purchase Required" gate in the curriculum.
-
-**Course UI pages:**
-- Public catalog: `/courses` — category tab bar (URL `?category=id`) + course cards with content-type badges and "Start Free →" CTA
-- Student detail: `/courses/[id]` (within student layout, requires login) — course header + collapsible curriculum accordion (`CurriculumAccordion` client component in `components/courses/`)
-- Dashboard: "Start Learning" section shows FREE_DEMO courses as compact cards
+#### Live Classes (`/live-classes`)
+Student-facing live class feature with listings grouped by `LIVE NOW`, `Upcoming`, and `Past`. Join window for live classes is calculated server-side. Join credentials are only revealed when `canJoin = true`.
 
 #### Course Catalog (`/courses`)
-A database-driven server component that dynamically displays active `Course` records. Supports three stackable URL filters (all server-side):
-
-- `?category=<id>` — Exam category tab (AP Police, APPSC, TGPSC, etc.)
-- `?productCategory=<enum>` — Product type pill filter (FREE_DEMO, TEST_SERIES, VIDEO_ONLY, etc.)
-- `?exam=<id>` — Specific exam within a category (APPSC Group 1, APPSC Group 2, etc.)
-
-**Exam filter row**: Appears automatically below the category tabs when a category is selected AND that category has `Exam` records in the DB. Each exam is shown as a pill button. Admin creates exams in the admin app under the category; they appear here immediately. `Exam` table: `id, name, slug, categoryId`. `Course.examId` links to `Exam.id`.
-
-`getActiveCourses()` and `getExamsForCategory()` in `web/lib/courseDb.ts` use raw SQL (admin-owned tables). Public API: `GET /api/public/exams?categoryId=<id>` returns exams for a given category.
+A database-driven server component displaying active courses with stackable server-side filters for `category`, `productCategory`, and `exam`. An exam filter row dynamically appears when a category with associated exams is selected.
 
 ### APIs
-Public APIs for daily quotes, categories, and contact forms. Authenticated APIs for TestHub operations (start, save, submit, results, review, reporting, feedback). Admin APIs for user/role management.
+Public APIs provide daily quotes, categories, and contact form functionality. Authenticated APIs support TestHub operations (start, save, submit, results, review, reporting, feedback). Admin APIs manage user and role data.
 
 ### Legal Config
 Legal constants (`LEGAL_VERSION`, `LEGAL_TERMS_URL`, `LEGAL_REFUND_URL`) are defined in `web/config/legal.ts` for signup and checkout flows.
 
 ### Route Protection
-`proxy.ts` (Next.js 16 equivalent of `middleware.ts`) redirects unauthenticated guests from protected routes (`/dashboard`, `/learn`, `/admin`) to `/login`.
+`proxy.ts` redirects unauthenticated guests from protected routes (`/dashboard`, `/learn`, `/admin`) to `/login`.
 
 ### Forgot Password Flow
-Students can reset passwords at `/forgot-password` using registered email/mobile and the last 4 digits of their mobile number. This generates a short-lived HMAC-SHA256 token for password reset, revoking all existing sessions upon successful reset. No email/SMS or dedicated DB table for tokens is used.
+Students can reset passwords at `/forgot-password` using registered email/mobile and the last 4 digits of their mobile number. This generates a short-lived HMAC-SHA256 token, revoking all existing sessions upon successful reset.
 
 ### Student Test Panel
-The TestHub student test panel (`components/testhub/TestAttemptClient.tsx`) uses a 7-route student API layer at `/api/student/`. It supports sections, multiple timer modes (TOTAL, SECTION, SUBSECTION), and fully DB-persisted pause/resume. Answers are tracked by `selectedOptionId` (DB uuid).
-
-**Pause/Resume design**: Pause creates an `AttemptPause` row (`pausedAt`, `resumedAt`) and sets `Attempt.status = PAUSED` atomically. Resume closes the open pause event, extends `Attempt.endsAt` by the paused duration (so remaining time is always accurate), and restores `status = IN_PROGRESS`. On refresh-while-paused, `GET /attempts/[id]` returns `currentlyPaused: true` + `lastPausedAt`, and the FE freezes the timer at `endsAt - lastPausedAt`. Submit while paused is rejected (409); student must resume first. `AttemptStatus` enum: `IN_PROGRESS | PAUSED | SUBMITTED`. `AttemptPause` model: `id, attemptId, pausedAt, resumedAt`.
+The TestHub student test panel (`components/testhub/TestAttemptClient.tsx`) utilizes a 7-route student API layer at `/api/student/`. It supports sections, multiple timer modes, and fully DB-persisted pause/resume functionality. Answers are tracked by `selectedOptionId`. The pause/resume design creates `AttemptPause` rows and atomically updates `Attempt.status`, ensuring accurate remaining time.
 
 ### Auth Hardening
-`getSession()` checks `revokedAt: null` to invalidate admin-revoked sessions. `getCurrentUser()` and `getCurrentUserAndSession()` re-check `isBlocked`, `isActive`, `deletedAt`, `infringementBlocked` on every request. Login API returns explicit error codes (`ACCOUNT_BLOCKED`, `ACCOUNT_INACTIVE`, `ACTIVE_SESSION_EXISTS`) for robust error handling in the LoginForm.
+`getSession()` checks `revokedAt: null` to invalidate sessions. `getCurrentUser()` and `getCurrentUserAndSession()` re-check `isBlocked`, `isActive`, `deletedAt`, and `infringementBlocked` on every request. The login API returns explicit error codes for robust error handling.
 
 ## External Dependencies
 
-- **Next.js 16.1.6**
-- **React 19.2.3**
-- **Tailwind CSS 4**
-- **TypeScript 5**
-- **Prisma 7**
-- **Neon PostgreSQL**
-- **lucide-react**
-- **canvas-confetti**
-- **Geist font family**
+- Next.js 16.1.6
+- React 19.2.3
+- Tailwind CSS 4
+- TypeScript 5
+- Prisma 7
+- Neon PostgreSQL
+- lucide-react
+- canvas-confetti
+- Geist font family

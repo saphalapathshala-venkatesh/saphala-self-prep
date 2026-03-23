@@ -1,0 +1,235 @@
+Build the student frontend LIVE Classes experience for Saphala using the already completed backend Zoom integration and the existing student API.
+
+Goal:
+Wire the student-facing LIVE Classes UI cleanly into the Saphala frontend so students can see upcoming/live/completed classes, join Zoom sessions when allowed, and access replay when available. This must also integrate cleanly into course flow and respect publish/unlock rules.
+
+Important:
+Audit first before implementing. Do not assume the frontend is missing everything.
+
+==================================================
+PHASE 1 — FRONTEND AUDIT FIRST
+==================================================
+
+Audit the current student frontend and report:
+
+1. Existing LIVE class UI
+- whether any live class cards/pages already exist
+- whether course detail pages already try to render live classes
+- whether there is any standalone live class listing page
+
+2. Existing API usage
+- whether GET /api/student/live-classes is already consumed anywhere
+- whether any older live-class API exists and should be replaced or preserved
+
+3. Existing course flow
+- how course content currently renders
+- how ebooks/tests/quizzes are shown
+- whether mixed content ordering already exists or is partial
+- whether admin-defined order is reflected properly
+
+4. Existing access rules in frontend
+- publish checks
+- unlockAt handling
+- entitlement handling
+- locked state UI
+
+Output required first:
+A. what already exists
+B. what is partially wired
+C. what is missing
+D. what can be reused safely
+E. what should be implemented now
+
+Do not blindly rebuild what already exists.
+
+==================================================
+PHASE 2 — LIVE CLASS CARD UI
+==================================================
+
+Build/upgrade the student-facing Live Class card component using the current backend payload.
+
+The card must support:
+1. Title
+2. Faculty
+3. Thumbnail if available
+4. Scheduled date
+5. Start time and end time or duration
+6. Status badge:
+   - UPCOMING
+   - LIVE NOW
+   - COMPLETED
+   - LOCKED if not accessible yet
+7. Platform label if useful (Zoom / Other)
+8. Course/context label if applicable
+
+Actions:
+1. Join Class
+   - only when canJoin = true and joinUrl available
+2. Locked / Coming Soon state
+   - when unlockAt or access rules block it
+3. Replay
+   - when replayVideoId or replay resource exists
+4. Optional disabled/grey state when completed but no replay exists
+
+Keep mobile and desktop clean.
+
+==================================================
+PHASE 3 — LIVE CLASS DETAIL / ACCESS FLOW
+==================================================
+
+Build the student access experience for a live class.
+
+Requirements:
+1. When student opens a LIVE class, show:
+   - title
+   - faculty
+   - date/time
+   - status
+   - short description if available
+   - meeting password/session code if allowed by backend payload
+2. Show Join button only when allowed by backend:
+   - canJoin = true
+   - joinUrl present
+3. If too early:
+   - show friendly message such as:
+     "Join link will be available closer to the class start time."
+4. If completed and replay exists:
+   - show Replay button/card
+5. If completed without replay:
+   - show completed status clearly
+6. If locked:
+   - show lock state and unlock messaging
+
+Do not expose join links manually beyond backend rules.
+
+==================================================
+PHASE 4 — COURSE FLOW INTEGRATION
+==================================================
+
+Integrate LIVE classes into course content flow.
+
+Requirements:
+1. Live classes must appear inside the course journey wherever admin-defined order places them.
+2. Mixed content ordering must remain correct across:
+   - ebooks
+   - tests/quizzes
+   - live classes
+   - later recorded videos
+3. No hardcoding of content order.
+4. Respect admin-driven order and publish/unlock rules.
+5. If existing course page has partial ordering logic, extend it safely instead of breaking it.
+
+This is very important:
+New subjects, topics, and subtopics added later must reflect automatically through the existing taxonomy-driven backend. Do not hardcode any labels or assumptions in the frontend.
+
+==================================================
+PHASE 5 — STANDALONE LIVE CLASSES LISTING (IF APPROPRIATE)
+==================================================
+
+If the app architecture already supports or would benefit from a standalone student page for live classes, implement a clean listing view.
+
+Possible page:
+- /live-classes
+
+This page should:
+1. Fetch from GET /api/student/live-classes
+2. Support clear grouping/filtering such as:
+   - Upcoming
+   - Live Now
+   - Completed
+3. Show locked/inaccessible classes correctly
+4. Remain DB/API-driven, not hardcoded
+
+If a standalone page is not appropriate yet, explain why and wire only course-based rendering for now.
+
+==================================================
+PHASE 6 — UX / STATE RULES
+==================================================
+
+Frontend must reflect backend state accurately.
+
+Use backend fields like:
+- liveStatus
+- canJoin
+- joinUrl
+- sessionCode
+- meetingPassword
+- durationMinutes
+- replayVideoId
+- unlockAt
+- published status / entitlement status if already enforced via payload
+
+Rules:
+1. UPCOMING
+- show date/time
+- show "Join link will appear closer to class time" if joinUrl is gated
+
+2. LIVE NOW
+- highlight clearly
+- primary Join button visible
+
+3. COMPLETED
+- show completed badge
+- show replay if available
+- otherwise show completed/no replay state
+
+4. LOCKED
+- show lock icon/message
+- do not show active join CTA
+
+==================================================
+PHASE 7 — UI QUALITY
+==================================================
+
+Design requirements:
+1. Clean, premium, exam-focused UI
+2. Mobile-first usability
+3. No clutter
+4. Clear states and reassuring messaging
+5. Buttons must feel responsive
+6. Student should never feel confused whether a class is upcoming, live, locked, or completed
+
+==================================================
+PHASE 8 — ENGINEERING RULES
+==================================================
+
+1. Audit first before implementing.
+2. Reuse existing components and layouts where sensible.
+3. Do not hardcode taxonomy names, statuses, or course assumptions.
+4. New subjects/topics/subtopics added later must reflect automatically through the payload/UI.
+5. Keep admin and frontend apps cleanly separated.
+6. Do not weaken backend security by exposing join URLs manually.
+7. Preserve existing Ebook/Test/Course flows.
+
+==================================================
+PHASE 9 — VALIDATION
+==================================================
+
+Validate the following cases:
+
+1. Upcoming Zoom class before join window
+2. Live Zoom class during join window
+3. Completed class with replay
+4. Completed class without replay
+5. Locked class due to unlockAt or access restriction
+6. Course-linked live class rendering in correct order
+7. Mobile rendering
+8. Non-Zoom/manual platform class fallback still renders correctly if such records exist
+
+==================================================
+DELIVERABLES
+==================================================
+
+1. Audit summary
+2. Live class card UI
+3. Live class access/detail flow
+4. Course flow integration
+5. Optional standalone live classes page if appropriate
+6. Validation notes
+7. Clear note on:
+   - what was already present
+   - what was newly added
+   - what remains for later (e.g. replay automation, recorded video integration)
+
+Expected outcome:
+Students should have a clean LIVE Classes experience in the frontend, with correct upcoming/live/completed/locked states, safe Zoom join flow, and proper integration into the course learning journey.
