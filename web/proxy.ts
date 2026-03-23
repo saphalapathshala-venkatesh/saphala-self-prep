@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 const SESSION_COOKIE_NAME = "saphala_session";
 
-const protectedPaths = ["/dashboard", "/learn", "/admin", "/live-classes", "/videos"];
+const protectedPaths = ["/dashboard", "/learn", "/admin", "/live-classes", "/videos", "/orders"];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -34,5 +34,7 @@ export const config = {
     "/live-classes/:path*",
     "/videos",
     "/videos/:path*",
+    "/orders",
+    "/orders/:path*",
   ],
 };
