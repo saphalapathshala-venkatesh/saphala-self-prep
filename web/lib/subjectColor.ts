@@ -2,8 +2,8 @@
 // Flashcards, and Course curriculum subject folders.
 //
 // Priority for resolving a subject's color:
-//   1. FlashcardDeck.subjectColor  (admin-set, per subject)
-//   2. SUBJECT_COLOR_MAP           (name-based fallback)
+//   1. Subject.subjectColor        (admin-set directly on the Subject entity — primary)
+//   2. SUBJECT_COLOR_MAP           (name-based fallback when Subject.subjectColor is null)
 //   3. Brand purple                (#6D4BCB — default when nothing is set)
 
 /** Single brand-purple fallback used across the app. */
@@ -30,7 +30,7 @@ export function subjectColorFromName(name: string | null | undefined): string | 
 
 /**
  * Primary color accessor. Resolves in priority order:
- *   1. `explicitColor` — admin-set color stored on FlashcardDeck / resolved per-subject
+ *   1. `explicitColor` — Subject.subjectColor passed down from contentDb / courseDb
  *   2. Name-based fallback from SUBJECT_COLOR_MAP
  *   3. Brand purple (#6D4BCB)
  *

@@ -235,12 +235,13 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
   if (!courses.length) return null;
   const course = mapCourse(courses[0]);
 
-  type RawSection = { sectionId: string; subjectId: string | null; subjectName: string; label: string | null; sortOrder: number };
+  type RawSection = { sectionId: string; subjectId: string | null; subjectName: string; subjectColor: string | null; label: string | null; sortOrder: number };
   const rawSections = await prisma.$queryRawUnsafe<RawSection[]>(`
     SELECT
       css.id AS "sectionId",
       css."subjectId",
       COALESCE(css.label, s.name, 'Section') AS "subjectName",
+      s."subjectColor",
       css.label,
       css."sortOrder"
     FROM "CourseSubjectSection" css
@@ -252,23 +253,11 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
     return { ...course, curriculum: [] };
   }
 
-  // ── Resolve subject colors (same priority as Flashcards / Ebooks) ────────
-  // Priority: FlashcardDeck.subjectColor (admin-set) → SUBJECT_COLOR_MAP → null
-  const uniqueSubjectIds = [...new Set(
-    rawSections.map((s) => s.subjectId).filter((id): id is string => !!id)
-  )];
-  const colorDecks = uniqueSubjectIds.length
-    ? await prisma.flashcardDeck.findMany({
-        where: { subjectId: { in: uniqueSubjectIds }, NOT: { subjectColor: null } },
-        select: { subjectId: true, subjectColor: true },
-        distinct: ["subjectId"],
-      })
-    : [];
-  const deckColorMap = new Map(colorDecks.map((d) => [d.subjectId!, d.subjectColor!]));
-  const resolveColor = (s: { subjectId: string | null; subjectName: string }): string | null =>
-    (s.subjectId ? deckColorMap.get(s.subjectId) : null)
-    ?? subjectColorFromName(s.subjectName)
-    ?? null;
+  // ── Resolve subject colors ────────────────────────────────────────────────
+  // Primary source: Subject.subjectColor (already selected in the SQL join above).
+  // Fallback: name-based lookup via subjectColorFromName → null (component uses brand purple).
+  const resolveColor = (s: { subjectId: string | null; subjectName: string; subjectColor: string | null }): string | null =>
+    s.subjectColor ?? subjectColorFromName(s.subjectName) ?? null;
   // ─────────────────────────────────────────────────────────────────────────
 
   const sectionIds = rawSections.map((s) => `'${s.sectionId}'`).join(",");
