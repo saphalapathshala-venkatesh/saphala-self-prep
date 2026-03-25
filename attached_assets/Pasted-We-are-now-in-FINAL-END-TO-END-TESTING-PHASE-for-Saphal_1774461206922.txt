@@ -1,0 +1,142 @@
+We are now in FINAL END-TO-END TESTING PHASE for Saphala Self Prep.
+
+This is NOT a development phase.
+This is a REAL SYSTEM VALIDATION phase.
+
+Goal:
+Verify that the entire product works correctly for a real student journey.
+
+IMPORTANT:
+- Do NOT assume anything works
+- Test actual flows end to end
+- Identify real bugs, not theoretical ones
+- Fix only critical issues found
+
+--------------------------------
+PHASE 1 — TEST DATA SETUP
+--------------------------------
+
+Create minimal but real test data in Admin:
+
+1. Create 2 subjects with different subjectColor
+2. Create:
+   - 1 Flashcard deck
+   - 1 E-book / HTML lesson
+   - 1 PDF
+   - 1 Test Series (with at least 1 test)
+   - 1 Recorded Video
+
+3. Create 3 courses:
+   A. Free course (FREE_DEMO)
+   B. Paid single-type course (PDF or Test)
+   C. Combo course (linked content: test series + PDF + ebook + video)
+
+4. Publish everything
+
+--------------------------------
+PHASE 2 — USER FLOW TESTING
+--------------------------------
+
+Create a fresh test user.
+
+Test these flows:
+
+1. FREE COURSE FLOW
+- course visible
+- opens without payment
+- content accessible
+
+2. PAID COURSE FLOW
+- course visible
+- click buy
+- go through payment (test mode)
+- success page works
+- course unlocked
+- appears in "My Courses"
+
+3. COMBO COURSE FLOW
+- shows all included components
+- each opens correctly:
+   - PDF
+   - Ebook
+   - Flashcards
+   - Test series
+   - Video
+
+--------------------------------
+PHASE 3 — ENTITLEMENT VALIDATION
+--------------------------------
+
+Verify:
+
+- entitlement created after payment
+- frontend reflects entitlement
+- locked/unlocked UI is correct
+- no "Purchase Required" after payment
+- dashboard shows purchased courses
+
+--------------------------------
+PHASE 4 — VIDEO TESTING
+--------------------------------
+
+- video visible inside course
+- locked before purchase
+- unlocked after purchase
+- playback works
+- no broken URL or blank player
+
+--------------------------------
+PHASE 5 — TEST SERIES FLOW
+--------------------------------
+
+- locked before purchase
+- unlocked after purchase
+- test launches correctly
+- no access mismatch
+
+--------------------------------
+PHASE 6 — LINKED CONTENT VALIDATION
+--------------------------------
+
+- linked items appear in course
+- order is correct
+- no missing items
+- navigation works
+
+--------------------------------
+PHASE 7 — DASHBOARD QA
+--------------------------------
+
+- "My Courses" shows only enrolled courses
+- free vs paid clearly distinguishable
+- continue learning works
+
+--------------------------------
+PHASE 8 — FAILURE CASES
+--------------------------------
+
+- failed payment → course remains locked
+- refresh after payment → still unlocked
+- logout/login → entitlement persists
+
+--------------------------------
+PHASE 9 — REPORT
+--------------------------------
+
+Give me:
+
+1. All flows tested
+2. Bugs found (critical / medium / minor)
+3. Fixes implemented
+4. Remaining issues
+5. Whether system is production-ready or not
+
+--------------------------------
+RULES
+--------------------------------
+
+- No UI redesign now
+- No new features
+- Only fix real issues found
+- Keep changes minimal and safe
+- Ensure TypeScript stays clean
