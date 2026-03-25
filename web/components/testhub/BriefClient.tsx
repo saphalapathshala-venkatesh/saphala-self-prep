@@ -8,6 +8,8 @@ import ExamInstructionsContent from "./ExamInstructionsContent";
 
 interface BriefClientProps {
   test: MockTest;
+  backHref?: string;
+  backLabel?: string;
 }
 
 interface ActiveAttemptInfo {
@@ -16,7 +18,7 @@ interface ActiveAttemptInfo {
   attemptNumber: number;
 }
 
-export default function BriefClient({ test }: BriefClientProps) {
+export default function BriefClient({ test, backHref = "/testhub", backLabel = "Back to Tests" }: BriefClientProps) {
   const router = useRouter();
   const [language, setLanguage] = useState<"EN" | "TE">("EN");
   const [agreed, setAgreed] = useState(false);
@@ -118,8 +120,8 @@ export default function BriefClient({ test }: BriefClientProps) {
         <p className="text-gray-500 text-sm mb-2">{test.title}</p>
         <p className="text-gray-400 text-sm mb-2">This test opens on</p>
         <p className="text-[#6D4BCB] font-semibold text-base mb-8">{formatted}</p>
-        <Link href="/testhub" className="btn-glossy-primary px-8 py-3">
-          Back to Tests
+        <Link href={backHref} className="btn-glossy-primary px-8 py-3">
+          {backLabel}
         </Link>
       </div>
     );
@@ -139,8 +141,8 @@ export default function BriefClient({ test }: BriefClientProps) {
           You have used all {test.attemptsAllowed} attempt{test.attemptsAllowed !== 1 ? "s" : ""} for this test.
         </p>
         <div className="flex gap-3 justify-center">
-          <Link href="/testhub" className="btn-glossy-secondary px-6 py-3">
-            Back to Tests
+          <Link href={backHref} className="btn-glossy-secondary px-6 py-3">
+            {backLabel}
           </Link>
           <Link href={`/testhub/tests/${test.id}/attempts`} className="btn-glossy-primary px-6 py-3">
             View Results
@@ -273,8 +275,8 @@ export default function BriefClient({ test }: BriefClientProps) {
         </div>
       ) : (
         <div className="flex gap-4 mt-8">
-          <Link href="/testhub" className="btn-glossy-secondary flex-1 text-center py-3">
-            Go Back
+          <Link href={backHref} className="btn-glossy-secondary flex-1 text-center py-3">
+            {backLabel}
           </Link>
           <button
             onClick={handleStart}

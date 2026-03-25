@@ -1,0 +1,159 @@
+We identified a CORE NAVIGATION ISSUE across the student frontend.
+
+PROBLEM
+When a student opens any content (flashcard, ebook, PDF, video, test) from inside a course lesson, the back/navigation action takes them to a generic page (like /flashcards, /lessons, etc.) instead of returning to the active course lesson.
+
+This breaks the learning flow.
+
+GOAL
+Implement a COURSE-AWARE NAVIGATION SYSTEM so that:
+
+- Any content opened from inside a course preserves course context
+- Back navigation returns the user to:
+  1. the same course
+  2. the same lesson (if possible)
+  3. the last opened item (if applicable)
+
+IMPORTANT RULES
+- Do NOT redesign UI
+- Do NOT rely on fragile browser history behavior
+- Do NOT break standalone content navigation
+- Use a clean, scalable, route/query-based context system
+- Keep changes minimal and safe
+- TypeScript must remain clean
+
+--------------------------------
+CORE BEHAVIOR
+--------------------------------
+
+1. When content is opened FROM a course:
+   - navigation must carry context:
+     - courseId
+     - lessonId (if available)
+     - itemId (optional but preferred)
+     - returnTo (computed URL or structured params)
+
+2. When user clicks back INSIDE content:
+   - return to the exact course context
+   - NOT to generic listing pages
+
+3. When content is opened OUTSIDE a course:
+   - existing behavior remains unchanged
+
+--------------------------------
+APPLIES TO ALL CONTENT TYPES
+--------------------------------
+
+Fix for all:
+
+- Flashcards
+- E-books / HTML lessons
+- PDFs
+- Videos
+- Test Series / Tests
+- Any LessonItem-based navigation
+
+--------------------------------
+IMPLEMENTATION APPROACH
+--------------------------------
+
+1. IDENTIFY ENTRY POINTS
+Audit all places where content links are generated inside:
+- course detail page
+- curriculum accordion
+- linked content sections
+
+2. PASS CONTEXT
+When generating links from course:
+Append context via query params or structured routing, for example:
+
+?from=course
+&courseId=...
+&lessonId=...
+&itemId=...
+&returnTo=...
+
+(Use a clean and consistent format — do NOT invent different patterns per page)
+
+3. UPDATE TARGET PAGES
+For each content page:
+
+- flashcard player
+- ebook reader
+- PDF viewer
+- video player
+- test interface
+
+Add logic to:
+
+- detect course context
+- compute return destination
+- override back button behavior
+
+4. BACK NAVIGATION LOGIC
+
+Priority:
+1. If returnTo exists → use it
+2. Else if courseId + lessonId exist → reconstruct course URL
+3. Else → fallback to default (listing page)
+
+5. LESSON CONTEXT (IMPORTANT)
+
+If lessonId + itemId exist:
+- return to same lesson
+- optionally restore active item state (if already supported)
+
+If not:
+- return to course detail page safely
+
+6. DO NOT BREAK:
+
+- direct navigation via URL
+- opening content in new tab
+- standalone flows (flashcards, lessons, PDFs, etc.)
+
+--------------------------------
+VALIDATION (MANDATORY)
+--------------------------------
+
+Test all scenarios:
+
+1. Open content from course:
+   - Flashcard → back → returns to same course lesson
+   - Ebook → back → returns correctly
+   - PDF → back → returns correctly
+   - Video → back → returns correctly
+   - Test → back → returns correctly
+
+2. Open content from standalone listing:
+   - back returns to listing (unchanged)
+
+3. Refresh content page opened from course:
+   - back still works using query context
+
+4. Open content in new tab:
+   - still behaves safely (fallback works)
+
+--------------------------------
+FINAL REPORT
+--------------------------------
+
+Provide:
+
+1. All files modified
+2. Where context is injected
+3. How return logic is implemented
+4. Whether all content types are covered
+5. Any edge cases handled
+6. Any limitations remaining
+
+--------------------------------
+ARCHITECTURE NOTE
+--------------------------------
+
+This is not a one-off fix.
+This establishes a reusable navigation pattern for all future content.
+
+Ensure:
+- single consistent approach
+- no duplication of logic across pages

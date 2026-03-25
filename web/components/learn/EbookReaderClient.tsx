@@ -53,6 +53,8 @@ interface EbookReaderClientProps {
   xpEnabled: boolean;
   xpValue: number;
   chapters: Chapter[];
+  backHref?: string;
+  backLabel?: string;
 }
 
 type XpStatus = "idle" | "loading" | "earned" | "already_earned" | "none";
@@ -66,6 +68,8 @@ export default function EbookReaderClient({
   xpEnabled,
   xpValue,
   chapters,
+  backHref = "/learn/lessons",
+  backLabel = "← Back to Ebooks",
 }: EbookReaderClientProps) {
   const [currentPage, setCurrentPage] = useState(0);
   const [xpStatus, setXpStatus] = useState<XpStatus>("idle");
@@ -211,11 +215,11 @@ export default function EbookReaderClient({
         {/* Left button */}
         {isFirst || isLast ? (
           <a
-            href="/learn/lessons"
+            href={backHref}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm text-white transition-opacity hover:opacity-90 active:opacity-80"
             style={{ backgroundColor: GREEN }}
           >
-            ← Back to Ebooks
+            {backLabel}
           </a>
         ) : (
           <button

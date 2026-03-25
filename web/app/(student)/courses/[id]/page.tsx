@@ -1,4 +1,5 @@
 import { getCourseWithCurriculum, checkUserEntitlementForCourse, getLinkedContentForCourse, linkedContentUrl, linkedContentSectionLabel, type LinkedContentRow } from "@/lib/courseDb";
+import { type CourseContext } from "@/lib/courseNav";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -220,6 +221,7 @@ export default async function CourseDetailPage({
           <CurriculumAccordion
             curriculum={data.curriculum}
             entitlementLocked={!canAccess}
+            courseId={id}
           />
         </div>
       )}
@@ -229,6 +231,7 @@ export default async function CourseDetailPage({
         const items = linkedByType[contentType];
         const sectionLabel = linkedContentSectionLabel(contentType);
         const icon = LINKED_CONTENT_ICON[contentType] ?? "📌";
+        const courseCtx: CourseContext = { courseId: id };
 
         return (
           <div key={contentType}>
@@ -239,7 +242,7 @@ export default async function CourseDetailPage({
             </div>
             <div className="space-y-2">
               {items.map((item) => {
-                const url = canAccess ? linkedContentUrl(item) : null;
+                const url = canAccess ? linkedContentUrl(item, courseCtx) : null;
                 const row = (
                   <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150 ${
                     canAccess && url

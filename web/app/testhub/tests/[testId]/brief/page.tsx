@@ -4,14 +4,25 @@ import { getDbTestById, resolveTestAccess } from "@/lib/testhubDb";
 import Link from "next/link";
 import { Header } from "@/ui-core/Header";
 import BriefClient from "@/components/testhub/BriefClient";
+import { parseCourseContext, courseReturnUrl } from "@/lib/courseNav";
 
-export default async function BriefPage({ params }: { params: Promise<{ testId: string }> }) {
+export default async function BriefPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ testId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await getCurrentUser();
-  const { testId } = await params;
+  const [{ testId }, sp] = await Promise.all([params, searchParams]);
 
   if (!user) {
     redirect(`/login?from=${encodeURIComponent(`/testhub/tests/${testId}/brief`)}`);
   }
+
+  const ctx = parseCourseContext(sp);
+  const backHref  = ctx ? courseReturnUrl(ctx) : "/testhub";
+  const backLabel = ctx ? "← Back to Course" : "Back to Tests";
 
   const test = await getDbTestById(testId);
 
@@ -23,7 +34,7 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
           <div className="text-center">
             <h1 className="text-2xl font-bold text-[#2D1B69] mb-2">Test Not Found</h1>
             <p className="text-gray-500 mb-6">The test you are looking for does not exist.</p>
-            <Link href="/testhub" className="btn-glossy-primary">Back to TestHub</Link>
+            <Link href={backHref} className="btn-glossy-primary">{backLabel}</Link>
           </div>
         </div>
       </main>
@@ -53,8 +64,8 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
             <p className="text-gray-400 text-sm mb-8">
               This test opens on <span className="font-semibold text-gray-600">{openDate}</span>. Check back then.
             </p>
-            <Link href="/testhub" className="btn-glossy-primary px-8 py-3">
-              Back to Tests
+            <Link href={backHref} className="btn-glossy-primary px-8 py-3">
+              {backLabel}
             </Link>
           </div>
         </div>
@@ -71,7 +82,7 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
           <div className="text-center">
             <h1 className="text-2xl font-bold text-[#2D1B69] mb-2">Test Not Available</h1>
             <p className="text-gray-500 mb-6">This test is not currently available.</p>
-            <Link href="/testhub" className="btn-glossy-primary">Back to TestHub</Link>
+            <Link href={backHref} className="btn-glossy-primary">{backLabel}</Link>
           </div>
         </div>
       </main>
@@ -96,8 +107,8 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
             <p className="text-gray-400 text-sm mb-8">
               This test requires a premium plan. Unlock it to start practicing.
             </p>
-            <Link href="/testhub" className="btn-glossy-primary px-8 py-3">
-              Back to Tests
+            <Link href={backHref} className="btn-glossy-primary px-8 py-3">
+              {backLabel}
             </Link>
           </div>
         </div>
@@ -128,7 +139,7 @@ export default async function BriefPage({ params }: { params: Promise<{ testId: 
       <Header />
 
       <div className="flex-grow flex items-center justify-center py-10 px-4">
-        <BriefClient test={briefTest} />
+        <BriefClient test={briefTest} backHref={backHref} backLabel={backLabel} />
       </div>
     </main>
   );

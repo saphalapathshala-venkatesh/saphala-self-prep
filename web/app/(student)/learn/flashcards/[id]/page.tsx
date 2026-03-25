@@ -3,20 +3,27 @@ import { getDeckById } from "@/lib/contentDb";
 import { ROUTES, PRODUCTS } from "@/config/terminology";
 import Link from "next/link";
 import FlashcardStudyClient from "@/components/learn/FlashcardStudyClient";
+import { parseCourseContext, courseReturnUrl } from "@/lib/courseNav";
 
 export const dynamic = "force-dynamic";
 
 export default async function FlashcardStudyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const deck = await getDeckById(id);
 
   if (!deck) {
     notFound();
   }
+
+  const ctx = parseCourseContext(sp);
+  const backHref = ctx ? courseReturnUrl(ctx) : ROUTES.flashcards;
+  const backLabel = ctx ? "← Back to Course" : `All ${PRODUCTS.flashcards}`;
 
   const breadcrumbParts = [
     deck.breadcrumb.category,
@@ -30,7 +37,7 @@ export default async function FlashcardStudyPage({
       <div className="bg-white py-8 border-b border-gray-100 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 mb-6">
         <div className="max-w-4xl mx-auto">
           <Link
-            href={ROUTES.flashcards}
+            href={backHref}
             className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#6D4BCB] mb-4 transition-colors"
           >
             <svg
@@ -46,7 +53,7 @@ export default async function FlashcardStudyPage({
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            All {PRODUCTS.flashcards}
+            {backLabel}
           </Link>
 
           {breadcrumbParts.length > 0 && (
@@ -75,6 +82,8 @@ export default async function FlashcardStudyPage({
         xpValue={deck.xpValue}
         cards={deck.cards}
         subjectColor={deck.subjectColor}
+        backHref={backHref}
+        backLabel={backLabel}
       />
     </div>
   );

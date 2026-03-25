@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { subjectColorFromName } from "@/lib/subjectColor";
+import { withCourseContext, type CourseContext } from "@/lib/courseNav";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -82,21 +83,31 @@ export interface CourseDetail extends CourseListItem {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-export function itemUrl(item: LessonItemRow): string | null {
+export function itemUrl(item: LessonItemRow, ctx?: CourseContext): string | null {
+  let base: string | null = null;
   switch (item.itemType) {
     case "HTML_PAGE":
-      return item.sourceId ? `/learn/lessons/${item.sourceId}` : null;
+      base = item.sourceId ? `/learn/lessons/${item.sourceId}` : null;
+      break;
     case "FLASHCARD_DECK":
-      return item.sourceId ? `/learn/flashcards/${item.sourceId}` : null;
+      base = item.sourceId ? `/learn/flashcards/${item.sourceId}` : null;
+      break;
     case "PDF":
-      return item.sourceId ? `/learn/pdfs` : null;
+      base = item.sourceId ? `/learn/pdfs` : null;
+      break;
     case "VIDEO":
-      return item.sourceId ? `/videos/${item.sourceId}` : null;
+      base = item.sourceId ? `/videos/${item.sourceId}` : null;
+      break;
+    case "QUIZ":
+      base = item.sourceId ? `/testhub/tests/${item.sourceId}/brief` : null;
+      break;
     case "EXTERNAL_LINK":
       return item.externalUrl ?? null;
     default:
       return null;
   }
+  if (!base) return null;
+  return ctx ? withCourseContext(base, ctx) : base;
 }
 
 export function itemIcon(itemType: string): string {
@@ -469,12 +480,16 @@ const LINKED_CONTENT_URL: Record<string, (id: string) => string> = {
   VIDEO:          (id) => `/videos/${id}`,
   FLASHCARD_DECK: (id) => `/learn/flashcards/${id}`,
   HTML_PAGE:      (id) => `/learn/lessons/${id}`,
+  EBOOK:          (id) => `/learn/lessons/${id}`,
   PDF:            () => `/learn/pdfs`,
+  TEST_SERIES:    (id) => `/testhub/tests/${id}/brief`,
 };
 
-export function linkedContentUrl(row: LinkedContentRow): string | null {
+export function linkedContentUrl(row: LinkedContentRow, ctx?: CourseContext): string | null {
   const fn = LINKED_CONTENT_URL[row.contentType];
-  return fn ? fn(row.contentId) : null;
+  if (!fn) return null;
+  const base = fn(row.contentId);
+  return ctx ? withCourseContext(base, ctx) : base;
 }
 
 const LINKED_CONTENT_SECTION_LABEL: Record<string, string> = {

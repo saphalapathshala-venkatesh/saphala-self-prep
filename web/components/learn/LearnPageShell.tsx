@@ -7,6 +7,7 @@ interface LearnPageShellProps {
   title: string;
   description: ReactNode;
   children: ReactNode;
+  backHref?: string;
 }
 
 export default function LearnPageShell({
@@ -14,14 +15,16 @@ export default function LearnPageShell({
   title,
   description,
   children,
+  backHref,
 }: LearnPageShellProps) {
+  const resolvedBackHref = backHref ?? ROUTES.dashboard;
   return (
     <div className="min-h-full flex flex-col bg-gray-50">
       <section className="bg-white border-b border-gray-100">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center gap-2 mb-3">
             <Link
-              href={ROUTES.dashboard}
+              href={resolvedBackHref}
               className="text-gray-400 hover:text-[#6D4BCB] transition-colors"
               aria-label="Back to dashboard"
             >

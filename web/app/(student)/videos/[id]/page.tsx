@@ -2,20 +2,27 @@ import { getCurrentUser } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { getVideoById, formatDuration } from "@/lib/videoDb";
 import Link from "next/link";
+import { parseCourseContext, courseReturnUrl } from "@/lib/courseNav";
 
 export const dynamic = "force-dynamic";
 
 export default async function VideoDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const user = await getCurrentUser();
   if (!user) redirect(`/login?from=/videos/${id}`);
 
   const video = await getVideoById(id, user.id);
   if (!video) notFound();
+
+  const ctx = parseCourseContext(sp);
+  const backHref  = ctx ? courseReturnUrl(ctx) : "/videos";
+  const backLabel = ctx ? "← Back to Course" : "← Recorded Videos";
 
   const isLocked   = !video.isEntitled && !video.allowPreview;
   const canWatch   = video.isEntitled || video.allowPreview;
@@ -26,7 +33,7 @@ export default async function VideoDetailPage({
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-400">
-        <Link href="/videos" className="hover:text-[#6D4BCB] transition-colors">← Recorded Videos</Link>
+        <Link href={backHref} className="hover:text-[#6D4BCB] transition-colors">{backLabel}</Link>
         <span>/</span>
         <span className="text-gray-600 truncate">{video.title}</span>
       </nav>

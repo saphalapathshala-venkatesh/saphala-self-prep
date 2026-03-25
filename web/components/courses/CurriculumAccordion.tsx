@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SectionRow, LessonItemRow } from "@/lib/courseDb";
 import { itemUrl } from "@/lib/courseDb";
 import { colorTokens } from "@/lib/subjectColor";
+import type { CourseContext } from "@/lib/courseNav";
 
 function isLocked(item: LessonItemRow): boolean {
   return !!item.unlockAt && new Date(item.unlockAt) > new Date();
@@ -46,6 +47,12 @@ function TypeIcon({ type }: { type: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
         </svg>
       );
+    case "QUIZ":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -57,6 +64,7 @@ const TYPE_META: Record<string, { label: string; pill: string }> = {
   FLASHCARD_DECK: { label: "Flashcards",   pill: "bg-yellow-50 text-yellow-700 ring-yellow-200"  },
   VIDEO:          { label: "Video",        pill: "bg-blue-50 text-blue-700 ring-blue-200"        },
   EXTERNAL_LINK:  { label: "Link",         pill: "bg-gray-50 text-gray-600 ring-gray-200"        },
+  QUIZ:           { label: "Test",         pill: "bg-green-50 text-green-700 ring-green-200"     },
 };
 
 function ItemTypeLabel({ type }: { type: string }) {
@@ -86,10 +94,21 @@ function SubjectBookIcon({ color }: { color: string }) {
 
 // ── Lesson item row ───────────────────────────────────────────────────────────
 
-function LessonItemRow_({ item, entitlementLocked }: { item: LessonItemRow; entitlementLocked: boolean }) {
+function LessonItemRow_({
+  item,
+  entitlementLocked,
+  courseId,
+  lessonId,
+}: {
+  item: LessonItemRow;
+  entitlementLocked: boolean;
+  courseId: string;
+  lessonId: string;
+}) {
   const timeLocked = isLocked(item);
   const effectiveLocked = timeLocked || entitlementLocked;
-  const url = itemUrl(item);
+  const ctx: CourseContext = { courseId, lessonId, itemId: item.itemId };
+  const url = itemUrl(item, ctx);
 
   const content = (
     <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150 ${
@@ -140,9 +159,10 @@ function LessonItemRow_({ item, entitlementLocked }: { item: LessonItemRow; enti
 
 // ── Chapter block ─────────────────────────────────────────────────────────────
 
-function ChapterBlock({ chapter, entitlementLocked }: {
+function ChapterBlock({ chapter, entitlementLocked, courseId }: {
   chapter: { chapterId: string; title: string; lessons: { lessonId: string; title: string; items: LessonItemRow[] }[] };
   entitlementLocked: boolean;
+  courseId: string;
 }) {
   const [open, setOpen] = useState(true);
   const totalItems = chapter.lessons.reduce((n, l) => n + l.items.length, 0);
@@ -177,7 +197,13 @@ function ChapterBlock({ chapter, entitlementLocked }: {
               ) : (
                 <div className="space-y-1.5">
                   {lesson.items.map((item) => (
-                    <LessonItemRow_ key={item.itemId} item={item} entitlementLocked={entitlementLocked} />
+                    <LessonItemRow_
+                      key={item.itemId}
+                      item={item}
+                      entitlementLocked={entitlementLocked}
+                      courseId={courseId}
+                      lessonId={lesson.lessonId}
+                    />
                   ))}
                 </div>
               )}
@@ -194,7 +220,7 @@ function ChapterBlock({ chapter, entitlementLocked }: {
 
 // ── Main accordion ────────────────────────────────────────────────────────────
 
-export function CurriculumAccordion({ curriculum, entitlementLocked = false }: { curriculum: SectionRow[]; entitlementLocked?: boolean }) {
+export function CurriculumAccordion({ curriculum, entitlementLocked = false, courseId }: { curriculum: SectionRow[]; entitlementLocked?: boolean; courseId: string }) {
   const [openSections, setOpenSections] = useState<Set<string>>(
     () => new Set(curriculum.map((s) => s.sectionId))
   );
@@ -270,7 +296,7 @@ export function CurriculumAccordion({ curriculum, entitlementLocked = false }: {
                   <p className="text-xs text-gray-400 italic text-center py-4">No chapters yet</p>
                 ) : (
                   section.chapters.map((ch) => (
-                    <ChapterBlock key={ch.chapterId} chapter={ch} entitlementLocked={entitlementLocked} />
+                    <ChapterBlock key={ch.chapterId} chapter={ch} entitlementLocked={entitlementLocked} courseId={courseId} />
                   ))
                 )}
               </div>

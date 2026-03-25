@@ -1,20 +1,27 @@
 import { notFound } from "next/navigation";
 import { getLessonById } from "@/lib/contentDb";
 import EbookReaderClient from "@/components/learn/EbookReaderClient";
+import { parseCourseContext, courseReturnUrl } from "@/lib/courseNav";
+import { ROUTES } from "@/config/terminology";
 
 export const dynamic = "force-dynamic";
 
 export default async function LessonReaderPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
   const lesson = await getLessonById(id);
 
   if (!lesson) {
     notFound();
   }
+
+  const ctx = parseCourseContext(sp);
+  const backHref = ctx ? courseReturnUrl(ctx) : ROUTES.ebooks;
 
   const breadcrumbParts = [
     lesson.breadcrumb.category,
@@ -35,6 +42,8 @@ export default async function LessonReaderPage({
           xpEnabled={lesson.xpEnabled}
           xpValue={lesson.xpValue}
           chapters={lesson.chapters}
+          backHref={backHref}
+          backLabel={ctx ? "← Back to Course" : "← Back to Ebooks"}
         />
       </div>
     </div>

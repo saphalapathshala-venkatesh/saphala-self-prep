@@ -1386,6 +1386,8 @@ interface Props {
   xpValue: number;
   cards: FlashCard[];
   subjectColor: string | null;
+  backHref?: string;
+  backLabel?: string;
 }
 
 export default function FlashcardStudyClient({
@@ -1397,6 +1399,8 @@ export default function FlashcardStudyClient({
   xpValue,
   cards,
   subjectColor,
+  backHref,
+  backLabel,
 }: Props) {
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(false);
@@ -1460,13 +1464,15 @@ export default function FlashcardStudyClient({
   // Root element sets CSS custom properties; all descendants inherit them
   const cssVars = accentVars(subjectColor);
 
+  const resolvedBackHref = backHref ?? ROUTES.flashcards;
+
   if (total === 0) {
     return (
       <div className="flex-grow flex items-center justify-center py-20 text-center">
         <div>
           <p className="text-gray-400 font-medium mb-1">This deck has no cards yet</p>
-          <Link href={ROUTES.flashcards} className="fc-accent-text text-sm hover:underline">
-            ← Back to decks
+          <Link href={resolvedBackHref} className="fc-accent-text text-sm hover:underline">
+            {backLabel ?? "← Back to decks"}
           </Link>
         </div>
       </div>
@@ -1548,10 +1554,10 @@ export default function FlashcardStudyClient({
               Study Again
             </button>
             <Link
-              href={ROUTES.flashcards}
+              href={resolvedBackHref}
               className="bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors"
             >
-              All Decks
+              {backLabel ?? "All Decks"}
             </Link>
           </div>
         </div>

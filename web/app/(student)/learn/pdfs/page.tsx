@@ -2,6 +2,7 @@ import { getPublishedPdfs } from "@/lib/contentDb";
 import LearnPageShell from "@/components/learn/LearnPageShell";
 import { PRODUCTS, ROUTES } from "@/config/terminology";
 import { getSubjectColor, colorTokens } from "@/lib/subjectColor";
+import { parseCourseContext, courseReturnUrl } from "@/lib/courseNav";
 
 export const dynamic = "force-dynamic";
 
@@ -24,14 +25,21 @@ function Breadcrumb({
   );
 }
 
-export default async function PdfsPage() {
-  const pdfs = await getPublishedPdfs();
+export default async function PdfsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [pdfs, sp] = await Promise.all([getPublishedPdfs(), searchParams]);
+  const ctx = parseCourseContext(sp);
+  const backHref = ctx ? courseReturnUrl(ctx) : ROUTES.dashboard;
 
   return (
     <LearnPageShell
       productLabel={PRODUCTS.contentLibrary}
       title={PRODUCTS.pdfs}
       description="Download and study curated PDFs for your exam preparation."
+      backHref={backHref}
     >
       {pdfs.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-200 bg-white py-20 text-center">
