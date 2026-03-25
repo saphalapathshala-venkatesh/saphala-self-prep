@@ -75,12 +75,15 @@ export function parseCourseContext(
  * Computes the URL to return the user to after they exit a content page.
  *
  * Priority:
- *  1. If courseId + lessonId exist → /courses/[courseId] (lesson is in the accordion)
+ *  1. If courseId + lessonId exist → /courses/[courseId]?lessonId=…
+ *     The course page reads lessonId and scrolls/highlights that lesson.
  *  2. If courseId only             → /courses/[courseId]
  *
  * @param ctx   CourseContext parsed from the current page's query params
  * @returns     Destination URL string
  */
 export function courseReturnUrl(ctx: CourseContext): string {
-  return `/courses/${ctx.courseId}`;
+  const base = `/courses/${ctx.courseId}`;
+  if (!ctx.lessonId) return base;
+  return `${base}?lessonId=${encodeURIComponent(ctx.lessonId)}`;
 }

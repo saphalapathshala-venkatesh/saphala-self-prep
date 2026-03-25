@@ -1,0 +1,87 @@
+The previous navigation fix is only partially correct.
+
+CURRENT BEHAVIOR
+Back navigation from course-opened content returns to the course page, but NOT to the exact lesson from which the item was opened.
+
+REQUIRED BEHAVIOR
+When a learner opens any lesson item from inside a course lesson, back/navigation must return to the exact lesson they came from, not merely the course root.
+
+This applies to all lesson item types:
+- Flashcards
+- E-books / HTML lessons
+- PDFs
+- Videos
+- Tests
+- Any future lesson items
+
+IMPORTANT
+- Do NOT redesign UI
+- Do NOT rely only on browser history
+- Do NOT break standalone navigation
+- Keep the current course-aware navigation system, but extend it to restore lesson context correctly
+- TypeScript must remain clean
+
+GOAL
+Back from any content opened inside a course must return to:
+1. same course
+2. same lesson
+3. preferably same item anchor/highlight if already feasible
+
+IMPLEMENTATION REQUIREMENT
+
+1. PASS LESSON CONTEXT EXPLICITLY
+Wherever lesson-item URLs are built from inside a course, include:
+- courseId
+- lessonId
+- itemId
+- returnTo
+
+Return target should not just be /courses/[courseId]
+It should encode the exact lesson state, for example:
+- /courses/[courseId]?lessonId=...
+or
+- /courses/[courseId]#lesson-...
+or another clean structured format already compatible with the course page
+
+2. COURSE PAGE MUST READ THAT CONTEXT
+Update the course page / curriculum component so that when lessonId is present in the URL:
+- the matching lesson is automatically expanded / activated
+- the learner lands back in that lesson context
+- if itemId can be used safely, optionally highlight/scroll to the exact item
+
+3. BACK BUTTON LOGIC
+On child content pages:
+Priority:
+- if returnTo exists, navigate there exactly
+- else if courseId + lessonId exist, reconstruct exact lesson-aware course URL
+- else fallback to course root
+- else fallback to normal standalone listing
+
+4. APPLY TO ALL CONTENT TYPES
+Audit and update all content pages that can be opened from a lesson:
+- flashcards
+- ebook reader
+- PDF
+- video
+- tests
+
+5. DO NOT BREAK STANDALONE FLOW
+If content is opened from general listing pages, existing behavior must remain unchanged.
+
+VALIDATION
+Test all of these:
+1. Open flashcard from Lesson A inside course → back returns to Lesson A expanded
+2. Open ebook from Lesson B → back returns to Lesson B expanded
+3. Open PDF from Lesson C → back returns to Lesson C expanded
+4. Open video from Lesson D → back returns to Lesson D expanded
+5. Open test from Lesson E → back returns to Lesson E expanded
+6. Refresh child page with context still present → back still returns to same lesson
+7. Direct open without context → safe fallback works
+
+FINAL REPORT
+Tell me:
+- exact files changed
+- how lessonId is passed
+- how the course page restores lesson context
+- whether itemId highlighting/scrolling was added or not
+- whether all lesson item types are covered

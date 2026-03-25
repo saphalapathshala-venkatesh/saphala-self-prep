@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { SectionRow, LessonItemRow } from "@/lib/courseDb";
 import { itemUrl } from "@/lib/courseDb";
@@ -159,10 +159,11 @@ function LessonItemRow_({
 
 // ── Chapter block ─────────────────────────────────────────────────────────────
 
-function ChapterBlock({ chapter, entitlementLocked, courseId }: {
+function ChapterBlock({ chapter, entitlementLocked, courseId, highlightLessonId }: {
   chapter: { chapterId: string; title: string; lessons: { lessonId: string; title: string; items: LessonItemRow[] }[] };
   entitlementLocked: boolean;
   courseId: string;
+  highlightLessonId?: string;
 }) {
   const [open, setOpen] = useState(true);
   const totalItems = chapter.lessons.reduce((n, l) => n + l.items.length, 0);
@@ -185,30 +186,39 @@ function ChapterBlock({ chapter, entitlementLocked, courseId }: {
 
       {open && (
         <div className="px-4 py-3 space-y-2 bg-white">
-          {chapter.lessons.map((lesson) => (
-            <div key={lesson.lessonId}>
-              {chapter.lessons.length > 1 && (
-                <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 mt-1">
-                  {lesson.title}
-                </p>
-              )}
-              {lesson.items.length === 0 ? (
-                <p className="text-xs text-gray-400 italic px-2 py-1">No items yet</p>
-              ) : (
-                <div className="space-y-1.5">
-                  {lesson.items.map((item) => (
-                    <LessonItemRow_
-                      key={item.itemId}
-                      item={item}
-                      entitlementLocked={entitlementLocked}
-                      courseId={courseId}
-                      lessonId={lesson.lessonId}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+          {chapter.lessons.map((lesson) => {
+            const isHighlighted = highlightLessonId === lesson.lessonId;
+            return (
+              <div
+                key={lesson.lessonId}
+                data-lesson-id={lesson.lessonId}
+                className={`rounded-xl transition-all duration-700 ${
+                  isHighlighted ? "ring-2 ring-[#6D4BCB]/40 ring-offset-1 bg-purple-50/40" : ""
+                }`}
+              >
+                {chapter.lessons.length > 1 && (
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5 mt-1 px-1">
+                    {lesson.title}
+                  </p>
+                )}
+                {lesson.items.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic px-2 py-1">No items yet</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {lesson.items.map((item) => (
+                      <LessonItemRow_
+                        key={item.itemId}
+                        item={item}
+                        entitlementLocked={entitlementLocked}
+                        courseId={courseId}
+                        lessonId={lesson.lessonId}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {chapter.lessons.length === 0 && (
             <p className="text-xs text-gray-400 italic">No lessons yet</p>
           )}
@@ -220,10 +230,39 @@ function ChapterBlock({ chapter, entitlementLocked, courseId }: {
 
 // ── Main accordion ────────────────────────────────────────────────────────────
 
-export function CurriculumAccordion({ curriculum, entitlementLocked = false, courseId }: { curriculum: SectionRow[]; entitlementLocked?: boolean; courseId: string }) {
+export function CurriculumAccordion({
+  curriculum,
+  entitlementLocked = false,
+  courseId,
+  initialLessonId,
+}: {
+  curriculum: SectionRow[];
+  entitlementLocked?: boolean;
+  courseId: string;
+  initialLessonId?: string;
+}) {
   const [openSections, setOpenSections] = useState<Set<string>>(
     () => new Set(curriculum.map((s) => s.sectionId))
   );
+  const [highlightLessonId, setHighlightLessonId] = useState<string | undefined>(initialLessonId);
+
+  // Scroll to and briefly highlight the target lesson after mount
+  useEffect(() => {
+    if (!initialLessonId) return;
+    const el = document.querySelector<HTMLElement>(`[data-lesson-id="${CSS.escape(initialLessonId)}"]`);
+    if (!el) return;
+    // Delay slightly to ensure layout is complete before scrolling
+    const scrollTimer = setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    // Fade the highlight out after 1.8 s
+    const fadeTimer = setTimeout(() => setHighlightLessonId(undefined), 1800);
+    return () => {
+      clearTimeout(scrollTimer);
+      clearTimeout(fadeTimer);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function toggleSection(id: string) {
     setOpenSections((prev) => {
@@ -296,7 +335,13 @@ export function CurriculumAccordion({ curriculum, entitlementLocked = false, cou
                   <p className="text-xs text-gray-400 italic text-center py-4">No chapters yet</p>
                 ) : (
                   section.chapters.map((ch) => (
-                    <ChapterBlock key={ch.chapterId} chapter={ch} entitlementLocked={entitlementLocked} courseId={courseId} />
+                    <ChapterBlock
+                      key={ch.chapterId}
+                      chapter={ch}
+                      entitlementLocked={entitlementLocked}
+                      courseId={courseId}
+                      highlightLessonId={highlightLessonId}
+                    />
                   ))
                 )}
               </div>

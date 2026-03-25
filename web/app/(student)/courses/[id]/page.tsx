@@ -39,10 +39,14 @@ const LINKED_CONTENT_ICON: Record<string, string> = {
 
 export default async function CourseDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { id } = await params;
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const rawLessonId = sp["lessonId"];
+  const initialLessonId = typeof rawLessonId === "string" ? rawLessonId : Array.isArray(rawLessonId) ? rawLessonId[0] : undefined;
 
   const user = await getCurrentUser();
   if (!user) redirect(`/login?from=/courses/${id}`);
@@ -222,6 +226,7 @@ export default async function CourseDetailPage({
             curriculum={data.curriculum}
             entitlementLocked={!canAccess}
             courseId={id}
+            initialLessonId={initialLessonId}
           />
         </div>
       )}
