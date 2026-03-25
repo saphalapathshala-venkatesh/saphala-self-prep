@@ -172,18 +172,18 @@ export default async function DashboardCoursesPage({
                 href={`/courses/${course.id}`}
                 className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
               >
-                {/* Thumbnail */}
+                {/* Thumbnail — aspect-video keeps full 16:9 YouTube thumbnail visible */}
                 {course.thumbnailUrl ? (
-                  <div className="h-36 overflow-hidden">
+                  <div className="aspect-video overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={course.thumbnailUrl}
                       alt={course.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover"
                     />
                   </div>
                 ) : (
-                  <div className="h-36 bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center px-4">
+                  <div className="aspect-video bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center px-4">
                     <span className="text-white font-bold text-sm text-center line-clamp-3">{course.name}</span>
                   </div>
                 )}

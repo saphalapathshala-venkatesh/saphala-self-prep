@@ -1,0 +1,63 @@
+We need a precise frontend UI fix for course cards / course detail image rendering.
+
+PROBLEM
+Course images are uploaded/designed in full YouTube thumbnail dimensions, but in the frontend some portion of the image is getting cut off, so the full thumbnail is not visible.
+
+GOAL
+Display the FULL course image/thumbnail without cropping important parts.
+
+IMPORTANT
+- Do NOT redesign the whole card/page
+- Do NOT change unrelated layout logic
+- Do NOT break responsiveness
+- Keep the current overall UI structure as much as possible
+- This is only an image rendering/fit fix
+
+TASKS
+
+1. Audit all places in the STUDENT FRONTEND where course images are shown, including:
+- homepage featured courses
+- course listing cards
+- exams/products pages
+- course detail page hero/image
+- dashboard/my courses cards
+- any other course card component reused in frontend
+
+2. Identify the current cause:
+- likely object-cover / fixed-height crop / aspect-ratio mismatch / overflow hidden
+- confirm exactly which components/classes are causing the crop
+
+3. Update rendering so the FULL image is visible.
+Preferred behavior:
+- use the full YouTube-thumbnail style image as much as possible
+- avoid cutting off left/right/top/bottom important content
+- preserve image proportions correctly
+
+4. Recommended approach:
+- prefer object-contain where needed instead of object-cover
+- use a proper aspect ratio container matching thumbnail proportions
+- ensure background/fallback area still looks clean if contain introduces empty space
+- center the image properly
+
+5. Keep design premium:
+- if full image display creates empty bars, handle them cleanly
+- do not distort/stretch image
+- do not pixelate image
+- do not zoom/crop aggressively
+
+6. Apply consistently across all course image surfaces in frontend.
+If some surfaces need slightly different treatment (card vs hero), do it carefully, but the rule is:
+FULL thumbnail should be visible.
+
+7. Validate on:
+- desktop
+- mobile
+- different thumbnail images
+- course cards and course detail page
+
+FINAL REPORT
+Tell me:
+- all files/components changed
+- what was causing the crop
+- what exact CSS/class/rendering change was made
+- whether full YT-thumbnail visibility is now ensured everywhere

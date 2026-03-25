@@ -92,9 +92,9 @@ export default async function CourseDetailPage({
 
       {/* Course header card */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* Banner */}
+        {/* Banner — aspect-video keeps full 16:9 YouTube thumbnail visible */}
         {data.thumbnailUrl ? (
-          <div className="h-48 sm:h-56 overflow-hidden">
+          <div className="aspect-video overflow-hidden">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={data.thumbnailUrl}
@@ -103,7 +103,7 @@ export default async function CourseDetailPage({
             />
           </div>
         ) : (
-          <div className="h-48 sm:h-56 bg-gradient-to-br from-[#2D1B69] via-[#4A2E9E] to-[#6D4BCB] flex flex-col items-center justify-center px-6 text-center">
+          <div className="aspect-video bg-gradient-to-br from-[#2D1B69] via-[#4A2E9E] to-[#6D4BCB] flex flex-col items-center justify-center px-6 text-center">
             <span className="text-5xl mb-3">📚</span>
             <h1 className="text-white font-bold text-lg sm:text-xl leading-snug max-w-sm">
               {data.name}

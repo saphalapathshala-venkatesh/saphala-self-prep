@@ -272,7 +272,7 @@ export default async function DashboardPage() {
                   className="group bg-white rounded-2xl border border-[#6D4BCB]/20 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
                 >
                   {course.thumbnailUrl ? (
-                    <div className="h-24 overflow-hidden relative">
+                    <div className="aspect-video overflow-hidden relative">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={course.thumbnailUrl} alt={course.name} className="w-full h-full object-cover" />
                       <div className="absolute top-2 right-2 bg-green-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
@@ -280,7 +280,7 @@ export default async function DashboardPage() {
                       </div>
                     </div>
                   ) : (
-                    <div className="h-24 bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center px-3 relative">
+                    <div className="aspect-video bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center px-3 relative">
                       <span className="text-white font-semibold text-xs text-center line-clamp-3">{course.name}</span>
                       <div className="absolute top-2 right-2 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">
                         Enrolled
@@ -342,12 +342,12 @@ export default async function DashboardPage() {
                   className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
                 >
                   {course.thumbnailUrl ? (
-                    <div className="h-24 overflow-hidden">
+                    <div className="aspect-video overflow-hidden">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={course.thumbnailUrl} alt={course.name} className="w-full h-full object-cover" />
                     </div>
                   ) : (
-                    <div className="h-24 bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center px-3">
+                    <div className="aspect-video bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center px-3">
                       <span className="text-white font-semibold text-xs text-center line-clamp-3">{course.name}</span>
                     </div>
                   )}
