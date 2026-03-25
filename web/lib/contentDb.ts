@@ -114,6 +114,39 @@ async function buildTaxonomyMaps(
   };
 }
 
+// ── Batch subject color resolver ──────────────────────────────────────────────
+//
+// Subject.subjectColor does not exist in the DB schema.
+// Instead we proxy via FlashcardDeck.subjectColor (admin-set per subject).
+// For listing pages we batch this to a single extra query.
+
+async function batchSubjectColors(
+  subjectIds: string[],
+  subjectNameMap: Map<string, string>,
+): Promise<Map<string, string | null>> {
+  if (subjectIds.length === 0) return new Map();
+
+  const decks = await prisma.flashcardDeck.findMany({
+    where: { subjectId: { in: subjectIds }, NOT: { subjectColor: null } },
+    select: { subjectId: true, subjectColor: true },
+  });
+
+  // Keep only the first hit per subjectId.
+  const deckColorMap = new Map<string, string>();
+  for (const d of decks) {
+    if (d.subjectId && d.subjectColor && !deckColorMap.has(d.subjectId)) {
+      deckColorMap.set(d.subjectId, d.subjectColor);
+    }
+  }
+
+  const result = new Map<string, string | null>();
+  for (const id of subjectIds) {
+    const name = subjectNameMap.get(id) ?? null;
+    result.set(id, deckColorMap.get(id) ?? subjectColorFallback(name) ?? null);
+  }
+  return result;
+}
+
 // ── ContentPage ────────────────────────────────────────────────────────────────
 
 export interface LessonBreadcrumb {
@@ -127,6 +160,7 @@ export interface PublishedLesson {
   id: string;
   title: string;
   publishedAt: Date | null;
+  subjectColor: string | null;
   breadcrumb: LessonBreadcrumb;
 }
 
@@ -164,6 +198,7 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
               name: true,
               subject: {
                 select: {
+                  id: true,
                   name: true,
                   category: { select: { name: true } },
                 },
@@ -175,17 +210,35 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
     },
   });
 
-  return pages.map((p) => ({
-    id: p.id,
-    title: p.title,
-    publishedAt: p.publishedAt,
-    breadcrumb: {
-      category: p.subtopic?.topic.subject.category.name ?? null,
-      subject: p.subtopic?.topic.subject.name ?? null,
-      topic: p.subtopic?.topic.name ?? null,
-      subtopic: p.subtopic?.name ?? null,
-    },
-  }));
+  // Batch-resolve subject colors using FlashcardDeck as proxy.
+  const uniqueSubjectIds = [...new Set(
+    pages
+      .map((p) => p.subtopic?.topic.subject.id)
+      .filter((id): id is string => id != null),
+  )];
+  const subjectNameMap = new Map(
+    pages
+      .map((p) => p.subtopic?.topic.subject)
+      .filter((s): s is { id: string; name: string; category: { name: string } } => s != null)
+      .map((s) => [s.id, s.name] as [string, string]),
+  );
+  const colorMap = await batchSubjectColors(uniqueSubjectIds, subjectNameMap);
+
+  return pages.map((p) => {
+    const subjectId = p.subtopic?.topic.subject.id ?? null;
+    return {
+      id: p.id,
+      title: p.title,
+      publishedAt: p.publishedAt,
+      subjectColor: subjectId ? (colorMap.get(subjectId) ?? null) : null,
+      breadcrumb: {
+        category: p.subtopic?.topic.subject.category.name ?? null,
+        subject: p.subtopic?.topic.subject.name ?? null,
+        topic: p.subtopic?.topic.name ?? null,
+        subtopic: p.subtopic?.name ?? null,
+      },
+    };
+  });
 }
 
 export async function getLessonById(id: string): Promise<LessonDetail | null> {
@@ -308,6 +361,7 @@ export interface PublishedPdf {
   fileUrl: string;
   fileSize: number | null;
   publishedAt: Date | null;
+  subjectColor: string | null;
   breadcrumb: {
     category: string | null;
     subject: string | null;
@@ -349,12 +403,17 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
     unique(pdfs.map((p) => p.subtopicId)),
   );
 
+  // Batch-resolve subject colors using FlashcardDeck as proxy.
+  const pdfSubjectIds = unique(pdfs.map((p) => p.subjectId));
+  const colorMap = await batchSubjectColors(pdfSubjectIds, subMap);
+
   return pdfs.map((p) => ({
     id: p.id,
     title: p.title,
     fileUrl: p.fileUrl,
     fileSize: p.fileSize,
     publishedAt: p.publishedAt,
+    subjectColor: p.subjectId ? (colorMap.get(p.subjectId) ?? null) : null,
     breadcrumb: {
       category: p.categoryId ? (catMap.get(p.categoryId) ?? null) : null,
       subject: p.subjectId ? (subMap.get(p.subjectId) ?? null) : null,
