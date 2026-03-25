@@ -41,6 +41,11 @@ export interface CourseListItem {
   hasPdfCourse: boolean;
   hasTestSeries: boolean;
   hasFlashcardDecks: boolean;
+  isFree: boolean;
+  mrpPaise: number | null;
+  sellingPricePaise: number | null;
+  discountPercent: number | null;
+  packageId: string | null;
 }
 
 export interface LessonItemRow {
@@ -139,12 +144,22 @@ type RawCourse = {
   hasPdfCourse: boolean;
   hasTestSeries: boolean;
   hasFlashcardDecks: boolean;
+  isFree: boolean;
+  mrpPaise: number | null;
+  sellingPricePaise: number | null;
+  packageId: string | null;
 };
+
+function computeDiscount(mrp: number | null, selling: number | null): number | null {
+  if (!mrp || mrp <= 0 || !selling || selling <= 0 || mrp <= selling) return null;
+  return Math.round(((mrp - selling) / mrp) * 100);
+}
 
 function mapCourse(r: RawCourse): CourseListItem {
   return {
     ...r,
     productCategoryLabel: PRODUCT_CATEGORY_LABEL[r.productCategory] ?? r.productCategory,
+    discountPercent: computeDiscount(r.mrpPaise, r.sellingPricePaise),
   };
 }
 
@@ -201,10 +216,21 @@ export async function getActiveCourses(opts?: {
       c."hasHtmlCourse",
       c."hasPdfCourse",
       c."hasTestSeries",
-      c."hasFlashcardDecks"
+      c."hasFlashcardDecks",
+      COALESCE(c."isFree", false) AS "isFree",
+      c."mrpPaise",
+      c."sellingPricePaise",
+      pkg.id AS "packageId"
     FROM "Course" c
     LEFT JOIN "Category" cat ON cat.id = c."categoryId"
     LEFT JOIN "Exam"     e   ON e.id   = c."examId"
+    LEFT JOIN LATERAL (
+      SELECT id FROM "ProductPackage"
+      WHERE "isActive" = true
+        AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
+      ORDER BY "pricePaise" ASC
+      LIMIT 1
+    ) pkg ON true
     WHERE ${where}
     ORDER BY c.featured DESC, c."createdAt" DESC
     ${limitClause}
@@ -236,10 +262,21 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
       c."hasHtmlCourse",
       c."hasPdfCourse",
       c."hasTestSeries",
-      c."hasFlashcardDecks"
+      c."hasFlashcardDecks",
+      COALESCE(c."isFree", false) AS "isFree",
+      c."mrpPaise",
+      c."sellingPricePaise",
+      pkg.id AS "packageId"
     FROM "Course" c
     LEFT JOIN "Category" cat ON cat.id = c."categoryId"
     LEFT JOIN "Exam"     e   ON e.id   = c."examId"
+    LEFT JOIN LATERAL (
+      SELECT id FROM "ProductPackage"
+      WHERE "isActive" = true
+        AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
+      ORDER BY "pricePaise" ASC
+      LIMIT 1
+    ) pkg ON true
     WHERE c.id = '${safeId}' AND c."isActive" = true
     LIMIT 1
   `);

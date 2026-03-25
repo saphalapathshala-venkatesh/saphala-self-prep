@@ -10,6 +10,10 @@ import type { LiveClassCardData } from "@/components/live-classes/LiveClassCard"
 
 export const dynamic = "force-dynamic";
 
+function formatPaiseINR(paise: number): string {
+  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+}
+
 const CAPABILITY_BADGES = [
   { key: "hasVideoCourse",    label: "🎬 Videos" },
   { key: "hasHtmlCourse",     label: "📖 E-Books" },
@@ -60,9 +64,11 @@ export default async function CourseDetailPage({
     getLinkedContentForCourse(id).catch((): LinkedContentRow[] => []),
   ]);
 
-  const isFree      = data.productCategory === "FREE_DEMO";
+  const isFree      = data.isFree || data.productCategory === "FREE_DEMO";
   const canAccess   = isEntitled; // FREE_DEMO always returns true from checkUserEntitlementForCourse
   const productLabel = PRODUCT_LABEL[data.productCategory] ?? data.productCategory;
+  const hasPricing  = !isFree && data.sellingPricePaise != null && data.sellingPricePaise > 0;
+  const checkoutHref = data.packageId ? `/checkout?packageId=${data.packageId}` : "/plans";
 
   const totalItems = data.curriculum.reduce(
     (n, s) => n + s.chapters.reduce((m, ch) => m + ch.lessons.reduce((k, l) => k + l.items.length, 0), 0),
@@ -193,12 +199,30 @@ export default async function CourseDetailPage({
             <p className="text-purple-200 text-xs mt-1 leading-relaxed">
               Purchase this course to unlock all lessons, tests, videos, flashcards, and more.
             </p>
+            {/* Pricing */}
+            {hasPricing && (
+              <div className="flex items-baseline gap-2.5 mt-3">
+                <span className="text-white text-2xl font-bold">
+                  {formatPaiseINR(data.sellingPricePaise!)}
+                </span>
+                {data.mrpPaise != null && data.mrpPaise > data.sellingPricePaise! && (
+                  <span className="text-purple-300 text-sm line-through">
+                    {formatPaiseINR(data.mrpPaise)}
+                  </span>
+                )}
+                {data.discountPercent != null && data.discountPercent > 0 && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-green-400/20 text-green-200 border border-green-400/30">
+                    {data.discountPercent}% off
+                  </span>
+                )}
+              </div>
+            )}
           </div>
           <Link
-            href="/plans"
-            className="flex-shrink-0 px-5 py-2.5 rounded-xl bg-white text-[#2D1B69] font-bold text-sm hover:bg-purple-50 transition-colors whitespace-nowrap"
+            href={checkoutHref}
+            className="flex-shrink-0 px-6 py-3 rounded-xl bg-white text-[#2D1B69] font-bold text-sm hover:bg-purple-50 transition-colors whitespace-nowrap"
           >
-            View Plans →
+            {hasPricing ? "Buy Now →" : "View Plans →"}
           </Link>
         </div>
       )}

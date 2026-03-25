@@ -26,8 +26,10 @@ type UnifiedCard = {
   isFree: boolean;
   price: number | null;
   originalPrice: number | null;
+  discountPercent: number | null;
   badge: string | null;
   href: string;
+  ctaHref: string;
   cta: string;
 };
 
@@ -47,28 +49,56 @@ export default async function FeaturedCoursesSection() {
       description: string | null;
       productCategory: string;
       categoryId: string | null;
+      isFree: boolean;
+      mrpPaise: number | null;
+      sellingPricePaise: number | null;
+      packageId: string | null;
     };
     const featuredCourses = await prisma.$queryRaw<RawCourse[]>`
-      SELECT id, name, description, "productCategory", "categoryId"
-      FROM "Course"
-      WHERE featured = true AND "isActive" = true
-      ORDER BY "createdAt" DESC
+      SELECT
+        c.id, c.name, c.description, c."productCategory", c."categoryId",
+        COALESCE(c."isFree", false) AS "isFree",
+        c."mrpPaise",
+        c."sellingPricePaise",
+        pkg.id AS "packageId"
+      FROM "Course" c
+      LEFT JOIN LATERAL (
+        SELECT id FROM "ProductPackage"
+        WHERE "isActive" = true
+          AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
+        ORDER BY "pricePaise" ASC
+        LIMIT 1
+      ) pkg ON true
+      WHERE c.featured = true AND c."isActive" = true
+      ORDER BY c."createdAt" DESC
       LIMIT 4
     `;
 
     for (const c of featuredCourses) {
-      const isFree = c.productCategory === "FREE_DEMO";
+      const isFreeCourse = c.isFree || c.productCategory === "FREE_DEMO";
+      const selling = c.sellingPricePaise;
+      const mrp = c.mrpPaise;
+      const hasPricing = !isFreeCourse && selling != null && selling > 0;
+      const discount =
+        hasPricing && mrp != null && mrp > selling!
+          ? Math.round(((mrp - selling!) / mrp) * 100)
+          : null;
+      const ctaHref = hasPricing && c.packageId
+        ? `/checkout?packageId=${c.packageId}`
+        : `/courses/${c.id}`;
       cards.push({
         id: `course-${c.id}`,
         title: c.name,
         description: c.description,
         categoryName: c.categoryId ? (catMap.get(c.categoryId) ?? null) : null,
-        isFree,
-        price: null,
-        originalPrice: null,
+        isFree: isFreeCourse,
+        price: hasPricing ? selling! : null,
+        originalPrice: hasPricing && mrp != null && mrp > selling! ? mrp : null,
+        discountPercent: discount,
         badge: PRODUCT_CATEGORY_LABEL[c.productCategory] ?? c.productCategory,
         href: `/courses/${c.id}`,
-        cta: isFree ? "Start Free" : "View Course",
+        ctaHref: ctaHref,
+        cta: isFreeCourse ? "Start Free" : hasPricing ? "Buy Now" : "View Course",
       });
     }
 
@@ -99,8 +129,12 @@ export default async function FeaturedCoursesSection() {
           isFree,
           price: s.pricePaise,
           originalPrice: s.discountPaise > 0 ? s.pricePaise + s.discountPaise : null,
+          discountPercent: s.discountPaise > 0
+            ? Math.round((s.discountPaise / (s.pricePaise + s.discountPaise)) * 100)
+            : null,
           badge: null,
           href: "/testhub",
+          ctaHref: "/testhub",
           cta: isFree ? "Start Free" : "View Tests",
         });
       }
@@ -165,26 +199,31 @@ export default async function FeaturedCoursesSection() {
                     </p>
                   )}
 
-                  <div className="flex items-center justify-between mt-auto">
-                    <div>
+                  <div className="flex items-center justify-between mt-auto gap-3">
+                    <div className="min-w-0">
                       {card.isFree ? (
                         <span className="text-lg font-bold text-[#2D1B69]">Free</span>
                       ) : card.price !== null ? (
-                        <>
+                        <div className="flex flex-wrap items-baseline gap-1.5">
                           <span className="text-lg font-bold text-[#2D1B69]">
                             {formatPrice(card.price)}
                           </span>
                           {card.originalPrice !== null && (
-                            <span className="text-xs text-gray-400 line-through ml-1.5">
+                            <span className="text-xs text-gray-400 line-through">
                               {formatPrice(card.originalPrice)}
                             </span>
                           )}
-                        </>
+                          {card.discountPercent != null && card.discountPercent > 0 && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                              {card.discountPercent}% off
+                            </span>
+                          )}
+                        </div>
                       ) : null}
                     </div>
                     <Link
-                      href={card.href}
-                      className="text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors"
+                      href={card.ctaHref}
+                      className="text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors shrink-0"
                     >
                       {card.cta}
                     </Link>

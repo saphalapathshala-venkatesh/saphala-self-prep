@@ -1,0 +1,116 @@
+We found a real frontend/backend alignment bug for paid courses.
+
+PROBLEM
+In the STUDENT FRONTEND, paid courses are not showing:
+- MRP
+- Selling Price
+- Discount %
+- Buy Now button
+
+even though these should appear for paid courses.
+
+GOAL
+Fix the student frontend so paid courses correctly display pricing and purchase CTA, while free courses continue to behave correctly.
+
+IMPORTANT
+- Do NOT redesign the UI
+- Do NOT change unrelated course layout
+- Do NOT break free course flow
+- Do NOT hardcode pricing logic
+- Admin/DB must remain the source of truth
+- TypeScript must remain clean
+
+TASKS
+
+1. AUDIT THE FULL COURSE PRICING FLOW
+Inspect end to end:
+- Prisma schema / Course model pricing fields
+- admin create/edit course pricing save logic
+- public/student course APIs
+- course listing pages
+- course detail page
+- any shared course card component
+- buy/checkout CTA logic
+
+2. VERIFY BACKEND SOURCE OF TRUTH
+Confirm which fields exist and are being saved for courses, such as:
+- isFree
+- mrpPaise
+- sellingPricePaise
+- discountPercent (computed or returned)
+or equivalent actual fields in current codebase
+
+Do not guess names — read the actual codebase.
+
+3. FIND THE ROOT CAUSE
+Possible causes to check:
+- pricing fields not included in student/public API response
+- frontend reading wrong field names
+- paid/free detection incorrect
+- course card component hiding price block
+- CTA gated by wrong condition
+- computed discount missing in API mapping
+- frontend using old schema assumptions
+
+4. FIX FRONTEND DISPLAY RULES
+
+For PAID courses:
+Show:
+- MRP
+- Selling Price
+- Discount %
+- Buy Now button
+
+For FREE courses:
+Show:
+- Free / Enroll / Start Learning as per existing behavior
+- Do not show misleading MRP/selling-price block
+
+5. APPLY IN ALL RELEVANT STUDENT SURFACES
+Audit and fix all places where courses appear, including:
+- homepage featured courses
+- courses listing page
+- exams/products page
+- course detail page
+- dashboard/my courses where relevant
+- any reusable course card component
+
+6. DISCOUNT LOGIC
+If discount % is not stored directly, compute safely from:
+mrpPaise and sellingPricePaise
+
+Rules:
+- if both valid and mrp > selling price → show computed discount %
+- if no real discount → do not show fake percentage
+- avoid divide-by-zero / null issues
+
+7. BUY NOW BUTTON LOGIC
+For paid courses not yet purchased:
+- show Buy Now button
+
+For already entitled/purchased courses:
+- show appropriate access CTA instead of Buy Now
+
+For free courses:
+- show free-access CTA, not Buy Now
+
+8. VALIDATE END TO END
+Test at least:
+- one free course
+- one paid course with MRP + selling price
+- one paid course with discount
+- one already purchased course
+
+Confirm:
+- correct price rendering
+- correct discount rendering
+- correct CTA rendering
+- no wrong button states
+
+FINAL REPORT
+Tell me:
+- exact root cause
+- exact files changed
+- exact API fields now returned/used
+- all frontend surfaces fixed
+- whether paid courses now correctly show MRP, selling price, discount %, and Buy Now button

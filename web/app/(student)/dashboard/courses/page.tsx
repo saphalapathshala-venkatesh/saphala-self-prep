@@ -8,6 +8,10 @@ import { getCategoryImage } from "@/config/categoryImages";
 
 export const dynamic = "force-dynamic";
 
+function formatPaiseINR(paise: number): string {
+  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+}
+
 const PRODUCT_META: Record<string, { label: string; badge: string; badgeColor: string }> = {
   FREE_DEMO:          { label: "Free Demo",        badge: "Free Demo",       badgeColor: "bg-green-100 text-green-800"   },
   COMPLETE_PREP_PACK: { label: "Complete Pack",    badge: "Complete Pack",   badgeColor: "bg-purple-100 text-purple-800" },
@@ -45,7 +49,6 @@ export default async function DashboardCoursesPage({
   const activeProductMeta  = activeProduct ? PRODUCT_META[activeProduct] : null;
   const activeCategoryImage = activeCategory ? getCategoryImage(activeCategory) : null;
 
-  const isFreeDemo = (p: string) => p === "FREE_DEMO";
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
@@ -164,7 +167,8 @@ export default async function DashboardCoursesPage({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {courses.map((course) => {
             const meta = PRODUCT_META[course.productCategory];
-            const free = isFreeDemo(course.productCategory);
+            const isFreeCourse = course.isFree || course.productCategory === "FREE_DEMO";
+            const hasPricing = !isFreeCourse && course.sellingPricePaise != null && course.sellingPricePaise > 0;
 
             return (
               <Link
@@ -191,7 +195,7 @@ export default async function DashboardCoursesPage({
                 <div className="p-4 flex flex-col flex-1 gap-2">
                   {/* Badges */}
                   <div className="flex flex-wrap gap-1.5">
-                    {free && (
+                    {isFreeCourse && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Free</span>
                     )}
                     {meta && (
@@ -221,6 +225,25 @@ export default async function DashboardCoursesPage({
                     <p className="text-xs text-gray-500 line-clamp-2 flex-1">{course.description}</p>
                   )}
 
+                  {/* Price block — paid courses only */}
+                  {hasPricing && (
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <span className="text-base font-bold text-[#2D1B69]">
+                        {formatPaiseINR(course.sellingPricePaise!)}
+                      </span>
+                      {course.mrpPaise != null && course.mrpPaise > course.sellingPricePaise! && (
+                        <span className="text-xs text-gray-400 line-through">
+                          {formatPaiseINR(course.mrpPaise)}
+                        </span>
+                      )}
+                      {course.discountPercent != null && course.discountPercent > 0 && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                          {course.discountPercent}% off
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Content-type icons */}
                   <div className="flex gap-2 flex-wrap mt-1">
                     {course.hasVideoCourse    && <span className="text-[10px] text-gray-400">🎬 Videos</span>}
@@ -232,11 +255,11 @@ export default async function DashboardCoursesPage({
 
                   {/* CTA */}
                   <span className={`mt-2 block w-full text-center text-xs font-bold py-2 rounded-xl transition-colors ${
-                    free
+                    isFreeCourse
                       ? "bg-green-600 text-white group-hover:bg-green-700"
                       : "bg-[#6D4BCB] text-white group-hover:bg-[#5C3DB5]"
                   }`}>
-                    {free ? "Start Free →" : "View Course →"}
+                    {isFreeCourse ? "Start Free →" : hasPricing ? "Buy Now →" : "View Course →"}
                   </span>
                 </div>
               </Link>

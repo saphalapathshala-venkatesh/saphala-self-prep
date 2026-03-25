@@ -55,6 +55,9 @@ Student-facing live class feature with listings grouped by `LIVE NOW`, `Upcoming
 #### Recorded Videos (`/videos`, `/videos/[id]`)
 Student-facing video library from the `Video` table (admin-owned, queried via raw SQL). Lists published videos with duration, faculty, and entitlement badge. Detail page embeds YouTube via `providerVideoId` for YOUTUBE provider; other providers use `hlsUrl`/`playbackUrl`. Non-entitled students see preview if `allowPreview=true`. XP awarded on first watch. Protected by `proxy.ts`.
 
+#### Course Pricing Architecture
+Pricing for courses lives on the `Course` table (admin-owned, raw SQL): `isFree` (boolean), `mrpPaise` (integer), `sellingPricePaise` (integer). `courseDb.ts` selects these columns in both `getActiveCourses()` and `getCourseWithCurriculum()`, plus LEFT JOIN LATERAL on `ProductPackage` (matching `entitlementCodes @> ARRAY[productCategory]`) to resolve `packageId` for the checkout URL. `discountPercent` is computed from `(mrpPaise - sellingPricePaise) / mrpPaise`. All student surfaces (course listing, dashboard courses, course detail, featured courses on homepage) display selling price, MRP strikethrough, discount %, and "Buy Now →" CTA pointing to `/checkout?packageId=<id>` only when `sellingPricePaise > 0`. Free courses (`productCategory === "FREE_DEMO"` or `isFree = true`) always show "Start Free →".
+
 #### Course Catalog (`/courses`)
 A database-driven server component displaying active courses with stackable server-side filters for `category`, `productCategory`, and `exam`. An exam filter row dynamically appears when a category with associated exams is selected.
 
