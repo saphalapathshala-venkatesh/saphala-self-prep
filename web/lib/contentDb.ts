@@ -115,12 +115,10 @@ async function buildTaxonomyMaps(
 
 // ── Batch subject color resolver ──────────────────────────────────────────────
 //
-// Primary source: Subject.subjectColor — the authoritative color set by admin
-// on the Subject entity itself.
-//
-// Fallback chain (used only when Subject.subjectColor is null):
-//   1. Subject.subjectColor (direct, from Subject table)
-//   2. Brand purple — never returns null so components can't crash
+// Receives a subjectColorMap built from Subject.subjectColor (primary source).
+// Returns null for subjects whose Subject.subjectColor is null; the calling site
+// applies any secondary fallback (FlashcardDeck.subjectColor for decks, or brand
+// purple via the component's `?? BRAND_PURPLE` guard).
 
 async function batchSubjectColors(
   subjectIds: string[],
