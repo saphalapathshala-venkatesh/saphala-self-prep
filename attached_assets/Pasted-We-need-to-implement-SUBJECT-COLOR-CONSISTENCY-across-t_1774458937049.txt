@@ -1,0 +1,125 @@
+We need to implement SUBJECT COLOR CONSISTENCY across the STUDENT FRONTEND.
+
+OBJECTIVE
+Wherever subject-specific UI appears, apply the subject color dynamically using data from backend (Subject.subjectColor).
+
+This is a UI consistency task only.
+DO NOT change business logic, APIs, or data models unless absolutely required to expose subjectColor.
+
+IMPORTANT RULES
+- No hardcoded colors for subjects
+- Always use Subject.subjectColor from backend
+- If subjectColor is missing, use a safe default fallback
+- Keep admin and frontend separation intact
+- Do NOT break any existing functionality
+- TypeScript must remain clean
+
+PHASE 1 — AUDIT
+First scan frontend and identify all places where subject-specific UI exists.
+
+Examples include:
+1. E-Book / HTML content pages
+2. Flashcard decks and flashcard player
+3. Course detail page (subject sections)
+4. Test interface (subject headers / section labels if applicable)
+5. Dashboard / My Courses (if subjects are shown)
+6. PDF viewer headers (if subject shown)
+7. Any cards, tags, chips, or labels showing subject name
+8. Any existing color usage that should be subject-driven
+
+Output:
+- list of all components/pages where subject color should apply
+- current behavior vs required behavior
+
+PHASE 2 — DATA AVAILABILITY
+Verify how subject data is currently fetched.
+
+Ensure subjectColor is available in frontend where needed:
+- from Subject table (subjectColor field)
+- via existing APIs (courses, content, flashcards, tests, etc.)
+
+If subjectColor is NOT included in existing responses:
+- extend backend response minimally to include subjectColor
+- do NOT redesign APIs
+- do NOT expose unnecessary admin fields
+
+PHASE 3 — IMPLEMENTATION
+
+Apply subjectColor in the following ways:
+
+1. E-Book / HTML Viewer
+- Page border color = subjectColor
+- Header strip (subject name) = subjectColor
+- Accent highlights (boxes, titles if applicable)
+
+2. Flashcards
+- Card border (thick border) = subjectColor
+- Header background = subjectColor
+- Ensure text contrast is readable (auto adjust text color if needed)
+
+3. Course Detail Page
+- Subject sections or chips use subjectColor
+- Tags/labels reflect subject color
+
+4. Test Interface (if subject visible)
+- Section headers or subject indicators use subjectColor
+
+5. Dashboard / My Courses
+- Subject tags/cards reflect subjectColor
+
+6. Any subject label UI
+- Use subjectColor for:
+  - left border
+  - badge background
+  - underline accent
+  - icon tint
+
+IMPORTANT:
+- Do NOT overuse color (avoid clutter)
+- Use consistent pattern (e.g., border + light background tint)
+- Maintain readability (contrast check)
+
+PHASE 4 — FALLBACK HANDLING
+
+If subjectColor is:
+- null / undefined → use default color (Saphala theme purple)
+- invalid → fallback safely
+
+Create a small helper:
+getSubjectColor(subject) → returns valid color or fallback
+
+PHASE 5 — SAFETY
+
+Ensure:
+- No crashes if subject is missing
+- No undefined errors
+- No layout breaking
+- Mobile responsiveness remains intact
+
+PHASE 6 — VALIDATION
+
+Test:
+- multiple subjects with different colors
+- missing subjectColor
+- mixed courses with multiple subjects
+- flashcards, ebooks, tests, dashboard
+
+PHASE 7 — FINAL REPORT
+
+Provide:
+1. All components updated
+2. How subjectColor is fetched
+3. Any API changes made
+4. Fallback logic used
+5. Screens/areas affected
+6. Any edge cases handled
+
+DO NOT:
+- change unrelated UI
+- redesign layouts
+- add new features
+- modify admin app
+- introduce hardcoded colors
+
+Goal:
+Every subject-specific UI in frontend should consistently reflect Subject.subjectColor from backend, cleanly and safely.

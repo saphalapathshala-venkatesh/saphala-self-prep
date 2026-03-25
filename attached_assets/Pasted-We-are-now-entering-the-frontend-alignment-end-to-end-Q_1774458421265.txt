@@ -1,0 +1,206 @@
+We are now entering the frontend alignment + end-to-end QA phase for Saphala Self Prep.
+
+OBJECTIVE
+Update and align the STUDENT FRONTEND app with the latest admin/backend changes, then run complete end-to-end testing for:
+1. Course flow
+2. Payment gateway flow
+3. Recorded video flow
+4. Linked reusable content flow
+5. Entitlement / access flow
+
+IMPORTANT CONTEXT
+- Admin and frontend are separate apps sharing one DB
+- Admin is the single source of truth
+- Frontend must reflect admin-wired DB state, not hardcoded assumptions
+- Recent admin changes introduced CourseLinkedContent and moved related APIs under /api/admin/courses/...
+- We must now ensure frontend is aligned with current backend and DB behavior
+- Do not make random schema changes unless absolutely necessary
+- Do not break already working areas
+
+PHASE 1 — AUDIT FRONTEND ALIGNMENT
+First inspect the frontend app thoroughly before changing anything.
+
+Audit these areas:
+1. Public course listing / featured courses / exams / products pages
+2. Course detail page
+3. Purchased course dashboard / student dashboard
+4. Access gating logic for free vs paid vs entitled content
+5. Rendering of mixed course types:
+   - HTML / E-book
+   - PDF
+   - Test Series
+   - Flashcards
+   - Video
+6. Handling of admin-created linked content / reusable course components
+7. Entitlement checks:
+   - UserEntitlement / purchase records / paid access
+   - free course access
+   - locked vs unlocked rendering
+8. Recorded video page / player logic
+9. Payment checkout + post-payment success flow
+10. Order creation / verification / enrollment reflection in frontend
+
+Output first:
+- exact frontend pages/routes involved
+- current gaps/mismatches with admin/backend behavior
+- what must be updated
+
+PHASE 2 — ALIGN FRONTEND WITH RECENT BACKEND / ADMIN LOGIC
+
+A. Course Flow Alignment
+Ensure frontend correctly supports:
+- standalone courses
+- mixed courses
+- combo/package courses built using linked reusable content
+- admin product flags (HTML Course, PDF Course, Video Course, Test Series, Flashcards)
+- featured courses
+- category-driven course display
+
+Requirements:
+1. Course detail page must reflect actual DB-driven content availability
+2. If a course includes linked existing content, frontend must show and use it
+3. No hardcoded assumptions like “course always has direct curriculum only”
+4. If a course has linked content but little/no direct curriculum, it should still render cleanly
+5. Use clear sections such as:
+   - Included Test Series
+   - Included PDFs
+   - Included E-Books
+   - Included Videos
+   - Included Flashcards
+6. Locked/unlocked state must reflect entitlement logic only, not UI guesses
+
+B. Linked Content Reflection
+Implement frontend support for CourseLinkedContent.
+If no student-facing aggregation API exists yet, create the smallest clean backend/frontend integration needed.
+
+Frontend must be able to display linked items attached to a course:
+- title
+- type
+- order
+- access state
+- action button (Open / Start / View / Attempt)
+
+Do NOT expose admin APIs directly in student UI.
+If needed, create student-safe/public/student-auth course detail endpoints that return only safe fields.
+
+C. Entitlement / Access Alignment
+Verify and fix:
+1. Free course access works without purchase where intended
+2. Paid course access works after successful payment
+3. TestSeries.isFree and Test.isFree logic reflect properly
+4. Locked UI is shown only when actually locked
+5. Purchased content appears in dashboard/library after payment
+6. UserEntitlement integration is actually wired and respected in frontend
+
+D. Recorded Video Alignment
+Audit current recorded video workflow end to end:
+1. Admin-created videos
+2. Frontend listing under purchased/free course
+3. Access gating
+4. Playback URL handling
+5. Thumbnail fallback
+6. Video metadata rendering
+7. “Ask your doubt” placeholder or integration point below player if already planned
+8. Do not leave raw or broken player states
+
+If any backend route is missing for student-safe video fetch/play flow, add the minimum required route cleanly.
+
+PHASE 3 — PAYMENT GATEWAY END-TO-END TESTING
+Audit and test payment flow carefully.
+
+Cover:
+1. Product/course pricing visibility on frontend
+2. Checkout page correctness
+3. Terms + refund acceptance at checkout
+4. Order creation
+5. Payment initiation
+6. Payment callback / verification
+7. Success page
+8. Failure / cancel flow
+9. DB updates after successful payment
+10. Entitlement creation after successful payment
+11. Purchased course appearing in learner dashboard/library
+12. Duplicate payment safety / idempotency if applicable
+
+Important:
+- Use real current codebase logic
+- Do not assume payment is wired correctly just because admin side exists
+- Trace full flow from buy button to unlocked access
+
+PHASE 4 — END-TO-END TEST MATRIX
+Run an actual QA matrix and report results clearly.
+
+Test these scenarios:
+
+A. Free course
+- visible in frontend
+- opens without payment
+- content accessible
+
+B. Paid PDF/HTML/Test course
+- visible
+- checkout works
+- payment success reflects
+- course unlocked afterward
+
+C. Combo/mixed course
+- contains linked test series + PDFs + e-book/video etc.
+- renders all included components properly
+- each component opens correctly
+
+D. Test Series flow
+- locked before purchase
+- unlocked after purchase
+- tests visible and launch correctly
+
+E. Recorded video flow
+- locked before purchase if paid
+- unlocked after purchase
+- player works
+- no broken links/UI states
+
+F. Dashboard/My Courses/My Library
+- newly purchased course appears correctly
+- progress/access sections are correct
+
+G. Failed payment flow
+- course must remain locked
+- no fake entitlement should be created
+
+PHASE 5 — FIXES
+After audit/testing, implement only the fixes truly needed.
+Prioritize:
+1. Broken frontend/backend alignment
+2. Missing student-safe data endpoints
+3. Entitlement reflection
+4. Course detail rendering for linked content
+5. Payment-to-access flow
+6. Video playback/access issues
+
+Do NOT spend time on cosmetic polish first.
+Functionality and accurate access control come first.
+
+PHASE 6 — FINAL REPORT
+At the end, give me a structured report with:
+
+1. Frontend pages/routes audited
+2. Issues found
+3. Fixes implemented
+4. Whether linked reusable content now reflects in frontend
+5. Whether entitlement flow is truly wired
+6. Whether payment success unlocks content correctly
+7. Whether recorded video flow works end to end
+8. Remaining issues, if any
+9. Exact files changed
+10. Recommended next steps
+
+IMPORTANT SAFETY / ARCHITECTURE RULES
+- Read existing code first before changing anything
+- Keep admin and frontend separation clean
+- Do not use admin APIs in student UI
+- Do not hardcode categories, products, or access rules
+- Prefer DB-driven reflection of admin state
+- Do not invent schema/table names without reading the actual codebase
+- Keep changes minimal but complete
+- TypeScript must remain clean
+- End with actual tested results, not assumptions

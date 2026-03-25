@@ -90,6 +90,8 @@ export function itemUrl(item: LessonItemRow): string | null {
       return item.sourceId ? `/learn/flashcards/${item.sourceId}` : null;
     case "PDF":
       return item.sourceId ? `/learn/pdfs` : null;
+    case "VIDEO":
+      return item.sourceId ? `/videos/${item.sourceId}` : null;
     case "EXTERNAL_LINK":
       return item.externalUrl ?? null;
     default:
@@ -381,4 +383,138 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
   }));
 
   return { ...course, curriculum };
+}
+
+// ── Enrolled courses ──────────────────────────────────────────────────────────
+
+/**
+ * Returns courses the user has an active entitlement for.
+ * Joins UserEntitlement on courseId OR productCategory.
+ * Fails soft — returns [] if Course/Exam/Category tables are unavailable.
+ */
+export async function getEnrolledCourses(userId: string): Promise<CourseListItem[]> {
+  const safeUserId = userId.replace(/'/g, "''");
+  try {
+    const rows = await prisma.$queryRawUnsafe<RawCourse[]>(`
+      SELECT DISTINCT ON (c.id)
+        c.id,
+        c.name,
+        c.description,
+        c."thumbnailUrl",
+        c."categoryId",
+        cat.name AS "categoryName",
+        c."examId",
+        e.name   AS "examName",
+        c."productCategory",
+        c.featured,
+        c."hasVideoCourse",
+        c."hasHtmlCourse",
+        c."hasPdfCourse",
+        c."hasTestSeries",
+        c."hasFlashcardDecks"
+      FROM "Course" c
+      LEFT JOIN "Category" cat ON cat.id = c."categoryId"
+      LEFT JOIN "Exam"     e   ON e.id   = c."examId"
+      INNER JOIN "UserEntitlement" ue ON (
+        ue."productCode" = c.id
+        OR ue."productCode" = c."productCategory"
+      )
+      WHERE c."isActive" = true
+        AND ue."userId" = '${safeUserId}'
+        AND ue.status   = 'ACTIVE'
+        AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+      ORDER BY c.id, c."createdAt" DESC
+      LIMIT 50
+    `);
+    return rows.map(mapCourse);
+  } catch {
+    return [];
+  }
+}
+
+// ── Entitlement ───────────────────────────────────────────────────────────────
+
+/**
+ * Returns true if the user has an active UserEntitlement for this course.
+ * Matches by courseId OR productCategory (same logic as video entitlement).
+ * FREE_DEMO courses always return true without a DB round-trip.
+ */
+export async function checkUserEntitlementForCourse(
+  userId: string,
+  courseId: string,
+  productCategory: string,
+): Promise<boolean> {
+  if (productCategory === "FREE_DEMO") return true;
+
+  const safeUserId      = userId.replace(/'/g, "''");
+  const safeCourseId    = courseId.replace(/'/g, "''");
+  const safeProdCat     = productCategory.replace(/'/g, "''");
+
+  const rows = await prisma.$queryRawUnsafe<[{ exists: boolean }]>(`
+    SELECT EXISTS (
+      SELECT 1
+      FROM "UserEntitlement" ue
+      WHERE ue."userId"  = '${safeUserId}'
+        AND ue.status     = 'ACTIVE'
+        AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+        AND (
+          ue."productCode" = '${safeCourseId}'
+          OR ue."productCode" = '${safeProdCat}'
+        )
+    ) AS "exists"
+  `);
+  return rows[0]?.exists ?? false;
+}
+
+// ── Linked content (admin-created CourseLinkedContent table) ──────────────────
+
+export interface LinkedContentRow {
+  id: string;
+  contentType: string;
+  contentId: string;
+  title: string;
+  sortOrder: number;
+}
+
+const LINKED_CONTENT_URL: Record<string, (id: string) => string> = {
+  VIDEO:          (id) => `/videos/${id}`,
+  FLASHCARD_DECK: (id) => `/learn/flashcards/${id}`,
+  HTML_PAGE:      (id) => `/learn/lessons/${id}`,
+  PDF:            () => `/learn/pdfs`,
+};
+
+export function linkedContentUrl(row: LinkedContentRow): string | null {
+  const fn = LINKED_CONTENT_URL[row.contentType];
+  return fn ? fn(row.contentId) : null;
+}
+
+const LINKED_CONTENT_SECTION_LABEL: Record<string, string> = {
+  TEST_SERIES:    "Included Test Series",
+  VIDEO:          "Included Videos",
+  FLASHCARD_DECK: "Included Flashcard Decks",
+  HTML_PAGE:      "Included E-Books",
+  PDF:            "Included PDFs",
+};
+
+export function linkedContentSectionLabel(contentType: string): string {
+  return LINKED_CONTENT_SECTION_LABEL[contentType] ?? "Included Content";
+}
+
+/**
+ * Fetches linked content items for a course from the admin-owned
+ * CourseLinkedContent table. Returns an empty array if the table
+ * does not exist yet (fail-soft).
+ */
+export async function getLinkedContentForCourse(courseId: string): Promise<LinkedContentRow[]> {
+  const safeId = courseId.replace(/'/g, "''");
+  try {
+    return await prisma.$queryRawUnsafe<LinkedContentRow[]>(`
+      SELECT id, "contentType", "contentId", title, "sortOrder"
+      FROM "CourseLinkedContent"
+      WHERE "courseId" = '${safeId}' AND "isActive" = true
+      ORDER BY "sortOrder" ASC
+    `);
+  } catch {
+    return [];
+  }
 }

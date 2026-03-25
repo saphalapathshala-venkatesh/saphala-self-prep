@@ -86,20 +86,23 @@ function SubjectBookIcon({ color }: { color: string }) {
 
 // ── Lesson item row ───────────────────────────────────────────────────────────
 
-function LessonItemRow_({ item }: { item: LessonItemRow }) {
-  const locked = isLocked(item);
+function LessonItemRow_({ item, entitlementLocked }: { item: LessonItemRow; entitlementLocked: boolean }) {
+  const timeLocked = isLocked(item);
+  const effectiveLocked = timeLocked || entitlementLocked;
   const url = itemUrl(item);
 
   const content = (
     <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150 ${
-      locked
+      timeLocked
         ? "border-gray-100 bg-gray-50 cursor-not-allowed opacity-60"
+        : entitlementLocked
+        ? "border-gray-100 bg-gray-50/70 cursor-default opacity-75"
         : url
         ? "border-gray-100 bg-white hover:border-[#6D4BCB] hover:shadow-sm cursor-pointer"
         : "border-gray-100 bg-gray-50 cursor-default"
     }`}>
-      {locked ? (
-        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      {effectiveLocked ? (
+        <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
         </svg>
       ) : (
@@ -109,10 +112,10 @@ function LessonItemRow_({ item }: { item: LessonItemRow }) {
       )}
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-[#2D1B69] leading-snug line-clamp-1">
+        <p className={`text-sm font-medium leading-snug line-clamp-1 ${effectiveLocked ? "text-gray-400" : "text-[#2D1B69]"}`}>
           {item.titleSnapshot}
         </p>
-        {locked && item.unlockAt && (
+        {timeLocked && item.unlockAt && (
           <p className="text-[10px] text-amber-600 mt-0.5">
             Unlocks {new Date(item.unlockAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
           </p>
@@ -121,7 +124,7 @@ function LessonItemRow_({ item }: { item: LessonItemRow }) {
 
       <ItemTypeLabel type={item.itemType} />
 
-      {!locked && url && (
+      {!effectiveLocked && url && (
         <svg className="w-4 h-4 text-[#6D4BCB] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
@@ -129,7 +132,7 @@ function LessonItemRow_({ item }: { item: LessonItemRow }) {
     </div>
   );
 
-  if (!locked && url) {
+  if (!effectiveLocked && url) {
     return <Link href={url}>{content}</Link>;
   }
   return <div>{content}</div>;
@@ -137,7 +140,10 @@ function LessonItemRow_({ item }: { item: LessonItemRow }) {
 
 // ── Chapter block ─────────────────────────────────────────────────────────────
 
-function ChapterBlock({ chapter }: { chapter: { chapterId: string; title: string; lessons: { lessonId: string; title: string; items: LessonItemRow[] }[] } }) {
+function ChapterBlock({ chapter, entitlementLocked }: {
+  chapter: { chapterId: string; title: string; lessons: { lessonId: string; title: string; items: LessonItemRow[] }[] };
+  entitlementLocked: boolean;
+}) {
   const [open, setOpen] = useState(true);
   const totalItems = chapter.lessons.reduce((n, l) => n + l.items.length, 0);
 
@@ -171,7 +177,7 @@ function ChapterBlock({ chapter }: { chapter: { chapterId: string; title: string
               ) : (
                 <div className="space-y-1.5">
                   {lesson.items.map((item) => (
-                    <LessonItemRow_ key={item.itemId} item={item} />
+                    <LessonItemRow_ key={item.itemId} item={item} entitlementLocked={entitlementLocked} />
                   ))}
                 </div>
               )}
@@ -188,7 +194,7 @@ function ChapterBlock({ chapter }: { chapter: { chapterId: string; title: string
 
 // ── Main accordion ────────────────────────────────────────────────────────────
 
-export function CurriculumAccordion({ curriculum }: { curriculum: SectionRow[] }) {
+export function CurriculumAccordion({ curriculum, entitlementLocked = false }: { curriculum: SectionRow[]; entitlementLocked?: boolean }) {
   const [openSections, setOpenSections] = useState<Set<string>>(
     () => new Set(curriculum.map((s) => s.sectionId))
   );
@@ -264,7 +270,7 @@ export function CurriculumAccordion({ curriculum }: { curriculum: SectionRow[] }
                   <p className="text-xs text-gray-400 italic text-center py-4">No chapters yet</p>
                 ) : (
                   section.chapters.map((ch) => (
-                    <ChapterBlock key={ch.chapterId} chapter={ch} />
+                    <ChapterBlock key={ch.chapterId} chapter={ch} entitlementLocked={entitlementLocked} />
                   ))
                 )}
               </div>

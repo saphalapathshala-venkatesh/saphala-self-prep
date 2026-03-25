@@ -1,4 +1,4 @@
-import { getCourseWithCurriculum } from "@/lib/courseDb";
+import { getCourseWithCurriculum, checkUserEntitlementForCourse, getLinkedContentForCourse, linkedContentUrl, linkedContentSectionLabel, type LinkedContentRow } from "@/lib/courseDb";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
@@ -28,6 +28,14 @@ const PRODUCT_LABEL: Record<string, string> = {
   CURRENT_AFFAIRS:    "Current Affairs",
 };
 
+const LINKED_CONTENT_ICON: Record<string, string> = {
+  TEST_SERIES:    "✏️",
+  VIDEO:          "🎬",
+  FLASHCARD_DECK: "🃏",
+  HTML_PAGE:      "📖",
+  PDF:            "📄",
+};
+
 export default async function CourseDetailPage({
   params,
 }: {
@@ -38,13 +46,17 @@ export default async function CourseDetailPage({
   const user = await getCurrentUser();
   if (!user) redirect(`/login?from=/courses/${id}`);
 
-  const [data, liveClasses] = await Promise.all([
-    getCourseWithCurriculum(id),
-    getLiveClassesForStudent({ userId: user.id, courseId: id, limit: 10 }),
-  ]);
+  const data = await getCourseWithCurriculum(id);
   if (!data) notFound();
 
-  const isFree = data.productCategory === "FREE_DEMO";
+  const [isEntitled, liveClasses, linkedContent] = await Promise.all([
+    checkUserEntitlementForCourse(user.id, id, data.productCategory).catch(() => false),
+    getLiveClassesForStudent({ userId: user.id, courseId: id, limit: 10 }).catch(() => []),
+    getLinkedContentForCourse(id).catch((): LinkedContentRow[] => []),
+  ]);
+
+  const isFree      = data.productCategory === "FREE_DEMO";
+  const canAccess   = isEntitled; // FREE_DEMO always returns true from checkUserEntitlementForCourse
   const productLabel = PRODUCT_LABEL[data.productCategory] ?? data.productCategory;
 
   const totalItems = data.curriculum.reduce(
@@ -52,6 +64,14 @@ export default async function CourseDetailPage({
     0
   );
   const totalChapters = data.curriculum.reduce((n, s) => n + s.chapters.length, 0);
+
+  // Group linked content by type for display
+  const linkedByType = linkedContent.reduce<Record<string, typeof linkedContent>>((acc, row) => {
+    if (!acc[row.contentType]) acc[row.contentType] = [];
+    acc[row.contentType].push(row);
+    return acc;
+  }, {});
+  const linkedTypes = Object.keys(linkedByType);
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -94,6 +114,14 @@ export default async function CourseDetailPage({
                 Free
               </span>
             )}
+            {!isFree && canAccess && (
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-100 text-green-700 flex items-center gap-1">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Enrolled
+              </span>
+            )}
             <span className="text-xs font-semibold px-3 py-1 rounded-full bg-purple-100 text-purple-800">
               {productLabel}
             </span>
@@ -128,6 +156,12 @@ export default async function CourseDetailPage({
               <p className="text-lg font-bold text-[#2D1B69]">{totalItems}</p>
               <p className="text-[10px] text-gray-400 uppercase tracking-wide">Items</p>
             </div>
+            {linkedContent.length > 0 && (
+              <div className="text-center">
+                <p className="text-lg font-bold text-[#2D1B69]">{linkedContent.length}</p>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wide">Extras</p>
+              </div>
+            )}
           </div>
 
           {/* Content type badges */}
@@ -146,29 +180,99 @@ export default async function CourseDetailPage({
         </div>
       </div>
 
-      {/* Curriculum */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-[#2D1B69]">Course Content</h2>
-          <span className="text-xs text-gray-400">
-            {data.curriculum.length} subject{data.curriculum.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-
-        {isFree ? (
-          <CurriculumAccordion curriculum={data.curriculum} />
-        ) : (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 text-center">
-            <span className="text-3xl mb-3 block">🔒</span>
-            <p className="font-semibold text-amber-800 mb-1">Purchase Required</p>
-            <p className="text-sm text-amber-700">
-              This course requires a valid enrollment to access its content.
+      {/* ── Purchase CTA (non-entitled paid courses) ─────────────────────────── */}
+      {!isFree && !canAccess && (
+        <div className="bg-gradient-to-r from-[#2D1B69] to-[#6D4BCB] rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-white font-bold text-sm">Get full access to this course</p>
+            <p className="text-purple-200 text-xs mt-1 leading-relaxed">
+              Purchase this course to unlock all lessons, tests, videos, flashcards, and more.
             </p>
           </div>
-        )}
-      </div>
+          <Link
+            href="/plans"
+            className="flex-shrink-0 px-5 py-2.5 rounded-xl bg-white text-[#2D1B69] font-bold text-sm hover:bg-purple-50 transition-colors whitespace-nowrap"
+          >
+            View Plans →
+          </Link>
+        </div>
+      )}
 
-      {/* Live Classes for this course */}
+      {/* ── Curriculum ───────────────────────────────────────────────────────── */}
+      {data.curriculum.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-bold text-[#2D1B69]">Course Content</h2>
+            <span className="text-xs text-gray-400">
+              {data.curriculum.length} subject{data.curriculum.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+
+          {!canAccess && !isFree && (
+            <div className="mb-3 flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              Course preview — enroll to access all content
+            </div>
+          )}
+
+          <CurriculumAccordion
+            curriculum={data.curriculum}
+            entitlementLocked={!canAccess}
+          />
+        </div>
+      )}
+
+      {/* ── Linked content sections ──────────────────────────────────────────── */}
+      {linkedTypes.map((contentType) => {
+        const items = linkedByType[contentType];
+        const sectionLabel = linkedContentSectionLabel(contentType);
+        const icon = LINKED_CONTENT_ICON[contentType] ?? "📌";
+
+        return (
+          <div key={contentType}>
+            <div className="flex items-center gap-2 mb-3">
+              <span>{icon}</span>
+              <h2 className="text-base font-bold text-[#2D1B69]">{sectionLabel}</h2>
+              <span className="text-xs text-gray-400 ml-1">{items.length}</span>
+            </div>
+            <div className="space-y-2">
+              {items.map((item) => {
+                const url = canAccess ? linkedContentUrl(item) : null;
+                const row = (
+                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150 ${
+                    canAccess && url
+                      ? "bg-white border-gray-100 hover:border-[#6D4BCB] hover:shadow-sm cursor-pointer"
+                      : "bg-gray-50/70 border-gray-100 opacity-75 cursor-default"
+                  }`}>
+                    <span className="text-base flex-shrink-0">{icon}</span>
+                    <p className={`flex-1 text-sm font-medium leading-snug line-clamp-1 ${canAccess ? "text-[#2D1B69]" : "text-gray-400"}`}>
+                      {item.title}
+                    </p>
+                    {canAccess && url ? (
+                      <svg className="w-4 h-4 text-[#6D4BCB] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                      </svg>
+                    ) : !canAccess ? (
+                      <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    ) : null}
+                  </div>
+                );
+                return url ? (
+                  <Link key={item.id} href={url}>{row}</Link>
+                ) : (
+                  <div key={item.id}>{row}</div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* ── Live Classes for this course ─────────────────────────────────────── */}
       {liveClasses.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-4">
