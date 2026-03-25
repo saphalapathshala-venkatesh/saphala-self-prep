@@ -198,6 +198,7 @@ model Subject {
   categoryId   String
   category     Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   name         String
+  subjectColor String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   topics       Topic[]

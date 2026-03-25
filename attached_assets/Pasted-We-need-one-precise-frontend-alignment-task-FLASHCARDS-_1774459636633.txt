@@ -1,0 +1,84 @@
+We need one precise frontend alignment task:
+
+FLASHCARDS and E-BOOKS must use SUBJECT-SPECIFIC COLOR FROM BACKEND, while keeping the design completely unchanged.
+
+IMPORTANT:
+- Do NOT redesign anything
+- Do NOT change spacing, layout, borders, gradients, typography, or component structure
+- Do NOT change business logic
+- Do NOT alter admin app
+- Only ensure that the color source is the backend subject-specific color
+
+REQUIREMENT
+For both:
+1. Flashcard UI
+2. E-book / HTML reader UI
+
+the accent color currently used in the design must come from backend subject-specific color data.
+
+That means:
+- border color
+- header strip/background accent
+- subject chip / label accent
+- icon tint / highlight color
+- any existing subject accent already present in design
+
+must all continue exactly as they are visually,
+but their color value must come from backend subject-specific color.
+
+STRICT COLOR SOURCE RULE
+Priority must be:
+1. actual backend subject color for the subject
+2. safe fallback only if backend color is missing
+
+Do NOT use:
+- hardcoded subject color maps as primary source
+- deck-only proxy color as primary source
+- local guessed colors
+- subject-name-based color mapping as primary source
+
+TASKS
+
+1. Audit current flashcard and ebook implementation
+   - identify exactly where accent color is coming from today
+   - confirm whether it is true backend subject color or not
+
+2. If not true backend subject color:
+   - minimally update the data flow so flashcard and ebook pages/components receive subjectColor from backend
+   - do not redesign APIs unnecessarily
+   - keep changes minimal and safe
+
+3. Apply the backend subjectColor to:
+   FLASHCARDS:
+   - card border
+   - header background/accent
+   - subject label/chip if present
+   - any current accent variables
+
+   E-BOOKS:
+   - page border
+   - header strip
+   - accent headings / highlight areas only where already present in current design
+   - any current subject accent usage
+
+4. Keep design unchanged
+   - same exact look
+   - only color source changes
+
+5. Fallback behavior
+   - if subjectColor missing/null/invalid → use brand purple fallback
+   - no crashes
+   - no undefined styling issues
+
+6. Validate
+   - test at least 2 different subjects with different colors
+   - test missing subjectColor fallback
+   - ensure flashcard and ebook visuals remain same except subject-based color
+
+FINAL REPORT
+Tell me:
+- whether flashcards were already using real backend subject color or not
+- whether ebooks were already using real backend subject color or not
+- what exact files were changed
+- what exact backend field/response now provides the color
+- whether any fallback remains

@@ -1,9 +1,4 @@
 import { prisma } from "@/lib/db";
-import { subjectColorFromName } from "@/lib/subjectColor";
-
-function subjectColorFallback(subjectName: string | null | undefined): string | null {
-  return subjectColorFromName(subjectName);
-}
 
 // ── EBook block-to-HTML converter ─────────────────────────────────────────────
 // Converts contentBlocks JSON (admin block editor format) to HTML for rendering.
@@ -89,7 +84,7 @@ async function buildTaxonomyMaps(
     subjectIds.length
       ? prisma.subject.findMany({
           where: { id: { in: subjectIds } },
-          select: { id: true, name: true },
+          select: { id: true, name: true, subjectColor: true },
         })
       : [],
     topicIds.length
@@ -107,42 +102,36 @@ async function buildTaxonomyMaps(
   ]);
 
   return {
-    catMap: new Map(cats.map((c) => [c.id, c.name])),
-    subMap: new Map(subs.map((s) => [s.id, s.name])),
-    topMap: new Map(tops.map((t) => [t.id, t.name])),
-    subtopMap: new Map(subtops.map((s) => [s.id, s.name])),
+    catMap:     new Map(cats.map((c) => [c.id, c.name])),
+    subMap:     new Map(subs.map((s) => [s.id, s.name])),
+    subColorMap: new Map(
+      (subs as { id: string; name: string; subjectColor?: string | null }[])
+        .map((s) => [s.id, s.subjectColor ?? null] as [string, string | null])
+    ),
+    topMap:     new Map(tops.map((t) => [t.id, t.name])),
+    subtopMap:  new Map(subtops.map((s) => [s.id, s.name])),
   };
 }
 
 // ── Batch subject color resolver ──────────────────────────────────────────────
 //
-// Subject.subjectColor does not exist in the DB schema.
-// Instead we proxy via FlashcardDeck.subjectColor (admin-set per subject).
-// For listing pages we batch this to a single extra query.
+// Primary source: Subject.subjectColor — the authoritative color set by admin
+// on the Subject entity itself.
+//
+// Fallback chain (used only when Subject.subjectColor is null):
+//   1. Subject.subjectColor (direct, from Subject table)
+//   2. Brand purple — never returns null so components can't crash
 
 async function batchSubjectColors(
   subjectIds: string[],
-  subjectNameMap: Map<string, string>,
+  subjectColorMap: Map<string, string | null>,
 ): Promise<Map<string, string | null>> {
   if (subjectIds.length === 0) return new Map();
-
-  const decks = await prisma.flashcardDeck.findMany({
-    where: { subjectId: { in: subjectIds }, NOT: { subjectColor: null } },
-    select: { subjectId: true, subjectColor: true },
-  });
-
-  // Keep only the first hit per subjectId.
-  const deckColorMap = new Map<string, string>();
-  for (const d of decks) {
-    if (d.subjectId && d.subjectColor && !deckColorMap.has(d.subjectId)) {
-      deckColorMap.set(d.subjectId, d.subjectColor);
-    }
-  }
-
+  // subjectColorMap already comes from buildTaxonomyMaps which queries Subject.subjectColor.
+  // Just pass it through, returning null for subjects with no color set.
   const result = new Map<string, string | null>();
   for (const id of subjectIds) {
-    const name = subjectNameMap.get(id) ?? null;
-    result.set(id, deckColorMap.get(id) ?? subjectColorFallback(name) ?? null);
+    result.set(id, subjectColorMap.get(id) ?? null);
   }
   return result;
 }
@@ -200,6 +189,7 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
                 select: {
                   id: true,
                   name: true,
+                  subjectColor: true,
                   category: { select: { name: true } },
                 },
               },
@@ -210,19 +200,19 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
     },
   });
 
-  // Batch-resolve subject colors using FlashcardDeck as proxy.
+  // Build a subjectColor map directly from Subject.subjectColor (primary source).
+  const subjectColorMap = new Map<string, string | null>(
+    pages
+      .map((p) => p.subtopic?.topic.subject)
+      .filter((s): s is { id: string; name: string; subjectColor: string | null; category: { name: string } } => s != null)
+      .map((s) => [s.id, s.subjectColor ?? null] as [string, string | null]),
+  );
   const uniqueSubjectIds = [...new Set(
     pages
       .map((p) => p.subtopic?.topic.subject.id)
       .filter((id): id is string => id != null),
   )];
-  const subjectNameMap = new Map(
-    pages
-      .map((p) => p.subtopic?.topic.subject)
-      .filter((s): s is { id: string; name: string; category: { name: string } } => s != null)
-      .map((s) => [s.id, s.name] as [string, string]),
-  );
-  const colorMap = await batchSubjectColors(uniqueSubjectIds, subjectNameMap);
+  const colorMap = await batchSubjectColors(uniqueSubjectIds, subjectColorMap);
 
   return pages.map((p) => {
     const subjectId = p.subtopic?.topic.subject.id ?? null;
@@ -263,6 +253,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
                 select: {
                   id: true,
                   name: true,
+                  subjectColor: true,
                   category: { select: { name: true } },
                 },
               },
@@ -287,18 +278,9 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
   if (!page || !page.isPublished) return null;
   if (page.unlockAt && page.unlockAt > new Date()) return null;
 
-  // Look up subject-specific color.
-  // Priority: FlashcardDeck.subjectColor (admin-set) → SUBJECT_COLOR_MAP fallback.
-  const subjectId = page.subtopic?.topic.subject.id ?? null;
-  const subjectName = page.subtopic?.topic.subject.name ?? null;
-  let subjectColor: string | null = null;
-  if (subjectId) {
-    const colorDeck = await prisma.flashcardDeck.findFirst({
-      where: { subjectId, NOT: { subjectColor: null } },
-      select: { subjectColor: true },
-    });
-    subjectColor = colorDeck?.subjectColor ?? subjectColorFallback(subjectName);
-  }
+  // Resolve subject color — primary source is Subject.subjectColor (from DB).
+  // No proxy, no FlashcardDeck lookup needed.
+  const subjectColor = page.subtopic?.topic.subject.subjectColor ?? null;
 
   // Helper: resolve the display HTML for an EBookPage.
   // Priority: contentHtml (if non-empty) → blocksToHtml(contentBlocks) → ""
@@ -396,16 +378,16 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
   const unique = <T>(arr: (T | null | undefined)[]) =>
     [...new Set(arr.filter((x): x is T => x != null))];
 
-  const { catMap, subMap, topMap, subtopMap } = await buildTaxonomyMaps(
+  const { catMap, subMap, subColorMap, topMap, subtopMap } = await buildTaxonomyMaps(
     unique(pdfs.map((p) => p.categoryId)),
     unique(pdfs.map((p) => p.subjectId)),
     unique(pdfs.map((p) => p.topicId)),
     unique(pdfs.map((p) => p.subtopicId)),
   );
 
-  // Batch-resolve subject colors using FlashcardDeck as proxy.
+  // Resolve subject colors directly from Subject.subjectColor (primary source).
   const pdfSubjectIds = unique(pdfs.map((p) => p.subjectId));
-  const colorMap = await batchSubjectColors(pdfSubjectIds, subMap);
+  const colorMap = await batchSubjectColors(pdfSubjectIds, subColorMap);
 
   return pdfs.map((p) => ({
     id: p.id,
@@ -483,7 +465,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
   const unique = <T>(arr: (T | null | undefined)[]) =>
     [...new Set(arr.filter((x): x is T => x != null))];
 
-  const { catMap, subMap, topMap } = await buildTaxonomyMaps(
+  const { catMap, subMap, subColorMap, topMap } = await buildTaxonomyMaps(
     unique(decks.map((d) => d.categoryId)),
     unique(decks.map((d) => d.subjectId)),
     unique(decks.map((d) => d.topicId)),
@@ -492,13 +474,18 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
 
   return decks.map((d) => {
     const subjectName = d.subjectId ? (subMap.get(d.subjectId) ?? null) : null;
+    // Priority: Subject.subjectColor → FlashcardDeck.subjectColor → null (component handles fallback)
+    const subjectColor =
+      (d.subjectId ? (subColorMap.get(d.subjectId) ?? null) : null) ??
+      d.subjectColor ??
+      null;
     return {
       id: d.id,
       title: d.title,
       subtitle: d.subtitle,
       description: d.description,
       cardCount: d._count.cards,
-      subjectColor: d.subjectColor ?? subjectColorFallback(subjectName),
+      subjectColor,
       xpEnabled: d.xpEnabled,
       xpValue: d.xpValue,
       breadcrumb: {
@@ -548,7 +535,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
   const unique = <T>(arr: (T | null | undefined)[]) =>
     [...new Set(arr.filter((x): x is T => x != null))];
 
-  const { catMap, subMap, topMap } = await buildTaxonomyMaps(
+  const { catMap, subMap, subColorMap, topMap } = await buildTaxonomyMaps(
     unique([deck.categoryId]),
     unique([deck.subjectId]),
     unique([deck.topicId]),
@@ -556,6 +543,11 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
   );
 
   const subjectName = deck.subjectId ? (subMap.get(deck.subjectId) ?? null) : null;
+  // Priority: Subject.subjectColor → FlashcardDeck.subjectColor → null (component handles fallback)
+  const subjectColor =
+    (deck.subjectId ? (subColorMap.get(deck.subjectId) ?? null) : null) ??
+    deck.subjectColor ??
+    null;
 
   return {
     id: deck.id,
@@ -563,7 +555,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
     subtitle: deck.subtitle,
     description: deck.description,
     cardCount: deck._count.cards,
-    subjectColor: deck.subjectColor ?? subjectColorFallback(subjectName),
+    subjectColor,
     xpEnabled: deck.xpEnabled,
     xpValue: deck.xpValue,
     breadcrumb: {
