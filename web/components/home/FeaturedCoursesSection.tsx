@@ -50,16 +50,16 @@ export default async function FeaturedCoursesSection() {
       productCategory: string;
       categoryId: string | null;
       isFree: boolean;
-      mrpPaise: number | null;
-      sellingPricePaise: number | null;
+      mrp: number | null;
+      sellingPrice: number | null;
       packageId: string | null;
     };
     const featuredCourses = await prisma.$queryRaw<RawCourse[]>`
       SELECT
         c.id, c.name, c.description, c."productCategory", c."categoryId",
         COALESCE(c."isFree", false) AS "isFree",
-        c."mrpPaise",
-        c."sellingPricePaise",
+        c.mrp,
+        c."sellingPrice",
         pkg.id AS "packageId"
       FROM "Course" c
       LEFT JOIN LATERAL (
@@ -76,12 +76,17 @@ export default async function FeaturedCoursesSection() {
 
     for (const c of featuredCourses) {
       const isFreeCourse = c.isFree || c.productCategory === "FREE_DEMO";
-      const selling = c.sellingPricePaise;
-      const mrp = c.mrpPaise;
-      const hasPricing = !isFreeCourse && selling != null && selling > 0;
+      const sellingRupees = c.sellingPrice;
+      const mrpRupees = c.mrp;
+      const hasPricing = !isFreeCourse && sellingRupees != null && sellingRupees > 0;
+      // Convert rupees → paise to match formatPrice(paise) used by all cards
+      const sellingPaise = hasPricing ? Math.round(sellingRupees! * 100) : null;
+      const mrpPaise = hasPricing && mrpRupees != null && mrpRupees > sellingRupees!
+        ? Math.round(mrpRupees * 100)
+        : null;
       const discount =
-        hasPricing && mrp != null && mrp > selling!
-          ? Math.round(((mrp - selling!) / mrp) * 100)
+        hasPricing && mrpRupees != null && mrpRupees > sellingRupees!
+          ? Math.round(((mrpRupees - sellingRupees!) / mrpRupees) * 100)
           : null;
       const ctaHref = hasPricing && c.packageId
         ? `/checkout?packageId=${c.packageId}`
@@ -92,8 +97,8 @@ export default async function FeaturedCoursesSection() {
         description: c.description,
         categoryName: c.categoryId ? (catMap.get(c.categoryId) ?? null) : null,
         isFree: isFreeCourse,
-        price: hasPricing ? selling! : null,
-        originalPrice: hasPricing && mrp != null && mrp > selling! ? mrp : null,
+        price: sellingPaise,
+        originalPrice: mrpPaise,
         discountPercent: discount,
         badge: PRODUCT_CATEGORY_LABEL[c.productCategory] ?? c.productCategory,
         href: `/courses/${c.id}`,

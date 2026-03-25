@@ -10,8 +10,29 @@ import type { LiveClassCardData } from "@/components/live-classes/LiveClassCard"
 
 export const dynamic = "force-dynamic";
 
-function formatPaiseINR(paise: number): string {
-  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+function formatRupeesINR(rupees: number): string {
+  return `₹${rupees.toLocaleString("en-IN")}`;
+}
+
+function formatValidityLabel(
+  type: string | null,
+  days: number | null,
+  months: number | null,
+  until: Date | null,
+): string | null {
+  if (type === "lifetime") return "Lifetime Access";
+  if (type === "days" && days != null) {
+    if (days % 365 === 0) return `${days / 365} Year${days / 365 > 1 ? "s" : ""}`;
+    if (days % 30 === 0) return `${days / 30} Month${days / 30 > 1 ? "s" : ""}`;
+    return `${days} Days`;
+  }
+  if (type === "months" && months != null) {
+    return `${months} Month${months > 1 ? "s" : ""}`;
+  }
+  if (type === "date" && until != null) {
+    return `Until ${new Date(until).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`;
+  }
+  return null;
 }
 
 const CAPABILITY_BADGES = [
@@ -67,7 +88,7 @@ export default async function CourseDetailPage({
   const isFree      = data.isFree || data.productCategory === "FREE_DEMO";
   const canAccess   = isEntitled; // FREE_DEMO always returns true from checkUserEntitlementForCourse
   const productLabel = PRODUCT_LABEL[data.productCategory] ?? data.productCategory;
-  const hasPricing  = !isFree && data.sellingPricePaise != null && data.sellingPricePaise > 0;
+  const hasPricing  = !isFree && data.sellingPrice != null && data.sellingPrice > 0;
   const checkoutHref = data.packageId ? `/checkout?packageId=${data.packageId}` : "/plans";
 
   const totalItems = data.curriculum.reduce(
@@ -201,13 +222,13 @@ export default async function CourseDetailPage({
             </p>
             {/* Pricing */}
             {hasPricing && (
-              <div className="flex items-baseline gap-2.5 mt-3">
+              <div className="flex items-baseline gap-2.5 mt-3 flex-wrap">
                 <span className="text-white text-2xl font-bold">
-                  {formatPaiseINR(data.sellingPricePaise!)}
+                  {formatRupeesINR(data.sellingPrice!)}
                 </span>
-                {data.mrpPaise != null && data.mrpPaise > data.sellingPricePaise! && (
+                {data.mrp != null && data.mrp > data.sellingPrice! && (
                   <span className="text-purple-300 text-sm line-through">
-                    {formatPaiseINR(data.mrpPaise)}
+                    {formatRupeesINR(data.mrp)}
                   </span>
                 )}
                 {data.discountPercent != null && data.discountPercent > 0 && (
@@ -217,6 +238,18 @@ export default async function CourseDetailPage({
                 )}
               </div>
             )}
+            {/* Validity */}
+            {(() => {
+              const vLabel = formatValidityLabel(data.validityType, data.validityDays, data.validityMonths, data.validUntil ?? null);
+              return vLabel ? (
+                <p className="text-purple-200 text-xs mt-1.5 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Validity: {vLabel}
+                </p>
+              ) : null;
+            })()}
           </div>
           <Link
             href={checkoutHref}

@@ -8,8 +8,8 @@ import { getCategoryImage } from "@/config/categoryImages";
 
 export const dynamic = "force-dynamic";
 
-function formatPaiseINR(paise: number): string {
-  return `₹${(paise / 100).toLocaleString("en-IN")}`;
+function formatRupeesINR(rupees: number): string {
+  return `₹${rupees.toLocaleString("en-IN")}`;
 }
 
 const PRODUCT_META: Record<string, { label: string; badge: string; badgeColor: string }> = {
@@ -168,7 +168,7 @@ export default async function DashboardCoursesPage({
           {courses.map((course) => {
             const meta = PRODUCT_META[course.productCategory];
             const isFreeCourse = course.isFree || course.productCategory === "FREE_DEMO";
-            const hasPricing = !isFreeCourse && course.sellingPricePaise != null && course.sellingPricePaise > 0;
+            const hasPricing = !isFreeCourse && course.sellingPrice != null && course.sellingPrice > 0;
 
             return (
               <Link
@@ -229,11 +229,11 @@ export default async function DashboardCoursesPage({
                   {hasPricing && (
                     <div className="flex items-baseline gap-2 mt-1">
                       <span className="text-base font-bold text-[#2D1B69]">
-                        {formatPaiseINR(course.sellingPricePaise!)}
+                        {formatRupeesINR(course.sellingPrice!)}
                       </span>
-                      {course.mrpPaise != null && course.mrpPaise > course.sellingPricePaise! && (
+                      {course.mrp != null && course.mrp > course.sellingPrice! && (
                         <span className="text-xs text-gray-400 line-through">
-                          {formatPaiseINR(course.mrpPaise)}
+                          {formatRupeesINR(course.mrp)}
                         </span>
                       )}
                       {course.discountPercent != null && course.discountPercent > 0 && (

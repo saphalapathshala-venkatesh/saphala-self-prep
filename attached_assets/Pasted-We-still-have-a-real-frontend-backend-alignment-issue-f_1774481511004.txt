@@ -1,0 +1,156 @@
+We still have a real frontend/backend alignment issue for courses.
+
+PROBLEM
+In Admin, the course clearly has:
+- MRP
+- Selling Price
+- Discount
+and likely validity too,
+
+but in the STUDENT FRONTEND the same course shows:
+- no pricing
+- "View Course" instead of "Buy Now"
+- validity is not displayed
+
+GOAL
+Fix the full end-to-end course pricing + validity alignment so the student frontend reflects exactly what is set in Admin.
+
+IMPORTANT
+- Do NOT redesign the UI
+- Do NOT hardcode price/validity
+- Admin/shared DB must remain source of truth
+- Do NOT assume the bug is only frontend
+- Audit DB, API, and frontend end to end
+- TypeScript must remain clean
+
+--------------------------------
+PHASE 1 — ROOT CAUSE AUDIT
+--------------------------------
+
+Audit in this order:
+
+1. Admin app
+- Check which exact fields are shown and saved on the course form
+- Confirm what exact DB columns are written when saving course pricing/validity
+
+2. Shared DB
+- Read the actual row for the course shown in admin screenshot
+- Confirm values for:
+  - isFree
+  - mrpPaise
+  - sellingPricePaise
+  - validityDays / validUntil / course validity field (use actual schema names)
+  - productCategory
+  - package linkage fields if relevant
+
+3. Student/frontend app
+- Check the exact SQL/Prisma query used for:
+  - course listing
+  - featured courses
+  - course detail page
+  - dashboard courses
+- Confirm whether pricing and validity fields are actually selected and mapped
+
+4. Environment alignment
+- Confirm admin app and frontend app are pointing to the SAME production DB
+- Check DATABASE_URL / env mismatch possibility
+- If needed, compare the exact course row from both app environments
+
+--------------------------------
+PHASE 2 — FIX THE DATA FLOW
+--------------------------------
+
+Ensure student-facing course data includes:
+- isFree
+- mrpPaise
+- sellingPricePaise
+- computed discountPercent if needed
+- packageId / checkout package linkage
+- validity field(s) required for display
+
+Do not guess field names — use actual schema/codebase.
+
+If validity is stored on ProductPackage rather than Course, map it correctly.
+If pricing is stored on Course but checkout depends on ProductPackage, make sure both are resolved cleanly.
+
+--------------------------------
+PHASE 3 — FRONTEND DISPLAY RULES
+--------------------------------
+
+For paid courses with pricing:
+Show:
+- MRP
+- Selling Price
+- Discount %
+- Buy Now button
+
+For free courses:
+Show:
+- Start Free / View Course / appropriate free CTA
+- no misleading paid pricing block
+
+For validity:
+Display validity clearly wherever relevant, such as:
+- "Validity: 180 days"
+- "Valid for 6 months"
+- or actual configured format from backend
+
+Apply on all relevant surfaces:
+- homepage featured courses
+- courses listing page
+- dashboard course cards where relevant
+- course detail page
+
+--------------------------------
+PHASE 4 — CTA LOGIC
+--------------------------------
+
+Correct logic should be:
+
+1. already purchased/enrolled
+   -> show enrolled/access CTA
+
+2. free course
+   -> show free CTA
+
+3. paid course with valid pricing + package
+   -> show Buy Now
+
+4. paid course but missing package/pricing
+   -> show View Course only as fallback, and log/report why
+
+Do not silently treat a paid course with broken mapping as normal.
+
+--------------------------------
+PHASE 5 — VALIDATION
+--------------------------------
+
+Test this exact course from the screenshot:
+“APPSC Group 2 2026 (EM) - Complete Course”
+
+Verify:
+- admin DB row has pricing
+- student query returns pricing
+- frontend card shows price
+- course detail page shows price
+- validity appears
+- Buy Now appears
+- checkout package resolves correctly
+
+Also test:
+- one free course
+- one already purchased course
+
+--------------------------------
+FINAL REPORT
+--------------------------------
+
+Tell me:
+1. exact root cause
+2. whether admin and frontend were using same DB or not
+3. exact fields used for pricing
+4. exact fields used for validity
+5. exact files changed
+6. whether Buy Now now appears correctly for paid courses
+7. whether validity now appears in frontend
+8. any remaining edge case

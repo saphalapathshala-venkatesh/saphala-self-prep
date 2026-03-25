@@ -42,10 +42,14 @@ export interface CourseListItem {
   hasTestSeries: boolean;
   hasFlashcardDecks: boolean;
   isFree: boolean;
-  mrpPaise: number | null;
-  sellingPricePaise: number | null;
+  mrp: number | null;
+  sellingPrice: number | null;
   discountPercent: number | null;
   packageId: string | null;
+  validityType: string | null;
+  validityDays: number | null;
+  validityMonths: number | null;
+  validUntil: Date | null;
 }
 
 export interface LessonItemRow {
@@ -145,9 +149,13 @@ type RawCourse = {
   hasTestSeries: boolean;
   hasFlashcardDecks: boolean;
   isFree: boolean;
-  mrpPaise: number | null;
-  sellingPricePaise: number | null;
+  mrp: number | null;
+  sellingPrice: number | null;
   packageId: string | null;
+  validityType: string | null;
+  validityDays: number | null;
+  validityMonths: number | null;
+  validUntil: Date | null;
 };
 
 function computeDiscount(mrp: number | null, selling: number | null): number | null {
@@ -159,7 +167,7 @@ function mapCourse(r: RawCourse): CourseListItem {
   return {
     ...r,
     productCategoryLabel: PRODUCT_CATEGORY_LABEL[r.productCategory] ?? r.productCategory,
-    discountPercent: computeDiscount(r.mrpPaise, r.sellingPricePaise),
+    discountPercent: computeDiscount(r.mrp, r.sellingPrice),
   };
 }
 
@@ -218,8 +226,12 @@ export async function getActiveCourses(opts?: {
       c."hasTestSeries",
       c."hasFlashcardDecks",
       COALESCE(c."isFree", false) AS "isFree",
-      c."mrpPaise",
-      c."sellingPricePaise",
+      c.mrp,
+      c."sellingPrice",
+      c."validityType",
+      c."validityDays",
+      c."validityMonths",
+      c."validUntil",
       pkg.id AS "packageId"
     FROM "Course" c
     LEFT JOIN "Category" cat ON cat.id = c."categoryId"
@@ -264,8 +276,12 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
       c."hasTestSeries",
       c."hasFlashcardDecks",
       COALESCE(c."isFree", false) AS "isFree",
-      c."mrpPaise",
-      c."sellingPricePaise",
+      c.mrp,
+      c."sellingPrice",
+      c."validityType",
+      c."validityDays",
+      c."validityMonths",
+      c."validUntil",
       pkg.id AS "packageId"
     FROM "Course" c
     LEFT JOIN "Category" cat ON cat.id = c."categoryId"
