@@ -1,0 +1,144 @@
+We need to audit and fix 2 real auth/device-flow issues across Admin + Student Frontend.
+
+IMPORTANT
+- Do NOT redesign the UI
+- Do NOT change unrelated auth logic
+- Keep admin and student apps cleanly separated
+- Fix only the real behavior/messages needed
+- TypeScript must remain clean
+
+==================================================
+ISSUE 1 — LOGIN ERROR MESSAGE FOR NON-EXISTING USER
+==================================================
+
+CURRENT PROBLEM
+When someone who has NOT created an account tries to log in, the frontend shows:
+- "Incorrect email or password"
+
+This is misleading.
+
+REQUIRED BEHAVIOR
+If the user account does not exist, the message should guide them properly, for example:
+- "No account found. Please create your account first."
+or equivalent clean wording.
+
+But:
+- if account exists and password is wrong, keep the correct invalid-credentials message
+- do not leak excessive sensitive information
+- keep security reasonable, but UX should not be misleading for your current product flow
+
+TASKS
+1. Audit current login flow end to end:
+   - student frontend login form
+   - login API
+   - identifier normalization
+   - backend auth response codes/messages
+   - any generic frontend error mapping
+
+2. Identify whether backend currently distinguishes:
+   - user not found
+   - wrong password
+   - blocked user
+   - device limit issue
+   - inactive/deleted user
+
+3. Implement correct messaging rules:
+   A. User not found
+      -> "No account found. Please create your account first."
+   B. Wrong password for existing user
+      -> "Incorrect password. Please try again."
+      OR keep "Incorrect email/mobile or password" only if you intentionally want generic wording
+   C. Blocked/inactive user
+      -> show appropriate existing message
+   D. Device-related denial
+      -> show device-related message, not generic invalid credentials
+
+4. Ensure signup/create-account CTA is clearly available from login page if not already.
+
+5. Validate these cases:
+   - non-existing email/mobile
+   - existing user + wrong password
+   - existing user + correct password
+   - blocked user
+   - device-restricted user
+
+==================================================
+ISSUE 2 — ADMIN DEVICE RESET MUST REFLECT PROPERLY IN FRONTEND
+==================================================
+
+CURRENT QUESTION
+We need to verify whether admin "reset devices" actually works properly for students on the frontend.
+
+REQUIRED BEHAVIOR
+If Admin resets devices for a user:
+- previous device/session association should be cleared correctly
+- the student should be able to log in again from a new device/browser
+- stale frontend/device-lock state should not wrongly persist
+- old session/device should be denied appropriately if required by current policy
+
+TASKS
+1. Audit full device-reset flow end to end:
+   - admin reset-devices action
+   - DB fields updated by reset
+   - session/device tables/fields involved
+   - student login/session/device checks
+   - middleware/session guards
+   - frontend handling after reset
+
+2. Verify what exactly admin reset does today:
+   - clears approved device fingerprints?
+   - clears session records?
+   - resets max device state?
+   - logs out current device(s)?
+   - only affects future login or also current session?
+
+3. Test this exact sequence:
+   A. Login as student on browser/device A
+   B. Confirm access works
+   C. Admin resets devices for that student
+   D. Try again from:
+      - same device A
+      - new device/browser B
+   E. Confirm expected behavior:
+      - device association is reset
+      - new login works properly
+      - frontend does not keep showing stale device-block error
+      - protected pages respect the updated backend state
+
+4. Check logout/login persistence after device reset:
+   - if reset should invalidate active sessions, confirm middleware/frontend actually forces re-login
+   - if reset only affects next login, confirm that behavior is intentional and documented
+
+5. Fix any mismatch found between:
+   - admin reset action
+   - backend session/device enforcement
+   - frontend displayed behavior/messages
+
+==================================================
+FINAL REPORT
+==================================================
+
+Give me a structured report:
+
+1. Login message audit
+   - exact root cause
+   - whether backend distinguishes user-not-found vs wrong-password
+   - exact files changed
+   - final message behavior
+
+2. Device reset audit
+   - what admin reset currently does
+   - whether frontend reflects it correctly
+   - exact files changed
+   - whether old sessions are invalidated or not
+   - whether new login works correctly after reset
+
+3. Validation matrix
+   - non-existing user login
+   - wrong password login
+   - normal login
+   - device reset from admin
+   - login after reset on new browser/device
+   - access to protected pages after reset
+
+4. Remaining edge cases if any

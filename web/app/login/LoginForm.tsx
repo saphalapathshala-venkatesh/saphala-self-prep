@@ -91,6 +91,10 @@ export default function LoginForm() {
         setErrors({ general: "Your account has been blocked. Please contact support." });
       } else if (data.code === "ACCOUNT_INACTIVE") {
         setErrors({ general: "Your account is inactive. Please contact support." });
+      } else if (data.code === "USER_NOT_FOUND") {
+        setErrors({ general: "__USER_NOT_FOUND__" });
+      } else if (data.code === "WRONG_PASSWORD") {
+        setErrors({ general: "Incorrect password. Please try again." });
       } else {
         setErrors({ general: data.error || "Login failed. Please try again in a moment." });
       }
@@ -173,12 +177,33 @@ export default function LoginForm() {
         )}
 
         {/* General errors */}
-        {errors.general && (
+        {errors.general && errors.general !== "__USER_NOT_FOUND__" && (
           <div className="bg-red-50 text-red-700 text-sm p-3 rounded-lg border border-red-100 flex items-start gap-2">
             <svg className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             {errors.general}
+          </div>
+        )}
+
+        {/* No account found — guide user to register */}
+        {errors.general === "__USER_NOT_FOUND__" && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4 flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <svg className="w-4 h-4 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-amber-800">No account found</p>
+              <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                We couldn&apos;t find an account with that email or mobile number.{" "}
+                <Link href="/register" className="font-bold underline hover:text-amber-900">
+                  Create your account
+                </Link>{" "}
+                to get started.
+              </p>
+            </div>
           </div>
         )}
 

@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       console.log(`[login] No user found for identifier type=${normalized.type}`);
       return NextResponse.json(
-        { error: "Incorrect email/mobile or password." },
+        { error: "No account found. Please create your account first.", code: "USER_NOT_FOUND" },
         { status: 401 }
       );
     }
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     if (!passwordValid) {
       console.log(`[login] Rejected — wrong password for user ${user.id}`);
       return NextResponse.json(
-        { error: "Incorrect email/mobile or password." },
+        { error: "Incorrect password. Please try again.", code: "WRONG_PASSWORD" },
         { status: 401 }
       );
     }

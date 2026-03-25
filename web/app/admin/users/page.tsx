@@ -163,6 +163,23 @@ export default function AdminUsersPage() {
     }
   }
 
+  async function resetDevice(userId: string) {
+    if (!confirm("Reset device binding for this user? This will also revoke all active sessions, immediately logging them out from all devices. They can then log in fresh from any new device.")) return;
+    setFeedback((prev) => ({ ...prev, [userId]: { msg: "Resetting…", ok: true } }));
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/device-reset`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, activeSessionCount: 0 } : u));
+      setFeedback((prev) => ({
+        ...prev,
+        [userId]: { msg: `Device reset — ${data.devicesCleared} device(s) cleared, ${data.sessionsRevoked} session(s) revoked`, ok: true },
+      }));
+    } catch (err: unknown) {
+      setFeedback((prev) => ({ ...prev, [userId]: { msg: err instanceof Error ? err.message : "Failed", ok: false } }));
+    }
+  }
+
   async function toggleMultiDevice(userId: string, allow: boolean) {
     setFeedback((prev) => ({ ...prev, [userId]: { msg: "Saving…", ok: true } }));
     try {
@@ -419,6 +436,23 @@ export default function AdminUsersPage() {
                         }}
                       >
                         Clear Sessions
+                      </button>
+                    )}
+                    {!u.allowMultiDevice && (
+                      <button
+                        onClick={() => resetDevice(u.id)}
+                        title="Clears device binding AND revokes all sessions so user can log in from a new device"
+                        style={{
+                          padding: "3px 10px",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          background: "#fdf4ff",
+                          border: "1px solid #d946ef",
+                          borderRadius: 4,
+                          color: "#86198f",
+                        }}
+                      >
+                        Reset Device
                       </button>
                     )}
                     <button
