@@ -1,0 +1,100 @@
+We need to harden Cashfree integration so that NO sensitive payment keys or secret config are ever exposed to frontend users.
+
+GOAL
+Ensure all Cashfree-related secret values remain backend-only and cannot be accessed from:
+- browser DevTools
+- frontend JS bundles
+- network responses
+- public env variables
+- page source
+
+IMPORTANT
+- Do NOT break the current payment flow
+- Do NOT expose any secret via NEXT_PUBLIC env
+- Keep changes minimal and safe
+- TypeScript must remain clean
+
+==================================================
+SECURITY RULES (MANDATORY)
+==================================================
+
+These must NEVER be exposed to frontend:
+- CASHFREE_APP_ID (if treated as sensitive in our setup)
+- CASHFREE_SECRET_KEY
+- webhook secret
+- PaymentConfig secret values from DB
+- raw gateway credentials
+- server-only auth headers
+
+Frontend should only receive:
+- payment session/order token if required by Cashfree flow
+- order id
+- amount
+- safe display metadata
+- success/failure status
+
+==================================================
+TASKS
+==================================================
+
+1. AUDIT ALL CASHFREE USAGE
+Check entire codebase for:
+- CASHFREE env variable usage
+- NEXT_PUBLIC_CASHFREE* usage
+- PaymentConfig reads
+- payment create-order API
+- checkout page / CheckoutClient
+- webhook route
+- any logs that may print keys
+- any API response returning secret fields
+
+2. FIX ENVIRONMENT VARIABLE SAFETY
+Ensure:
+- secret keys are accessed only in server-side files / API routes
+- no secret is imported into client components
+- no secret env var is prefixed with NEXT_PUBLIC unless it is truly safe and required
+
+3. FIX API RESPONSE SAFETY
+Review payment-related API routes and ensure responses do NOT include:
+- app id
+- secret key
+- full config objects
+- raw payment provider credentials
+
+Return only minimal safe fields needed by frontend.
+
+4. FIX CLIENT/SERVER BOUNDARY
+Ensure:
+- CheckoutClient never directly reads secret env/config
+- all payment initiation goes through backend API
+- backend creates order/session and returns only safe token/data required for Cashfree SDK
+
+5. CHECK LOGGING
+Remove or sanitize any console/server logs that may print:
+- env values
+- config objects
+- secret headers
+- payment secrets
+
+6. VERIFY WEBHOOK SECURITY
+Ensure webhook validation uses backend secret only.
+Frontend must have zero access to webhook secret.
+
+7. VALIDATION
+Test and confirm:
+- browser source does not contain secrets
+- network tab does not expose secrets
+- built frontend bundle does not contain secret values
+- payment still works normally
+
+==================================================
+FINAL REPORT
+==================================================
+
+Tell me:
+1. exact files audited
+2. whether any secret was previously exposed
+3. exact fixes made
+4. whether any NEXT_PUBLIC payment env was removed/changed
+5. whether frontend now receives only safe payment data
+6. confirmation that Cashfree secret values are backend-only

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getActivePackage } from "@/lib/paymentOrderDb";
+import { getCashfreeMode } from "@/lib/cashfreeClient";
 import { prisma } from "@/lib/db";
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
@@ -29,16 +30,21 @@ export default async function CheckoutPage({ searchParams }: Props) {
   if (courseId) {
     const safeId = courseId.replace(/'/g, "''");
     type CoursePrice = { sellingPrice: number | null };
-    const rows = await prisma.$queryRawUnsafe<CoursePrice[]>(
-      `SELECT "sellingPrice" FROM "Course" WHERE id = '${safeId}' AND "isActive" = true LIMIT 1`
-    ).catch(() => [] as CoursePrice[]);
-    const course = rows[0];
-    if (course?.sellingPrice != null && course.sellingPrice > 0) {
-      // Course stores price in rupees; CheckoutClient works in paise
-      basePricePaise = Math.round(course.sellingPrice * 100);
+    const rows = await prisma
+      .$queryRawUnsafe<CoursePrice[]>(
+        `SELECT "sellingPrice" FROM "Course"
+         WHERE id = '${safeId}' AND "isActive" = true LIMIT 1`
+      )
+      .catch(() => [] as CoursePrice[]);
+    const sp = rows[0]?.sellingPrice;
+    if (sp != null && sp > 0) {
+      basePricePaise = Math.round(sp * 100);
       priceLabel = "Course price";
     }
   }
+
+  // Read Cashfree mode server-side — never exposed via NEXT_PUBLIC_
+  const cashfreeMode = getCashfreeMode();
 
   return (
     <main className="min-h-screen flex flex-col bg-gray-50">
@@ -55,6 +61,8 @@ export default async function CheckoutPage({ searchParams }: Props) {
             entitlementCodes={pkg.entitlementCodes}
             userName={user.fullName ?? ""}
             userEmail={user.email ?? ""}
+            courseId={courseId ?? null}
+            cashfreeMode={cashfreeMode}
           />
         </div>
       </div>

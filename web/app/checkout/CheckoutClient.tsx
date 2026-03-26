@@ -17,6 +17,11 @@ interface Props {
   entitlementCodes: string[];
   userName: string;
   userEmail: string;
+  /** Present when checkout was reached from a course detail page. Sent to the
+   *  orders API so the server uses Course.sellingPrice as the authoritative amount. */
+  courseId: string | null;
+  /** Cashfree mode derived server-side — never exposed via NEXT_PUBLIC_. */
+  cashfreeMode: "sandbox" | "production";
 }
 
 type CouponState = "idle" | "checking" | "applied" | "error";
@@ -24,7 +29,10 @@ type CouponState = "idle" | "checking" | "applied" | "error";
 declare global {
   interface Window {
     Cashfree?: (config: { mode: string }) => {
-      checkout: (opts: { paymentSessionId: string; redirectTarget?: string }) => Promise<void>;
+      checkout: (opts: {
+        paymentSessionId: string;
+        redirectTarget?: string;
+      }) => Promise<void>;
     };
   }
 }
@@ -47,6 +55,8 @@ export default function CheckoutClient({
   entitlementCodes,
   userName,
   userEmail,
+  courseId,
+  cashfreeMode,
 }: Props) {
   const router = useRouter();
   const [couponInput, setCouponInput] = useState("");
@@ -62,14 +72,18 @@ export default function CheckoutClient({
   const netPaise = Math.max(0, basePricePaise - couponDiscount);
   const isFree = netPaise === 0;
 
-  // Load Cashfree SDK
+  // Load Cashfree SDK (only the JS SDK — no secrets)
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (window.Cashfree) { setSdkReady(true); return; }
+    if (window.Cashfree) {
+      setSdkReady(true);
+      return;
+    }
     const script = document.createElement("script");
     script.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
     script.onload = () => setSdkReady(true);
-    script.onerror = () => console.warn("Cashfree SDK failed to load");
+    script.onerror = () =>
+      console.warn("Cashfree SDK failed to load");
     document.body.appendChild(script);
   }, []);
 
@@ -87,7 +101,6 @@ export default function CheckoutClient({
     setCouponState("checking");
     setCouponError("");
     try {
-      // Pass basePricePaise so PERCENT coupons compute against the displayed price
       const res = await fetch(
         `/api/student/coupon?code=${encodeURIComponent(code)}&packageId=${encodeURIComponent(packageId)}&basePricePaise=${basePricePaise}`
       );
@@ -123,7 +136,10 @@ export default function CheckoutClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           packageId,
-          couponCode: appliedCoupon ?? undefined,
+          ...(couponState === "applied" && appliedCoupon
+            ? { couponCode: appliedCoupon }
+            : {}),
+          ...(courseId ? { courseId } : {}),
         }),
       });
 
@@ -146,15 +162,14 @@ export default function CheckoutClient({
         return;
       }
 
-      // Initiate Cashfree payment
+      // Initiate Cashfree checkout — mode comes from server, never NEXT_PUBLIC_
       if (!window.Cashfree || !sdkReady) {
-        setError("Payment gateway is loading. Please wait a moment and try again.");
+        setError(
+          "Payment gateway is still loading. Please wait a moment and try again."
+        );
         return;
       }
-      const cfMode = (process.env.NEXT_PUBLIC_CASHFREE_ENV ?? "sandbox") === "production"
-        ? "production"
-        : "sandbox";
-      const cashfree = window.Cashfree({ mode: cfMode });
+      const cashfree = window.Cashfree({ mode: cashfreeMode });
       router.prefetch(`/checkout/result?orderId=${orderId}`);
       await cashfree.checkout({ paymentSessionId, redirectTarget: "_self" });
     } catch (err) {
@@ -170,33 +185,67 @@ export default function CheckoutClient({
     <div className="space-y-6">
       {/* Header */}
       <div>
-        <Link href="/plans" className="text-sm text-[#6D4BCB] hover:underline flex items-center gap-1 mb-4">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+        <Link
+          href="/plans"
+          className="text-sm text-[#6D4BCB] hover:underline flex items-center gap-1 mb-4"
+        >
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M15 19l-7-7 7-7"
+            />
           </svg>
           Back to Plans
         </Link>
-        <h1 className="text-2xl font-bold text-[#2D1B69]">Complete Your Purchase</h1>
-        <p className="text-sm text-gray-500 mt-1">Secure checkout powered by Cashfree</p>
+        <h1 className="text-2xl font-bold text-[#2D1B69]">
+          Complete Your Purchase
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Secure checkout powered by Cashfree
+        </p>
       </div>
 
       {/* Package card */}
       <div className="bg-white rounded-2xl border border-[#E0D5FF] p-6 shadow-sm">
         <div className="flex items-start gap-4">
           <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <svg className="w-6 h-6 text-[#6D4BCB]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            <svg
+              className="w-6 h-6 text-[#6D4BCB]"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.8}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+              />
             </svg>
           </div>
           <div className="flex-1">
-            <h2 className="font-bold text-[#2D1B69] text-lg leading-tight">{packageName}</h2>
+            <h2 className="font-bold text-[#2D1B69] text-lg leading-tight">
+              {packageName}
+            </h2>
             {packageDescription && (
-              <p className="text-sm text-gray-500 mt-1 leading-relaxed">{packageDescription}</p>
+              <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+                {packageDescription}
+              </p>
             )}
             {entitlementCodes.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {entitlementCodes.map((code) => (
-                  <span key={code} className="text-[10px] font-semibold px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full border border-purple-200">
+                  <span
+                    key={code}
+                    className="text-[10px] font-semibold px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full border border-purple-200"
+                  >
                     {code.replace(/_/g, " ")}
                   </span>
                 ))}
@@ -216,17 +265,34 @@ export default function CheckoutClient({
 
       {/* Coupon */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5">
-        <p className="text-sm font-semibold text-[#2D1B69] mb-3">Coupon Code</p>
+        <p className="text-sm font-semibold text-[#2D1B69] mb-3">
+          Coupon Code
+        </p>
         {couponState === "applied" ? (
           <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-2.5">
             <div className="flex items-center gap-2 text-green-700 text-sm font-semibold">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
               </svg>
               <span>{appliedCoupon}</span>
-              <span className="font-normal text-green-600">— saving {paise(couponDiscount, currency)}</span>
+              <span className="font-normal text-green-600">
+                — saving {paise(couponDiscount, currency)}
+              </span>
             </div>
-            <button onClick={removeCoupon} className="text-xs text-red-500 hover:text-red-700 font-medium">
+            <button
+              onClick={removeCoupon}
+              className="text-xs text-red-500 hover:text-red-700 font-medium"
+            >
               Remove
             </button>
           </div>
@@ -295,8 +361,18 @@ export default function CheckoutClient({
           "Get Free Access"
         ) : (
           <>
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
             </svg>
             Pay {paise(netPaise, currency)} Securely
           </>
@@ -306,9 +382,14 @@ export default function CheckoutClient({
       {/* Legal */}
       <p className="text-xs text-center text-gray-400 leading-relaxed">
         By completing this purchase you agree to our{" "}
-        <Link href={LEGAL_TERMS_URL} className="underline hover:text-gray-600">Terms of Service</Link>
-        {" "}and{" "}
-        <Link href={LEGAL_REFUND_URL} className="underline hover:text-gray-600">Refund Policy</Link>.
+        <Link href={LEGAL_TERMS_URL} className="underline hover:text-gray-600">
+          Terms of Service
+        </Link>{" "}
+        and{" "}
+        <Link href={LEGAL_REFUND_URL} className="underline hover:text-gray-600">
+          Refund Policy
+        </Link>
+        .
       </p>
     </div>
   );

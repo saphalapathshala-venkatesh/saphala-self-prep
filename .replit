@@ -53,3 +53,4 @@ outputType = "webview"
 
 [userenv.shared]
 NEXT_PUBLIC_CASHFREE_ENV = "sandbox"
+CASHFREE_ENV = "sandbox"

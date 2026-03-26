@@ -1,0 +1,133 @@
+We are in final stabilization stage.
+
+Two critical issues still remain:
+1. Checkout is still showing ₹499 instead of admin-set course price
+2. Payment system shows: "Payment system not configured"
+
+Fix both completely.
+
+==================================================
+ISSUE 1 — CHECKOUT STILL USING ₹499
+==================================================
+
+ROOT CAUSE:
+Checkout is still using ProductPackage.pricePaise instead of Course.sellingPrice.
+
+REQUIRED FIX:
+
+1. Identify where checkout total is calculated:
+   - paymentOrderDb.ts
+   - checkout/page.tsx
+   - CheckoutClient.tsx
+
+2. Enforce rule:
+   BASE PRICE = Course.sellingPricePaise
+
+3. Logic must be:
+
+IF courseId exists:
+   basePricePaise = Course.sellingPricePaise
+
+ELSE (only for standalone package):
+   basePricePaise = ProductPackage.pricePaise
+
+4. REMOVE:
+- any fallback to ₹499
+- any default package-based pricing when courseId is present
+
+5. UI MUST SHOW:
+- Package price → replaced with "Course price"
+- Correct ₹5000 value
+
+==================================================
+ISSUE 2 — PAYMENT SYSTEM NOT CONFIGURED
+==================================================
+
+ROOT CAUSE:
+Cashfree config is missing OR not loaded at runtime.
+
+FIX:
+
+1. Check PaymentConfig table or env usage
+
+Ensure system reads:
+- CASHFREE_APP_ID
+- CASHFREE_SECRET_KEY
+- ENV (TEST / PROD)
+
+2. Fix API:
+- /api/payment/create-order
+- /api/payment/webhook
+
+3. Add validation:
+If config missing → show clear admin error
+Else → proceed normally
+
+4. Ensure:
+- Order is created with correct amount (₹5000 in paise)
+- Payment button uses correct amount
+
+==================================================
+ISSUE 3 — PRICE CONSISTENCY (FINAL LOCK)
+==================================================
+
+Ensure ALL use Course.sellingPrice:
+
+✔ /courses
+✔ Featured courses
+✔ /courses/[id]
+✔ /plans
+✔ checkout
+
+NO ₹499 ANYWHERE
+
+==================================================
+ISSUE 4 — PERFORMANCE (MANDATORY)
+==================================================
+
+User reported slow loading.
+
+Fix:
+
+1. Add caching:
+- Course list → cache: 'force-cache'
+- Revalidate: 60s
+
+2. Avoid duplicate fetch:
+- checkout should NOT fetch course + package separately
+
+3. Add loading states:
+- loading.tsx
+- skeleton UI
+
+4. Optimize DB:
+- Remove unnecessary joins
+- Use indexed queries
+
+==================================================
+FINAL VALIDATION
+==================================================
+
+Test:
+
+Course:
+MRP = 15000
+Selling = 5000
+
+EXPECT:
+
+Courses → ₹5000 ✅
+Plans → ₹5000 ✅
+Checkout → ₹5000 ✅
+Coupon → applied correctly ✅
+Payment → works ✅
+
+==================================================
+FINAL REPORT
+==================================================
+
+1. Where ₹499 was still coming from
+2. Files fixed
+3. Payment config source (env or DB)
+4. Whether payment is now working
+5. Confirmation: no ₹499 anywhere
