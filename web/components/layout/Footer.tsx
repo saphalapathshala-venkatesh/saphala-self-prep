@@ -93,15 +93,25 @@ export const Footer = () => {
             <ul className="space-y-2.5">
               {footerConfig.communityLinks.map((link) => {
                 const Icon = link.icon;
+                const isExternal = link.href.startsWith("http");
                 return (
                   <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="flex items-center gap-3 text-sm text-gray-400 hover:text-purple-300 transition-colors"
-                    >
-                      <Icon className="w-4 h-4 shrink-0" />
-                      {link.label}
-                    </Link>
+                    {isExternal ? (
+                      <a
+                        href={link.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 text-sm text-gray-400 hover:text-purple-300 transition-colors"
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        {link.label}
+                      </a>
+                    ) : (
+                      <span className="flex items-center gap-3 text-sm text-gray-500 cursor-not-allowed">
+                        <Icon className="w-4 h-4 shrink-0" />
+                        {link.label}
+                      </span>
+                    )}
                   </li>
                 );
               })}

@@ -1,0 +1,100 @@
+We need to implement POLICY PAGES + FOOTER LINK ROUTING for the student frontend.
+
+GOAL
+- Create proper policy pages
+- Connect all footer links
+- Ensure SEO-friendly and production-ready routing
+
+IMPORTANT
+- Do NOT redesign footer layout
+- Do NOT hardcode random content
+- Pages must be clean, readable, and scrollable
+- Use reusable layout (title + sections + spacing)
+- Mobile responsive
+- TypeScript clean
+
+--------------------------------
+STEP 1 — CREATE POLICY ROUTES
+--------------------------------
+
+Create the following pages:
+
+/privacy-policy
+/terms-and-conditions
+/refund-policy
+/contact
+
+(Use clean naming, no nested weird paths)
+
+--------------------------------
+STEP 2 — PAGE STRUCTURE
+--------------------------------
+
+Each page must have:
+
+- Page title (large heading)
+- Last updated date
+- Sectioned content with headings
+- Proper spacing and readability
+- Max-width container (good reading width)
+- No cramped text
+
+--------------------------------
+STEP 3 — FOOTER LINK MAPPING
+--------------------------------
+
+Update footer links:
+
+SUPPORT:
+- Contact Us → /contact
+- Privacy Policy → /privacy-policy
+- Terms & Conditions → /terms-and-conditions
+- Refund Policy → /refund-policy
+
+EXPLORE:
+- Home → /
+- Courses → /courses
+- Test Series → /tests (or correct route)
+- Ebooks → /learn/lessons
+- Flashcards → /learn/flashcards
+- PDFs → /learn/pdfs
+- About Us → /about
+- Contact Us → /contact
+
+STUDENT:
+- Login → /login
+- Sign Up → /signup
+- Dashboard → /dashboard
+- My Attempts → /attempts
+- My Profile → /profile
+
+COMMUNITY:
+- External links (YouTube, Telegram, etc.)
+- open in new tab
+
+--------------------------------
+STEP 4 — REDIRECT SAFETY
+--------------------------------
+
+Ensure:
+- No broken links
+- No undefined routes
+- Use Next.js Link properly
+- External links use target="_blank"
+
+--------------------------------
+STEP 5 — OPTIONAL (GOOD UX)
+--------------------------------
+
+- Add scroll-to-top on navigation
+- Add active link highlighting (if simple)
+- Add basic SEO meta tags
+
+--------------------------------
+FINAL REPORT
+--------------------------------
+
+Tell me:
+- all routes created
+- all footer links updated
+- any missing routes found and fixed
