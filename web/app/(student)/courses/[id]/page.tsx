@@ -88,12 +88,12 @@ export default async function CourseDetailPage({
   const isFree      = data.isFree || data.productCategory === "FREE_DEMO";
   const canAccess   = isEntitled; // FREE_DEMO always returns true from checkUserEntitlementForCourse
   const productLabel = PRODUCT_LABEL[data.productCategory] ?? data.productCategory;
-  // Package price (paise→rupees) is the actual checkout price — always consistent with checkout page
-  const effectivePrice = data.packagePricePaise != null
-    ? data.packagePricePaise / 100
-    : data.sellingPrice;
-  const hasPricing  = !isFree && effectivePrice != null && effectivePrice > 0;
-  const checkoutHref = data.packageId ? `/checkout?packageId=${data.packageId}` : "/plans";
+  // Admin-set Course.sellingPrice is the authoritative base price
+  const hasPricing  = !isFree && data.sellingPrice != null && data.sellingPrice > 0;
+  // Include courseId so the checkout page can display the admin-set selling price
+  const checkoutHref = data.packageId
+    ? `/checkout?packageId=${data.packageId}&courseId=${data.id}`
+    : "/plans";
 
   const totalItems = data.curriculum.reduce(
     (n, s) => n + s.chapters.reduce((m, ch) => m + ch.lessons.reduce((k, l) => k + l.items.length, 0), 0),
@@ -228,9 +228,9 @@ export default async function CourseDetailPage({
             {hasPricing && (
               <div className="flex items-baseline gap-2.5 mt-3 flex-wrap">
                 <span className="text-white text-2xl font-bold">
-                  {formatRupeesINR(effectivePrice!)}
+                  {formatRupeesINR(data.sellingPrice!)}
                 </span>
-                {data.mrp != null && data.mrp > effectivePrice! && (
+                {data.mrp != null && data.mrp > data.sellingPrice! && (
                   <span className="text-purple-300 text-sm line-through">
                     {formatRupeesINR(data.mrp)}
                   </span>

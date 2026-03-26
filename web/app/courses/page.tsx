@@ -284,11 +284,8 @@ export default async function CoursesPage({
               {courses.map((course) => {
                 const meta = PRODUCT_META[course.productCategory];
                 const isFreeCourse = course.isFree || course.productCategory === "FREE_DEMO";
-                // Package price is the actual checkout price — use it as the effective selling price
-                const effectivePrice = course.packagePricePaise != null
-                  ? course.packagePricePaise / 100
-                  : course.sellingPrice;
-                const hasPricing = !isFreeCourse && effectivePrice != null && effectivePrice > 0;
+                // Admin-set Course.sellingPrice is the authoritative base price
+                const hasPricing = !isFreeCourse && course.sellingPrice != null && course.sellingPrice > 0;
 
                 return (
                   <Link
@@ -356,9 +353,9 @@ export default async function CoursesPage({
                         <div className="mt-1 space-y-0.5">
                           <div className="flex items-baseline gap-2 flex-wrap">
                             <span className="text-base font-bold text-[#2D1B69]">
-                              {formatRupeesINR(effectivePrice!)}
+                              {formatRupeesINR(course.sellingPrice!)}
                             </span>
-                            {course.mrp != null && course.mrp > effectivePrice! && (
+                            {course.mrp != null && course.mrp > course.sellingPrice! && (
                               <span className="text-xs text-gray-400 line-through">
                                 {formatRupeesINR(course.mrp)}
                               </span>

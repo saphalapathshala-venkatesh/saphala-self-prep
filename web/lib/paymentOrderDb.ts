@@ -97,7 +97,11 @@ export async function listActivePackages(): Promise<ProductPackageRow[]> {
 
 export async function validateCoupon(
   couponCode: string,
-  packageRow: ProductPackageRow
+  packageRow: ProductPackageRow,
+  /** Override base amount for discount computation (paise). When present,
+   *  PERCENT coupons apply against this value instead of packageRow.pricePaise.
+   *  Use this when the display price is Course.sellingPrice, not package price. */
+  overrideBasePaise?: number
 ): Promise<{ coupon: CouponRow; discountPaise: number } | null> {
   const rows = await prisma.$queryRawUnsafe<CouponRow[]>(
     `SELECT id, code, "discountType", "discountValue", "validFrom", "validUntil",
@@ -128,11 +132,14 @@ export async function validateCoupon(
     if (Number(count) >= coupon.usageLimit) return null;
   }
 
+  // Use override base when present (e.g., Course.sellingPrice converted to paise)
+  // so PERCENT coupons compute against the price actually shown on screen.
+  const basePaise = overrideBasePaise ?? packageRow.pricePaise;
   let discountPaise: number;
   if (coupon.discountType === "PERCENT") {
-    discountPaise = Math.floor((packageRow.pricePaise * coupon.discountValue) / 100);
+    discountPaise = Math.floor((basePaise * coupon.discountValue) / 100);
   } else {
-    discountPaise = Math.min(coupon.discountValue, packageRow.pricePaise);
+    discountPaise = Math.min(coupon.discountValue, basePaise);
   }
 
   return { coupon, discountPaise };

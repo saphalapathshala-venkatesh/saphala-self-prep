@@ -9,7 +9,10 @@ interface Props {
   packageId: string;
   packageName: string;
   packageDescription: string;
-  pricePaise: number;
+  /** Base price in paise. Set from Course.sellingPrice when entering from a course page. */
+  basePricePaise: number;
+  /** Label for the base price row, e.g. "Course price" or "Package price". */
+  priceLabel: string;
   currency: string;
   entitlementCodes: string[];
   userName: string;
@@ -38,7 +41,8 @@ export default function CheckoutClient({
   packageId,
   packageName,
   packageDescription,
-  pricePaise,
+  basePricePaise,
+  priceLabel,
   currency,
   entitlementCodes,
   userName,
@@ -55,7 +59,7 @@ export default function CheckoutClient({
   const [sdkReady, setSdkReady] = useState(false);
   const submitLock = useRef(false);
 
-  const netPaise = Math.max(0, pricePaise - couponDiscount);
+  const netPaise = Math.max(0, basePricePaise - couponDiscount);
   const isFree = netPaise === 0;
 
   // Load Cashfree SDK
@@ -83,8 +87,9 @@ export default function CheckoutClient({
     setCouponState("checking");
     setCouponError("");
     try {
+      // Pass basePricePaise so PERCENT coupons compute against the displayed price
       const res = await fetch(
-        `/api/student/coupon?code=${encodeURIComponent(code)}&packageId=${encodeURIComponent(packageId)}`
+        `/api/student/coupon?code=${encodeURIComponent(code)}&packageId=${encodeURIComponent(packageId)}&basePricePaise=${basePricePaise}`
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.valid) {
@@ -253,8 +258,8 @@ export default function CheckoutClient({
       {/* Price summary */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
         <div className="flex justify-between text-sm text-gray-600">
-          <span>Package price</span>
-          <span>{paise(pricePaise, currency)}</span>
+          <span>{priceLabel}</span>
+          <span>{paise(basePricePaise, currency)}</span>
         </div>
         {couponDiscount > 0 && (
           <div className="flex justify-between text-sm text-green-600">

@@ -1,0 +1,150 @@
+The previous pricing fix is NOT correct for our business rule.
+
+CURRENT WRONG BEHAVIOR
+Course pricing across frontend was aligned to ProductPackage.pricePaise (₹499), even though Admin has already set the course selling price (for example ₹5000).
+
+That is NOT what we want.
+
+CORRECT BUSINESS RULE
+1. Admin-set course pricing is the source of truth
+   - MRP
+   - Selling Price
+   - Discount %
+2. Checkout must use the same admin-set selling price
+3. Only if a valid coupon is applied, coupon discount should be subtracted from the selling price
+4. ProductPackage must NOT silently override the course price unless we explicitly build such a pricing system later
+
+GOAL
+Refactor pricing flow so that:
+- course card
+- featured course card
+- dashboard course card
+- course detail page
+- checkout page
+all consistently use Admin-set course selling price as the base price.
+
+Coupon discount, if applicable, must be applied on top of that base selling price.
+
+IMPORTANT
+- Do NOT redesign the UI
+- Do NOT hardcode prices
+- Do NOT use ProductPackage.pricePaise as the default course/checkout amount
+- Keep admin and frontend separation clean
+- TypeScript must remain clean
+
+==================================================
+PHASE 1 — REVERSE THE WRONG PRICING SOURCE
+==================================================
+
+Audit all recent pricing changes and undo the rule that made ProductPackage.pricePaise the default effective course price.
+
+Check all surfaces:
+- /courses
+- featured courses section
+- /dashboard/courses
+- /courses/[id]
+- checkout/order creation flow
+
+Wherever packagePricePaise is being used as the effective base price, replace that logic with:
+
+BASE PRICE = Course.sellingPricePaise
+MRP = Course.mrpPaise
+
+Discount % = computed from course MRP vs course selling price
+
+==================================================
+PHASE 2 — CHECKOUT SOURCE OF TRUTH
+==================================================
+
+Fix checkout so that the payable amount starts from the admin-set course selling price.
+
+Rules:
+1. If no coupon applied:
+   payable = course sellingPricePaise
+
+2. If valid coupon applied:
+   payable = sellingPricePaise - couponDiscount
+   (respect min/max rules already present in current coupon system)
+
+3. Never silently switch payable amount to ProductPackage.pricePaise
+
+If ProductPackage is required technically for order/package linkage:
+- keep it for entitlement/product mapping
+- but do NOT let its stored price override the course selling price for checkout
+- unless that package is explicitly intended as the same price source and synced from course price
+
+==================================================
+PHASE 3 — FRONTEND DISPLAY RULES
+==================================================
+
+For paid courses:
+- Show Selling Price from Course.sellingPricePaise
+- Show MRP from Course.mrpPaise
+- Show Discount % from those two values
+- Show Buy Now button
+- Show validity if configured
+
+For free courses:
+- preserve existing free behavior
+- no fake MRP/discount
+
+For checkout page:
+- show the same selling price as course page
+- coupon, if applied, should reduce from that value visibly
+- total must match final payable amount exactly
+
+==================================================
+PHASE 4 — PRODUCTPACKAGE ROLE CLARITY
+==================================================
+
+Audit how ProductPackage is being used now.
+
+Tell me clearly whether it should be used for:
+- entitlement mapping only
+- checkout linkage only
+- pricing authority
+- or mixed behavior
+
+For now, implement this rule:
+ProductPackage may identify what is being purchased,
+but course price comes from the Course pricing set in Admin.
+
+If needed, sync/create package metadata without letting stale package price override course price.
+
+==================================================
+PHASE 5 — VALIDATION
+==================================================
+
+Test this exact case:
+
+Admin course:
+- MRP = ₹15000
+- Selling Price = ₹5000
+
+Expected:
+- course card shows ₹5000
+- MRP shows ₹15000 struck through
+- discount shows correct %
+- course detail page shows ₹5000
+- checkout page also starts at ₹5000
+- after valid coupon, final payable = ₹5000 - coupon discount
+- no unexplained ₹499 anywhere
+
+Also test:
+- free course
+- paid course without coupon
+- paid course with coupon
+- already purchased course
+
+==================================================
+FINAL REPORT
+==================================================
+
+Tell me:
+1. exact places where ProductPackage.pricePaise was wrongly overriding course price
+2. exact files changed
+3. final pricing source of truth
+4. whether checkout now uses admin-set selling price
+5. whether coupon now subtracts from selling price correctly
+6. whether MRP / selling price / discount are now consistent across all pages
+7. what ProductPackage is now used for after the fix

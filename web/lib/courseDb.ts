@@ -46,7 +46,6 @@ export interface CourseListItem {
   sellingPrice: number | null;
   discountPercent: number | null;
   packageId: string | null;
-  packagePricePaise: number | null;
   validityType: string | null;
   validityDays: number | null;
   validityMonths: number | null;
@@ -153,7 +152,6 @@ type RawCourse = {
   mrp: number | null;
   sellingPrice: number | null;
   packageId: string | null;
-  packagePricePaise: number | null;
   validityType: string | null;
   validityDays: number | null;
   validityMonths: number | null;
@@ -166,15 +164,12 @@ function computeDiscount(mrp: number | null, selling: number | null): number | n
 }
 
 function mapCourse(r: RawCourse): CourseListItem {
-  // Package price (paise→rupees) is the actual amount charged at checkout.
-  // Use it as the effective selling price for discount computation so that
-  // course cards and the checkout page always reflect the same number.
-  const effectiveSelling =
-    r.packagePricePaise != null ? r.packagePricePaise / 100 : r.sellingPrice;
+  // Admin-set Course.sellingPrice is the authoritative base price.
+  // ProductPackage is used for entitlement linkage only, not pricing.
   return {
     ...r,
     productCategoryLabel: PRODUCT_CATEGORY_LABEL[r.productCategory] ?? r.productCategory,
-    discountPercent: computeDiscount(r.mrp, effectiveSelling),
+    discountPercent: computeDiscount(r.mrp, r.sellingPrice),
   };
 }
 
@@ -239,13 +234,12 @@ export async function getActiveCourses(opts?: {
       c."validityDays",
       c."validityMonths",
       c."validUntil",
-      pkg.id              AS "packageId",
-      pkg."pricePaise"    AS "packagePricePaise"
+      pkg.id AS "packageId"
     FROM "Course" c
     LEFT JOIN "Category" cat ON cat.id = c."categoryId"
     LEFT JOIN "Exam"     e   ON e.id   = c."examId"
     LEFT JOIN LATERAL (
-      SELECT id, "pricePaise" FROM "ProductPackage"
+      SELECT id FROM "ProductPackage"
       WHERE "isActive" = true
         AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
       ORDER BY "pricePaise" ASC
@@ -293,13 +287,12 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
         c."validityDays",
         c."validityMonths",
         c."validUntil",
-        pkg.id           AS "packageId",
-        pkg."pricePaise" AS "packagePricePaise"
+        pkg.id AS "packageId"
       FROM "Course" c
       LEFT JOIN "Category" cat ON cat.id = c."categoryId"
       LEFT JOIN "Exam"     e   ON e.id   = c."examId"
       LEFT JOIN LATERAL (
-        SELECT id, "pricePaise" FROM "ProductPackage"
+        SELECT id FROM "ProductPackage"
         WHERE "isActive" = true
           AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
         ORDER BY "pricePaise" ASC
