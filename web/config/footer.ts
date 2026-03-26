@@ -1,4 +1,4 @@
-import { Youtube, Send, MessageCircle, Instagram, Facebook } from 'lucide-react';
+import { Youtube, Send, MessageCircle, Instagram } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export type CommunityLink = { label: string; icon: LucideIcon; href: string };
@@ -38,11 +38,10 @@ export const footerConfig = {
     { label: "Refund Policy", href: "/refund-policy" },
   ],
   communityLinks: [
-    { label: "YouTube (English + Telugu)", icon: Youtube, href: "#" },
-    { label: "YouTube (English + Kannada)", icon: Youtube, href: "#" },
-    { label: "Telegram", icon: Send, href: "#" },
-    { label: "WhatsApp", icon: MessageCircle, href: "#" },
-    { label: "Instagram", icon: Instagram, href: "#" },
-    { label: "Facebook", icon: Facebook, href: "#" },
+    { label: "YouTube (English + Telugu)", icon: Youtube, href: "https://www.youtube.com/channel/UCCwfJ8wrSY1S0tHfVqCnqeg" },
+    { label: "YouTube (English + Kannada)", icon: Youtube, href: "https://www.youtube.com/channel/UC4Bf5F72uuC0eS7NaSu8bbA/" },
+    { label: "Telegram", icon: Send, href: "https://t.me/Saphala_pathshala555" },
+    { label: "WhatsApp", icon: MessageCircle, href: "https://wa.link/teymui" },
+    { label: "Instagram", icon: Instagram, href: "https://www.instagram.com/saphala_pathshala_555" },
   ] satisfies CommunityLink[],
 };
