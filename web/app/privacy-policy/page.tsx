@@ -120,17 +120,44 @@ export default function PrivacyPolicyPage() {
             </section>
 
             <section>
-              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">9. Changes to This Policy</h2>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">9. Service Availability</h2>
               <p>
-                We reserve the right to update this Privacy Policy at any time. Material changes will
-                be communicated to registered users via the email address on file or via an in-platform
-                notification. Continued use of the platform after a change constitutes acceptance of
-                the updated policy.
+                While we strive to keep the Platform available and your data protected at all times,
+                Saphala Pathshala cannot guarantee uninterrupted service. The Platform may experience
+                downtime, maintenance windows, or technical failures that could temporarily affect
+                your ability to access content. We will make reasonable efforts to restore service
+                promptly and will not process or expose your data beyond what is necessary during
+                recovery operations.
               </p>
             </section>
 
             <section>
-              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">10. Contact</h2>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">10. Force Majeure</h2>
+              <p>
+                Saphala Pathshala shall not be liable for any failure to fulfil its obligations under
+                this Privacy Policy where such failure results from events beyond our reasonable
+                control, including server or infrastructure outages, internet failures, third-party
+                service disruptions, natural disasters, or acts of government. We will take reasonable
+                steps to protect your data and restore normal operations as soon as practicable.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">11. Changes to This Policy</h2>
+              <p>
+                We reserve the right to modify this Privacy Policy at any time. Updated versions will
+                be posted on this page with a revised date and become effective immediately upon
+                posting, unless a later date is specified. Your continued use of the Platform after
+                an updated Privacy Policy is posted constitutes your acceptance of the changes. If
+                you do not agree to the updated policy, you should discontinue use of the Platform
+                and may request deletion of your account by contacting our support team. For material
+                changes, we will endeavour to notify registered users via their registered email
+                address, but such notification is not a condition of the change taking effect.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">12. Contact</h2>
               <p>
                 For privacy-related queries or data requests, contact us at:
               </p>

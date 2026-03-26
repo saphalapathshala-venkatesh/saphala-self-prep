@@ -115,10 +115,14 @@ export default function TermsPage() {
               <h2 className="text-base font-semibold text-[#2D1B69] mb-2">8. No Guarantee of Results</h2>
               <p>
                 Saphala Pathshala provides educational tools and study materials to assist your
-                preparation. We make no guarantee, representation, or warranty that use of the
-                Platform will result in passing any examination, obtaining any rank, or securing
-                any employment or government appointment. Exam outcomes depend on individual effort,
-                exam authority decisions, and factors beyond our control.
+                preparation. <span className="font-medium text-gray-700">We make absolutely no guarantee,
+                representation, or warranty</span> — express or implied — that use of the Platform will
+                result in passing any examination, achieving any rank or percentile, securing any
+                government job, selection, or appointment, or any other specific outcome. Exam results
+                depend entirely on individual effort, the policies of the examination authority, and
+                numerous factors beyond our control. No statement made by any faculty member,
+                marketing material, or result shared by another student constitutes a guarantee of
+                your personal result.
               </p>
             </section>
 
@@ -136,17 +140,50 @@ export default function TermsPage() {
             <section>
               <h2 className="text-base font-semibold text-[#2D1B69] mb-2">10. Limitation of Liability</h2>
               <p>
-                To the maximum extent permitted by applicable Indian law, Saphala Pathshala shall not
-                be liable for any indirect, incidental, special, or consequential damages arising from
-                your use of the Platform, including but not limited to loss of data, loss of exam
-                opportunity, or failure to achieve expected exam results. Our total liability to you
-                for any direct loss shall not exceed the amount paid by you in the 12 months
-                preceding the claim.
+                To the maximum extent permitted by applicable Indian law, Saphala Pathshala, its
+                directors, employees, and faculty partners shall not be liable for any indirect,
+                incidental, special, punitive, or consequential damages of any kind arising from or
+                in connection with your use of or inability to use the Platform. This includes, without
+                limitation: loss of data, loss of study progress, loss of preparation time, loss of
+                exam opportunity, failure to achieve expected exam results, loss of employment or
+                selection opportunity, or damage to your device. Our total cumulative liability to you
+                for any direct loss, regardless of the cause of action, shall not exceed the total
+                amount paid by you to Saphala Pathshala in the 12 months immediately preceding the
+                claim.
               </p>
             </section>
 
             <section>
-              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">11. Governing Law and Jurisdiction</h2>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">11. Service Availability</h2>
+              <p>
+                Saphala Pathshala does not guarantee that the Platform will be available at all times
+                or operate without interruption, error, or delay. The Platform — including video
+                lessons, live classes, test sessions, ebook access, and all other features — may
+                experience scheduled maintenance, unplanned downtime, or degraded performance. We
+                will make reasonable efforts to minimise disruption and communicate planned maintenance
+                in advance. Saphala Pathshala is not liable for any loss or damage resulting from
+                Platform unavailability, whether during an active exam session, a scheduled live class,
+                or routine content access.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">12. Force Majeure</h2>
+              <p>
+                Saphala Pathshala shall not be held liable for any failure or delay in performing
+                its obligations under these Terms where such failure or delay results from causes
+                beyond our reasonable control. This includes, without limitation: server or data
+                centre outages, internet infrastructure failures, failures of third-party services
+                (including payment gateways, video hosts, or cloud providers), acts of government or
+                regulatory authority, natural disasters, pandemics, civil unrest, power failures,
+                or any other event of force majeure. In such circumstances, our obligations are
+                suspended for the duration of the event, and we will resume normal service as
+                soon as reasonably practicable.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">13. Governing Law and Jurisdiction</h2>
               <p>
                 These Terms are governed by the laws of India. Any disputes arising out of or in
                 connection with these Terms shall be subject to the exclusive jurisdiction of the
@@ -155,17 +192,20 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">12. Amendments</h2>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">14. Amendments</h2>
               <p>
-                We may update these Terms at any time. Revised Terms will be posted on this page with
-                an updated date. Continued use of the Platform after changes are posted constitutes
-                your acceptance of the updated Terms. For significant changes, we will notify
-                registered users via their registered email address.
+                We reserve the right to modify these Terms at any time. Updated Terms will be posted
+                on this page with a revised date and become effective immediately upon posting, unless
+                a later effective date is specified. Your continued use of the Platform after updated
+                Terms are posted constitutes your acceptance of the changes. If you do not agree to
+                the updated Terms, you must discontinue use of the Platform. For material changes,
+                we will endeavour to notify registered users via their registered email address, but
+                such notification is not a condition of the change taking effect.
               </p>
             </section>
 
             <section>
-              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">13. Contact</h2>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">15. Contact</h2>
               <p>For questions about these Terms, contact us at:</p>
               <address className="not-italic mt-2 space-y-0.5 text-gray-500">
                 <p className="font-medium text-gray-700">Saphala Pathshala</p>

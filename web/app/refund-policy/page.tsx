@@ -140,7 +140,34 @@ export default function RefundPolicyPage() {
             </section>
 
             <section>
-              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">10. Contact</h2>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">10. Force Majeure and Service Disruptions</h2>
+              <p>
+                In the event of a prolonged platform outage, data loss, or service failure caused by
+                events beyond our reasonable control — including server infrastructure failures,
+                third-party service outages (payment gateways, video hosts, cloud providers), natural
+                disasters, or government action — Saphala Pathshala shall not be obligated to issue
+                a refund solely on account of such disruption. We will, however, make reasonable
+                efforts to compensate affected users through access extensions, content unlocks, or
+                other appropriate remedies at our discretion. If a platform-side failure directly
+                prevents you from accessing paid content for an extended period, you may raise a
+                support ticket and we will assess the situation on a case-by-case basis.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">11. Right to Modify This Policy</h2>
+              <p>
+                Saphala Pathshala reserves the right to modify this Refund Policy at any time.
+                Updated terms will be posted on this page with a revised date and become effective
+                immediately upon posting. Purchases made before an update are governed by the policy
+                in effect at the time of purchase. Your continued use of the Platform after changes
+                are posted constitutes acceptance of the updated policy. We will endeavour to notify
+                registered users of material changes via their registered email address.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-base font-semibold text-[#2D1B69] mb-2">12. Contact</h2>
               <p>For refund-related enquiries, contact us at:</p>
               <address className="not-italic mt-2 space-y-0.5 text-gray-500">
                 <p className="font-medium text-gray-700">Saphala Pathshala</p>

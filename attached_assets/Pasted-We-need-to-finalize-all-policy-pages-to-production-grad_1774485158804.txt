@@ -1,0 +1,70 @@
+We need to finalize all policy pages to production-grade legal strength.
+
+IMPORTANT
+- Do NOT change structure or layout
+- Do NOT remove existing platform-specific rules
+- Only ADD missing critical legal clauses cleanly
+- Keep language clear, professional, and enforceable
+- Maintain readability (not overly complex legal jargon)
+
+PAGES
+- /terms-and-conditions
+- /privacy-policy
+- /refund-policy
+
+--------------------------------
+ADD THESE CLAUSES (MANDATORY)
+--------------------------------
+
+1. RIGHT TO MODIFY TERMS
+Add a clause stating:
+- platform can modify policies anytime
+- updates become effective upon posting
+- continued use implies acceptance
+
+--------------------------------
+
+2. SERVICE AVAILABILITY DISCLAIMER
+Add clause:
+- no guarantee of uninterrupted or error-free service
+- platform may have downtime, maintenance, or technical issues
+- applies to videos, live classes, tests, and content access
+
+--------------------------------
+
+3. LIMITATION OF LIABILITY
+Add strong clause:
+- platform not liable for indirect, incidental, or consequential damages
+- liability limited to amount paid by user (if applicable)
+- includes loss of data, preparation time, or exam performance
+
+--------------------------------
+
+4. FORCE MAJEURE
+Add clause:
+- platform not responsible for failures due to events beyond control
+- includes server outages, internet failures, third-party services, natural events
+
+--------------------------------
+
+5. STRONG NO-GUARANTEE CLAUSE
+Ensure wording explicitly states:
+- no guarantee of exam success, rank, job, or selection
+
+--------------------------------
+
+6. CONSISTENCY CHECK
+Ensure:
+- same company name everywhere
+- same contact details everywhere
+- no contradictions across policies
+
+--------------------------------
+
+FINAL REPORT
+--------------------------------
+
+Tell me:
+- which clauses were added and where
+- exact sections updated
+- confirmation that all pages are now legally complete
