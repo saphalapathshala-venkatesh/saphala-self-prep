@@ -70,12 +70,16 @@ All student surfaces (course catalog, dashboard courses, course detail, featured
 
 #### Checkout & Orders (`/plans`, `/checkout`, `/checkout/result`, `/orders`)
 - **Plans page** (`/plans`): Fetches active `ProductPackage` rows via `listActivePackages()` in `paymentOrderDb.ts`. Shows price from `pricePaise` (in paise, formatted ÷100).
-- **Checkout page** (`/checkout?packageId=xxx`): Server component fetches package via `getActivePackage()`. Renders `CheckoutClient.tsx` with coupon input, price summary, and Cashfree SDK integration. POST /api/student/orders is proxied to `PAYMENT_BACKEND_URL` (admin app owns order creation and Cashfree secrets).
+- **Checkout page** (`/checkout?packageId=xxx&courseId=xxx`): Server component fetches package via `getActivePackage()`, reads `Course.sellingPrice` when `courseId` is present, derives `cashfreeMode` server-side (never via `NEXT_PUBLIC_`). Renders `CheckoutClient.tsx` with coupon input, price summary, and Cashfree JS SDK integration.
 - **Result page** (`/checkout/result?orderId=xxx`): Polls GET /api/student/orders/[id] every 3s (up to 30 polls) until PAID/FAILED/CANCELLED; redirects to /orders on PAID.
-- **Orders page** (`/orders`): Client component. Fetches GET /api/student/orders and GET /api/student/refund-requests. Shows order history with status badges; PAID orders show "Request Refund" button which opens `RefundModal.tsx`. POST /api/student/refund-requests proxied to backend.
-- **Webhook** (`/api/student/orders/webhook`): Proxies Cashfree notification to backend, returning 200 on backend unavailability to prevent retries.
-- **Coupon validation** (`/api/student/coupon?code=&packageId=`): Read-only — validates against `Coupon` table and computes discount paise.
+- **Orders page** (`/orders`): Client component. Fetches GET /api/student/orders and GET /api/student/refund-requests. Shows order history with status badges; PAID orders show "Request Refund" button which opens `RefundModal.tsx`.
+- **POST /api/student/orders**: Creates Cashfree order server-side using `CASHFREE_APP_ID` + `CASHFREE_SECRET_KEY` via `lib/cashfreeClient.ts`. Handles resume of open orders, zero-amount fast path, entitlement grants. Returns only `{ orderId, paymentSessionId }` — no secrets to client.
+- **POST /api/student/refund-requests**: Inserts `RefundRequest` row directly into DB; enforces 3-day eligibility gate and deduplication.
+- **Webhook** (`/api/student/orders/webhook`): Verifies Cashfree signature via `CASHFREE_WEBHOOK_SECRET` (HMAC-SHA256). Updates `PaymentOrder` status and grants `UserEntitlement` rows on `PAYMENT_SUCCESS_WEBHOOK`.
+- **Coupon validation** (`/api/student/coupon?code=&packageId=&basePricePaise=`): Read-only — validates against `Coupon` table and computes discount paise against `basePricePaise` (course selling price).
+- **`lib/cashfreeClient.ts`**: Server-only module. `createCashfreeOrder()` calls Cashfree PG API. `verifyCashfreeWebhook()` verifies HMAC. `sanitizePhone()` normalises Indian mobiles. Mode controlled by `CASHFREE_ENV` env var (default `sandbox`).
 - **`lib/paymentOrderDb.ts`**: All read helpers (`getActivePackage`, `listOrdersForUser`, `getOrderById`, `getOpenRefundRequest`, `listRefundRequestsForUser`, `validateCoupon`, `listActivePackages`) use `$queryRawUnsafe` parameterized queries against admin-owned tables.
+- **Security**: `CASHFREE_APP_ID`, `CASHFREE_SECRET_KEY`, `CASHFREE_WEBHOOK_SECRET` are backend-only secrets. No `NEXT_PUBLIC_CASHFREE*` variables exist. Frontend only receives `orderId` + `paymentSessionId`.
 
 #### Course Catalog (`/courses`)
 A database-driven server component displaying active courses with stackable server-side filters for `category`, `productCategory`, and `exam`. An exam filter row dynamically appears when a category with associated exams is selected.
