@@ -46,6 +46,7 @@ export interface CourseListItem {
   sellingPrice: number | null;
   discountPercent: number | null;
   packageId: string | null;
+  packagePricePaise: number | null;
   validityType: string | null;
   validityDays: number | null;
   validityMonths: number | null;
@@ -152,6 +153,7 @@ type RawCourse = {
   mrp: number | null;
   sellingPrice: number | null;
   packageId: string | null;
+  packagePricePaise: number | null;
   validityType: string | null;
   validityDays: number | null;
   validityMonths: number | null;
@@ -164,10 +166,15 @@ function computeDiscount(mrp: number | null, selling: number | null): number | n
 }
 
 function mapCourse(r: RawCourse): CourseListItem {
+  // Package price (paise→rupees) is the actual amount charged at checkout.
+  // Use it as the effective selling price for discount computation so that
+  // course cards and the checkout page always reflect the same number.
+  const effectiveSelling =
+    r.packagePricePaise != null ? r.packagePricePaise / 100 : r.sellingPrice;
   return {
     ...r,
     productCategoryLabel: PRODUCT_CATEGORY_LABEL[r.productCategory] ?? r.productCategory,
-    discountPercent: computeDiscount(r.mrp, r.sellingPrice),
+    discountPercent: computeDiscount(r.mrp, effectiveSelling),
   };
 }
 
@@ -232,12 +239,13 @@ export async function getActiveCourses(opts?: {
       c."validityDays",
       c."validityMonths",
       c."validUntil",
-      pkg.id AS "packageId"
+      pkg.id              AS "packageId",
+      pkg."pricePaise"    AS "packagePricePaise"
     FROM "Course" c
     LEFT JOIN "Category" cat ON cat.id = c."categoryId"
     LEFT JOIN "Exam"     e   ON e.id   = c."examId"
     LEFT JOIN LATERAL (
-      SELECT id FROM "ProductPackage"
+      SELECT id, "pricePaise" FROM "ProductPackage"
       WHERE "isActive" = true
         AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
       ORDER BY "pricePaise" ASC
@@ -258,61 +266,64 @@ export async function getActiveCourses(opts?: {
 export async function getCourseWithCurriculum(courseId: string): Promise<CourseDetail | null> {
   const safeId = courseId.replace(/'/g, "''");
 
-  const courses = await prisma.$queryRawUnsafe<RawCourse[]>(`
-    SELECT
-      c.id,
-      c.name,
-      c.description,
-      c."thumbnailUrl",
-      c."categoryId",
-      cat.name AS "categoryName",
-      c."examId",
-      e.name   AS "examName",
-      c."productCategory",
-      c.featured,
-      c."hasVideoCourse",
-      c."hasHtmlCourse",
-      c."hasPdfCourse",
-      c."hasTestSeries",
-      c."hasFlashcardDecks",
-      COALESCE(c."isFree", false) AS "isFree",
-      c.mrp,
-      c."sellingPrice",
-      c."validityType",
-      c."validityDays",
-      c."validityMonths",
-      c."validUntil",
-      pkg.id AS "packageId"
-    FROM "Course" c
-    LEFT JOIN "Category" cat ON cat.id = c."categoryId"
-    LEFT JOIN "Exam"     e   ON e.id   = c."examId"
-    LEFT JOIN LATERAL (
-      SELECT id FROM "ProductPackage"
-      WHERE "isActive" = true
-        AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
-      ORDER BY "pricePaise" ASC
+  // PERFORMANCE: run course header + sections in parallel (both only need courseId).
+  type RawSection = { sectionId: string; subjectId: string | null; subjectName: string; subjectColor: string | null; label: string | null; sortOrder: number };
+  const [courses, rawSections] = await Promise.all([
+    prisma.$queryRawUnsafe<RawCourse[]>(`
+      SELECT
+        c.id,
+        c.name,
+        c.description,
+        c."thumbnailUrl",
+        c."categoryId",
+        cat.name AS "categoryName",
+        c."examId",
+        e.name   AS "examName",
+        c."productCategory",
+        c.featured,
+        c."hasVideoCourse",
+        c."hasHtmlCourse",
+        c."hasPdfCourse",
+        c."hasTestSeries",
+        c."hasFlashcardDecks",
+        COALESCE(c."isFree", false) AS "isFree",
+        c.mrp,
+        c."sellingPrice",
+        c."validityType",
+        c."validityDays",
+        c."validityMonths",
+        c."validUntil",
+        pkg.id           AS "packageId",
+        pkg."pricePaise" AS "packagePricePaise"
+      FROM "Course" c
+      LEFT JOIN "Category" cat ON cat.id = c."categoryId"
+      LEFT JOIN "Exam"     e   ON e.id   = c."examId"
+      LEFT JOIN LATERAL (
+        SELECT id, "pricePaise" FROM "ProductPackage"
+        WHERE "isActive" = true
+          AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
+        ORDER BY "pricePaise" ASC
+        LIMIT 1
+      ) pkg ON true
+      WHERE c.id = '${safeId}' AND c."isActive" = true
       LIMIT 1
-    ) pkg ON true
-    WHERE c.id = '${safeId}' AND c."isActive" = true
-    LIMIT 1
-  `);
+    `),
+    prisma.$queryRawUnsafe<RawSection[]>(`
+      SELECT
+        css.id AS "sectionId",
+        css."subjectId",
+        COALESCE(css.label, s.name, 'Section') AS "subjectName",
+        s."subjectColor",
+        css.label,
+        css."sortOrder"
+      FROM "CourseSubjectSection" css
+      LEFT JOIN "Subject" s ON s.id = css."subjectId"
+      WHERE css."courseId" = '${safeId}'
+      ORDER BY css."sortOrder" ASC
+    `),
+  ]);
   if (!courses.length) return null;
   const course = mapCourse(courses[0]);
-
-  type RawSection = { sectionId: string; subjectId: string | null; subjectName: string; subjectColor: string | null; label: string | null; sortOrder: number };
-  const rawSections = await prisma.$queryRawUnsafe<RawSection[]>(`
-    SELECT
-      css.id AS "sectionId",
-      css."subjectId",
-      COALESCE(css.label, s.name, 'Section') AS "subjectName",
-      s."subjectColor",
-      css.label,
-      css."sortOrder"
-    FROM "CourseSubjectSection" css
-    LEFT JOIN "Subject" s ON s.id = css."subjectId"
-    WHERE css."courseId" = '${safeId}'
-    ORDER BY css."sortOrder" ASC
-  `);
   if (!rawSections.length) {
     return { ...course, curriculum: [] };
   }

@@ -55,6 +55,7 @@ export default async function FeaturedCoursesSection() {
       mrp: number | null;
       sellingPrice: number | null;
       packageId: string | null;
+      packagePricePaise: number | null;
       thumbnailUrl: string | null;
     };
     const featuredCourses = await prisma.$queryRaw<RawCourse[]>`
@@ -64,10 +65,11 @@ export default async function FeaturedCoursesSection() {
         c.mrp,
         c."sellingPrice",
         c."thumbnailUrl",
-        pkg.id AS "packageId"
+        pkg.id           AS "packageId",
+        pkg."pricePaise" AS "packagePricePaise"
       FROM "Course" c
       LEFT JOIN LATERAL (
-        SELECT id FROM "ProductPackage"
+        SELECT id, "pricePaise" FROM "ProductPackage"
         WHERE "isActive" = true
           AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
         ORDER BY "pricePaise" ASC
@@ -80,17 +82,20 @@ export default async function FeaturedCoursesSection() {
 
     for (const c of featuredCourses) {
       const isFreeCourse = c.isFree || c.productCategory === "FREE_DEMO";
-      const sellingRupees = c.sellingPrice;
+      // Package price (paise) is the actual checkout price — always consistent with checkout page
+      const effectiveRupees = c.packagePricePaise != null
+        ? c.packagePricePaise / 100
+        : c.sellingPrice;
       const mrpRupees = c.mrp;
-      const hasPricing = !isFreeCourse && sellingRupees != null && sellingRupees > 0;
+      const hasPricing = !isFreeCourse && effectiveRupees != null && effectiveRupees > 0;
       // Convert rupees → paise to match formatPrice(paise) used by all cards
-      const sellingPaise = hasPricing ? Math.round(sellingRupees! * 100) : null;
-      const mrpPaise = hasPricing && mrpRupees != null && mrpRupees > sellingRupees!
+      const sellingPaise = hasPricing ? Math.round(effectiveRupees! * 100) : null;
+      const mrpPaise = hasPricing && mrpRupees != null && mrpRupees > effectiveRupees!
         ? Math.round(mrpRupees * 100)
         : null;
       const discount =
-        hasPricing && mrpRupees != null && mrpRupees > sellingRupees!
-          ? Math.round(((mrpRupees - sellingRupees!) / mrpRupees) * 100)
+        hasPricing && mrpRupees != null && mrpRupees > effectiveRupees!
+          ? Math.round(((mrpRupees - effectiveRupees!) / mrpRupees) * 100)
           : null;
       const ctaHref = hasPricing && c.packageId
         ? `/checkout?packageId=${c.packageId}`

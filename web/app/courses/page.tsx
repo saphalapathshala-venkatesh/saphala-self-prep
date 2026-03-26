@@ -284,7 +284,11 @@ export default async function CoursesPage({
               {courses.map((course) => {
                 const meta = PRODUCT_META[course.productCategory];
                 const isFreeCourse = course.isFree || course.productCategory === "FREE_DEMO";
-                const hasPricing = !isFreeCourse && course.sellingPrice != null && course.sellingPrice > 0;
+                // Package price is the actual checkout price — use it as the effective selling price
+                const effectivePrice = course.packagePricePaise != null
+                  ? course.packagePricePaise / 100
+                  : course.sellingPrice;
+                const hasPricing = !isFreeCourse && effectivePrice != null && effectivePrice > 0;
 
                 return (
                   <Link
@@ -349,19 +353,32 @@ export default async function CoursesPage({
 
                       {/* Price block — paid courses only */}
                       {hasPricing && (
-                        <div className="flex items-baseline gap-2 mt-1">
-                          <span className="text-base font-bold text-[#2D1B69]">
-                            {formatRupeesINR(course.sellingPrice!)}
-                          </span>
-                          {course.mrp != null && course.mrp > course.sellingPrice! && (
-                            <span className="text-xs text-gray-400 line-through">
-                              {formatRupeesINR(course.mrp)}
+                        <div className="mt-1 space-y-0.5">
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="text-base font-bold text-[#2D1B69]">
+                              {formatRupeesINR(effectivePrice!)}
                             </span>
-                          )}
-                          {course.discountPercent != null && course.discountPercent > 0 && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
-                              {course.discountPercent}% off
-                            </span>
+                            {course.mrp != null && course.mrp > effectivePrice! && (
+                              <span className="text-xs text-gray-400 line-through">
+                                {formatRupeesINR(course.mrp)}
+                              </span>
+                            )}
+                            {course.discountPercent != null && course.discountPercent > 0 && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700">
+                                {course.discountPercent}% off
+                              </span>
+                            )}
+                          </div>
+                          {course.validityType && (
+                            <p className="text-[10px] text-gray-400">
+                              {course.validityType === "lifetime"
+                                ? "Lifetime access"
+                                : course.validityType === "days" && course.validityDays
+                                ? `${course.validityDays % 365 === 0 ? `${course.validityDays / 365}yr` : course.validityDays % 30 === 0 ? `${course.validityDays / 30}mo` : `${course.validityDays}d`} access`
+                                : course.validityType === "months" && course.validityMonths
+                                ? `${course.validityMonths}mo access`
+                                : null}
+                            </p>
                           )}
                         </div>
                       )}
