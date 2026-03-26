@@ -102,6 +102,13 @@ The TestHub student test panel (`components/testhub/TestAttemptClient.tsx`) util
 ### Auth Hardening
 `getSession()` checks `revokedAt: null` to invalidate sessions. `getCurrentUser()` and `getCurrentUserAndSession()` re-check `isBlocked`, `isActive`, `deletedAt`, and `infringementBlocked` on every request. The login API returns explicit error codes for robust error handling.
 
+### Timezone Architecture
+All time-sensitive data in this project is in **IST (Asia/Kolkata, UTC+5:30)**:
+- `TZ=Asia/Kolkata` is set as a shared environment variable so `new Date()`, logging, and all formatting on the Node.js server produce IST times.
+- The admin app saves coupon `validFrom`/`validUntil` as IST times into `timestamp without time zone` PostgreSQL columns (no conversion done at storage time).
+- The `validateCoupon()` function applies `AT TIME ZONE 'Asia/Kolkata'` in SQL when selecting these timestamps. PostgreSQL converts them from "naïve IST" → proper UTC `timestamptz`, which the Neon driver returns as correct UTC Date objects. This means plain `new Date()` comparisons work correctly.
+- Any future DB columns storing admin-entered datetimes should follow the same pattern: store as `timestamp without time zone` (admin UI enters IST), and apply `AT TIME ZONE 'Asia/Kolkata'` at read time when you need to compare against `new Date()`.
+
 ## External Dependencies
 
 - Next.js 16.1.6

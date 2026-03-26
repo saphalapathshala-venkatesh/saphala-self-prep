@@ -119,8 +119,13 @@ export async function validateCoupon(
    *  Use this when the display price is Course.sellingPrice, not package price. */
   overrideBasePaise?: number
 ): Promise<{ coupon: CouponRow; discountPaise: number } | null> {
+  // AT TIME ZONE 'Asia/Kolkata' tells PostgreSQL to interpret the stored
+  // timezone-naïve timestamps as IST and return them as proper UTC timestamptz values.
+  // This ensures correct comparisons with new Date() (UTC) on the Node.js side.
   const rows = await prisma.$queryRawUnsafe<CouponRow[]>(
-    `SELECT id, code, "discountType", "discountValue", "validFrom", "validUntil",
+    `SELECT id, code, "discountType", "discountValue",
+            "validFrom"  AT TIME ZONE 'Asia/Kolkata' AS "validFrom",
+            "validUntil" AT TIME ZONE 'Asia/Kolkata' AS "validUntil",
             "usageLimit", "perUserLimit", "applicableEntitlements", "isActive"
      FROM "Coupon"
      WHERE code = $1 AND "isActive" = true LIMIT 1`,
@@ -129,14 +134,9 @@ export async function validateCoupon(
   if (rows.length === 0) return null;
   const coupon = rows[0];
 
-  // The admin app stores timestamps in IST (UTC+5:30) as timezone-naïve values.
-  // The Neon driver reads them back with a trailing Z, making them appear as UTC.
-  // To compare correctly, shift "now" into the same IST naïve space:
-  // nowIST = UTC + 5h30m, then compare millisecond values directly.
-  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // 5 h 30 min in ms
-  const nowIST = new Date(Date.now() + IST_OFFSET_MS);
-  if (coupon.validFrom && nowIST < coupon.validFrom) return null;
-  if (coupon.validUntil && nowIST > coupon.validUntil) return null;
+  const now = new Date();
+  if (coupon.validFrom && now < coupon.validFrom) return null;
+  if (coupon.validUntil && now > coupon.validUntil) return null;
 
   if (coupon.applicableEntitlements.length > 0) {
     const applicable = packageRow.entitlementCodes.some((c) =>
