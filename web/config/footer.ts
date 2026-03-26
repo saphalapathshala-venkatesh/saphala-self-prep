@@ -11,8 +11,8 @@ export const footerConfig = {
   },
   contact: {
     email: "support@saphala.in",
-    phone: "+91 98765 43210",
-    address: "Vijayawada, Andhra Pradesh, India",
+    phone: "+91 98660 36606",
+    address: "MIG 279, Phase 1, APHB Colony, Kallurpalli, Nellore - 524003",
   },
   exploreLinks: [
     { label: "Home", href: "/" },

@@ -23,7 +23,12 @@ export const Footer = () => {
               >
                 {footerConfig.contact.email}
               </a>
-              <p className="text-gray-400">{footerConfig.contact.phone}</p>
+              <a
+                href={`tel:+91${footerConfig.contact.phone.replace(/\D/g, "").slice(-10)}`}
+                className="block text-gray-400 hover:text-purple-300 transition-colors"
+              >
+                {footerConfig.contact.phone}
+              </a>
               <p className="text-gray-500 text-xs">{footerConfig.contact.address}</p>
             </div>
           </div>

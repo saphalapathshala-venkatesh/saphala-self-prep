@@ -187,7 +187,7 @@ export default function TermsPage() {
               <p>
                 These Terms are governed by the laws of India. Any disputes arising out of or in
                 connection with these Terms shall be subject to the exclusive jurisdiction of the
-                courts located in Vijayawada, Andhra Pradesh, India.
+                courts located in Nellore, Andhra Pradesh, India.
               </p>
             </section>
 
@@ -209,14 +209,19 @@ export default function TermsPage() {
               <p>For questions about these Terms, contact us at:</p>
               <address className="not-italic mt-2 space-y-0.5 text-gray-500">
                 <p className="font-medium text-gray-700">Saphala Pathshala</p>
-                <p>Vijayawada, Andhra Pradesh, India</p>
+                <p>MIG 279, Phase 1, APHB Colony, Kallurpalli, Nellore - 524003</p>
                 <p>
                   Email:{" "}
                   <a href="mailto:support@saphala.in" className="text-[#6D4BCB] hover:underline">
                     support@saphala.in
                   </a>
                 </p>
-                <p>Phone: +91 98765 43210</p>
+                <p>
+                  Phone:{" "}
+                  <a href="tel:+919866036606" className="hover:text-[#6D4BCB] transition-colors">
+                    +91 98660 36606
+                  </a>
+                </p>
               </address>
             </section>
 

@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage() {
               <h2 className="text-base font-semibold text-[#2D1B69] mb-2">1. Who We Are</h2>
               <p>
                 Saphala Pathshala (&quot;we&quot;, &quot;us&quot;, or &quot;our&quot;) is an online
-                educational platform operated from Vijayawada, Andhra Pradesh, India. We provide
+                educational platform operated from Nellore, Andhra Pradesh, India. We provide
                 structured self-paced learning, simulated exam practice, video lessons, and digital
                 study materials for competitive exam aspirants. By registering or using our platform,
                 you agree to this Privacy Policy.
@@ -163,14 +163,19 @@ export default function PrivacyPolicyPage() {
               </p>
               <address className="not-italic mt-2 space-y-0.5 text-gray-500">
                 <p className="font-medium text-gray-700">Saphala Pathshala</p>
-                <p>Vijayawada, Andhra Pradesh, India</p>
+                <p>MIG 279, Phase 1, APHB Colony, Kallurpalli, Nellore - 524003</p>
                 <p>
                   Email:{" "}
                   <a href="mailto:support@saphala.in" className="text-[#6D4BCB] hover:underline">
                     support@saphala.in
                   </a>
                 </p>
-                <p>Phone: +91 98765 43210</p>
+                <p>
+                  Phone:{" "}
+                  <a href="tel:+919866036606" className="hover:text-[#6D4BCB] transition-colors">
+                    +91 98660 36606
+                  </a>
+                </p>
               </address>
             </section>
 
