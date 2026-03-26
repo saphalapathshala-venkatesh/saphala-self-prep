@@ -3,12 +3,16 @@ import { Footer } from "@/ui-core/Footer";
 import { listActivePackages } from "@/lib/paymentOrderDb";
 import Link from "next/link";
 
-function paise(amount: number, currency = "INR") {
+function formatRupees(amount: number, currency = "INR") {
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency,
     minimumFractionDigits: 0,
-  }).format(amount / 100);
+  }).format(amount);
+}
+
+function formatPaise(amount: number, currency = "INR") {
+  return formatRupees(amount / 100, currency);
 }
 
 export default async function PlansPage() {
@@ -60,6 +64,18 @@ export default async function PlansPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {packages.map((pkg) => {
                 const isFree = pkg.pricePaise === 0;
+                // Use the linked course's admin-set selling price when available —
+                // it is always the authoritative display price.
+                const hasLinkedCourse =
+                  pkg.linkedCourseId != null &&
+                  pkg.linkedCourseSellingPrice != null &&
+                  pkg.linkedCourseSellingPrice > 0;
+                const displayPrice = hasLinkedCourse
+                  ? formatRupees(pkg.linkedCourseSellingPrice!, pkg.currency)
+                  : formatPaise(pkg.pricePaise, pkg.currency);
+                const checkoutHref = hasLinkedCourse
+                  ? `/checkout?packageId=${pkg.id}&courseId=${pkg.linkedCourseId}`
+                  : `/checkout?packageId=${pkg.id}`;
                 return (
                   <div
                     key={pkg.id}
@@ -104,14 +120,14 @@ export default async function PlansPage() {
                     <div className="mt-auto space-y-3">
                       <div className="flex items-baseline gap-1">
                         <span className="text-2xl font-bold text-[#2D1B69]">
-                          {isFree ? "Free" : paise(pkg.pricePaise, pkg.currency)}
+                          {isFree ? "Free" : displayPrice}
                         </span>
                         {!isFree && (
                           <span className="text-sm text-gray-400">one-time</span>
                         )}
                       </div>
                       <Link
-                        href={`/checkout?packageId=${pkg.id}`}
+                        href={checkoutHref}
                         className="block w-full text-center py-3 rounded-xl bg-[#6D4BCB] hover:bg-[#5C3DB5] text-white font-semibold text-sm transition-colors"
                       >
                         {isFree ? "Get Free Access" : "Buy Now"}

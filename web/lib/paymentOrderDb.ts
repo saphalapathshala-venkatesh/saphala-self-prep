@@ -59,6 +59,10 @@ export interface ProductPackageRow {
   pricePaise: number;
   currency: string;
   isActive: boolean;
+  /** ID of the cheapest active course linked to this package via entitlementCodes. */
+  linkedCourseId: string | null;
+  /** Course.sellingPrice (rupees) of the linked course. Used as the authoritative display price. */
+  linkedCourseSellingPrice: number | null;
 }
 
 export interface CouponRow {
@@ -88,10 +92,22 @@ export async function getActivePackage(packageId: string): Promise<ProductPackag
 
 export async function listActivePackages(): Promise<ProductPackageRow[]> {
   return prisma.$queryRawUnsafe<ProductPackageRow[]>(
-    `SELECT id, code, name, description, "entitlementCodes", "pricePaise", currency, "isActive"
-     FROM "ProductPackage"
-     WHERE "isActive" = true
-     ORDER BY "pricePaise" ASC`
+    `SELECT
+       pp.id, pp.code, pp.name, pp.description,
+       pp."entitlementCodes", pp."pricePaise", pp.currency, pp."isActive",
+       c.id              AS "linkedCourseId",
+       c."sellingPrice"  AS "linkedCourseSellingPrice"
+     FROM "ProductPackage" pp
+     LEFT JOIN LATERAL (
+       SELECT id, "sellingPrice"
+       FROM "Course"
+       WHERE "isActive" = true
+         AND pp."entitlementCodes" @> ARRAY["productCategory"]::text[]
+       ORDER BY "sellingPrice" ASC
+       LIMIT 1
+     ) c ON true
+     WHERE pp."isActive" = true
+     ORDER BY pp."pricePaise" ASC`
   );
 }
 
