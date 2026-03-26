@@ -1,0 +1,74 @@
+We need a precise frontend pricing-card enhancement for course cards.
+
+PROBLEM
+On course cards, only the selling price is currently visible.
+I want the card to also show:
+- MRP
+- Discount percentage
+
+GOAL
+For paid courses, display a clean pricing block on the course card showing:
+- Selling Price
+- MRP (struck through)
+- Discount % badge
+
+IMPORTANT
+- Do NOT redesign the whole course card
+- Do NOT break card spacing/responsiveness
+- Do NOT affect free course cards incorrectly
+- Do NOT hardcode values
+- Use backend/admin pricing fields as source of truth
+- TypeScript must remain clean
+
+REQUIRED DISPLAY RULES
+
+For paid courses with valid pricing:
+- Show Selling Price prominently
+- Show MRP in smaller struck-through text
+- Show Discount % in a compact badge
+- Keep Buy Now button unchanged
+
+For free courses:
+- Do NOT show fake MRP/discount
+- Preserve existing free-course behavior
+
+For paid courses with no actual discount:
+- If MRP <= selling price, do not show misleading discount badge
+- Show only relevant pricing safely
+
+TASKS
+
+1. Audit the reusable course card component used in frontend
+   - find where current price block is rendered
+   - confirm whether MRP and discount fields are already available in props/data
+   - if not, trace the student course API/data mapping and expose them minimally
+
+2. Ensure these fields are available on the card:
+   - mrpPaise (or actual field name)
+   - sellingPricePaise (or actual field name)
+   - computed or returned discountPercent
+
+3. Update course card UI:
+   - selling price on main line
+   - MRP next to/below it in struck-through muted text
+   - discount badge beside price block
+   - keep layout premium and compact
+
+4. Apply consistently on all course-card surfaces where relevant:
+   - homepage featured courses
+   - course listing cards
+   - dashboard/my courses cards if applicable
+   - any reusable course card component
+
+5. Validate:
+   - one paid course with discount
+   - one paid course without discount
+   - one free course
+   - mobile + desktop
+
+FINAL REPORT
+Tell me:
+- exact files changed
+- whether API/data mapping had to be updated
+- whether MRP and discount % now show correctly on course cards
+- whether free-course cards remain correct

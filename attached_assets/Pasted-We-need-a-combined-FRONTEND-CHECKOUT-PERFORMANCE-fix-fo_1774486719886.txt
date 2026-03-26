@@ -1,0 +1,219 @@
+We need a combined FRONTEND + CHECKOUT + PERFORMANCE fix for student course flow.
+
+PROBLEMS FOUND
+
+1. Course cards/details need to show:
+- MRP
+- Selling Price
+- Discount %
+
+2. Navigation is still too slow:
+- course detail pages load slower than expected
+- course content/curriculum loads slowly
+- checkout page loads slowly
+- page transitions feel delayed
+
+3. Pricing inconsistency:
+- course page shows ₹5000
+- final checkout page shows ₹499
+This mismatch is unacceptable unless there is a clearly intentional package/coupon/pricing rule.
+We need one source of truth and consistent display.
+
+GOAL
+Fix pricing display + pricing consistency + slow navigation/performance issues across course detail, course content, and checkout, without breaking anything else.
+
+IMPORTANT
+- Do NOT redesign the UI
+- Do NOT hardcode price values
+- Admin/shared DB must remain source of truth
+- Do NOT break free course flow
+- Do NOT break existing purchase flow
+- Keep admin and student separation clean
+- TypeScript must remain clean
+
+==================================================
+PHASE 1 — PRICING AUDIT (END TO END)
+==================================================
+
+Audit the full pricing chain for this exact course and checkout flow.
+
+Check:
+1. Admin course pricing fields
+   - mrpPaise
+   - sellingPricePaise
+   - isFree
+   - discountPercent or computed discount
+   - validity
+2. ProductPackage/package pricing fields
+3. Student course detail query
+4. Student course card query
+5. Checkout page query
+6. Order creation/payment initiation query
+
+Identify the root cause of this mismatch:
+- course page shows ₹5000
+- checkout page shows ₹499
+
+Possible causes:
+- course uses Course pricing while checkout uses ProductPackage pricing
+- stale/old package linked to course
+- wrong package selected for checkout
+- package/category fallback selecting the wrong product
+- coupon or offer silently applied
+- frontend mapping bug
+- multiple price sources being used inconsistently
+
+==================================================
+PHASE 2 — FIX PRICE CONSISTENCY
+==================================================
+
+Establish one correct display rule:
+
+For course cards and course detail pages:
+- Show MRP
+- Show Selling Price
+- Show Discount %
+- Show validity if configured
+
+For checkout:
+- The amount shown must match the actual purchasable package/course price source
+- If package pricing is intentionally authoritative, frontend course pages must reflect that same purchasable price or clearly indicate package/offer pricing
+- No hidden jump from ₹5000 to ₹499
+
+Implement the correct source-of-truth logic based on actual codebase.
+
+If the system uses ProductPackage as actual checkout authority:
+- map the correct active package price back into course card/detail display
+OR
+- clearly separate “Course Price” vs “Offer Package Price” only if that is truly intentional
+
+Do not leave inconsistent pricing between pages.
+
+==================================================
+PHASE 3 — COURSE CARD UI ENHANCEMENT
+==================================================
+
+For paid courses with real pricing:
+- Show Selling Price prominently
+- Show MRP struck through
+- Show Discount % badge
+- Keep Buy Now button unchanged
+
+For free courses:
+- preserve existing free behavior
+- do not show fake discount/MRP
+
+Apply on all relevant surfaces:
+- homepage featured courses
+- course listing cards
+- any reusable course card component
+- course detail purchase banner/CTA area
+
+==================================================
+PHASE 4 — VALIDITY DISPLAY
+==================================================
+
+Also display course/package validity consistently wherever relevant:
+- course cards if already designed to support it
+- course detail page
+- checkout page/order summary if appropriate
+
+Use actual backend validity field.
+Do not hardcode “1 Year” unless that is the real configured value.
+
+==================================================
+PHASE 5 — PERFORMANCE AUDIT
+==================================================
+
+Audit why navigation is slow in student frontend.
+
+Focus on:
+1. Course detail page
+2. Course content / curriculum loading
+3. Checkout page loading
+4. Route transitions between course → content → checkout
+
+Check for:
+- unnecessary sequential DB calls
+- duplicate fetches
+- slow server components
+- N+1 queries
+- expensive Prisma joins
+- repeated entitlement checks
+- repeated linked-content queries
+- non-cached fetches where safe
+- blocking calls before first paint
+- unnecessary client-side waiting/spinners
+- image loading issues
+- oversized payloads
+- coupon/payment SDK loading too early
+- route-level waterfalls
+
+==================================================
+PHASE 6 — PERFORMANCE FIXES
+==================================================
+
+Implement safe, minimal performance improvements:
+
+1. Parallelize independent queries where possible
+2. Remove duplicate/unnecessary fetches
+3. Optimize course detail query payload
+4. Optimize curriculum/content query payload
+5. Optimize checkout data loading
+6. Delay non-critical SDK or heavy code until needed
+7. Improve route transition responsiveness
+8. Ensure no unnecessary blocking work happens before content can render
+
+Do NOT over-engineer.
+Do NOT rewrite architecture unnecessarily.
+Fix the actual bottlenecks found.
+
+==================================================
+PHASE 7 — VALIDATION
+==================================================
+
+Test this exact flow:
+
+A. Course card
+- MRP visible
+- Selling price visible
+- Discount % visible
+- validity visible if configured
+
+B. Course detail page
+- pricing matches intended purchasable value
+- validity visible
+- Buy Now CTA correct
+
+C. Checkout page
+- amount matches intended price source
+- no surprise drop from ₹5000 to ₹499 unless explicitly justified and displayed earlier
+- loads fast
+
+D. Performance
+- compare before vs after for:
+  - course detail load
+  - curriculum/content load
+  - checkout page load
+  - route transition feel
+
+E. Free course
+- still behaves correctly
+
+F. Already purchased course
+- still behaves correctly
+
+==================================================
+FINAL REPORT
+==================================================
+
+Tell me:
+1. exact root cause of ₹5000 vs ₹499 mismatch
+2. exact source of truth finally used for pricing
+3. exact files changed
+4. whether MRP/selling price/discount now show on cards and detail page
+5. whether validity now displays correctly
+6. exact performance bottlenecks found
+7. exact optimizations implemented
+8. whether course detail, content, and checkout now load faster
+9. any remaining edge cases
