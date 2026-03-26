@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { prisma } from "@/lib/db";
 
 const PRODUCT_CATEGORY_LABEL: Record<string, string> = {
@@ -31,6 +32,7 @@ type UnifiedCard = {
   href: string;
   ctaHref: string;
   cta: string;
+  thumbnailUrl: string | null;
 };
 
 export default async function FeaturedCoursesSection() {
@@ -53,6 +55,7 @@ export default async function FeaturedCoursesSection() {
       mrp: number | null;
       sellingPrice: number | null;
       packageId: string | null;
+      thumbnailUrl: string | null;
     };
     const featuredCourses = await prisma.$queryRaw<RawCourse[]>`
       SELECT
@@ -60,6 +63,7 @@ export default async function FeaturedCoursesSection() {
         COALESCE(c."isFree", false) AS "isFree",
         c.mrp,
         c."sellingPrice",
+        c."thumbnailUrl",
         pkg.id AS "packageId"
       FROM "Course" c
       LEFT JOIN LATERAL (
@@ -104,6 +108,7 @@ export default async function FeaturedCoursesSection() {
         href: `/courses/${c.id}`,
         ctaHref: ctaHref,
         cta: isFreeCourse ? "Start Free" : hasPricing ? "Buy Now" : "View Course",
+        thumbnailUrl: c.thumbnailUrl ?? null,
       });
     }
 
@@ -141,6 +146,7 @@ export default async function FeaturedCoursesSection() {
           href: "/testhub",
           ctaHref: "/testhub",
           cta: isFree ? "Start Free" : "View Tests",
+          thumbnailUrl: null,
         });
       }
     }
@@ -181,16 +187,39 @@ export default async function FeaturedCoursesSection() {
                 key={card.id}
                 className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col"
               >
-                <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] h-32 flex flex-col items-center justify-center px-5 gap-2">
-                  {card.badge && (
-                    <span className="text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white px-2.5 py-0.5 rounded-full">
-                      {card.badge}
-                    </span>
-                  )}
-                  <h3 className="text-white font-bold text-sm text-center leading-snug line-clamp-3">
-                    {card.title}
-                  </h3>
-                </div>
+                {card.thumbnailUrl ? (
+                  <div className="relative h-32 overflow-hidden">
+                    <Image
+                      src={card.thumbnailUrl}
+                      alt={card.title}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                    <div className="absolute bottom-0 inset-x-0 px-3 pb-2 flex flex-col items-start gap-1">
+                      {card.badge && (
+                        <span className="text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white px-2 py-0.5 rounded-full backdrop-blur-sm">
+                          {card.badge}
+                        </span>
+                      )}
+                      <h3 className="text-white font-bold text-sm leading-snug line-clamp-2 drop-shadow">
+                        {card.title}
+                      </h3>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] h-32 flex flex-col items-center justify-center px-5 gap-2">
+                    {card.badge && (
+                      <span className="text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white px-2.5 py-0.5 rounded-full">
+                        {card.badge}
+                      </span>
+                    )}
+                    <h3 className="text-white font-bold text-sm text-center leading-snug line-clamp-3">
+                      {card.title}
+                    </h3>
+                  </div>
+                )}
 
                 <div className="p-4 flex flex-col flex-1">
                   {card.categoryName && (
