@@ -1,4 +1,5 @@
 import { prisma } from "./db";
+import { unstable_cache } from "next/cache";
 
 // ============================================================
 // ACCESS RESOLUTION
@@ -295,7 +296,7 @@ export async function getDbTestByCode(code: string): Promise<DbTest | null> {
 // QUERIES — questions for attempt
 // ============================================================
 
-export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
+async function _getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
   const testQuestions = await prisma.testQuestion.findMany({
     where: { testId },
     orderBy: { order: "asc" },
@@ -404,6 +405,13 @@ export async function getDbQuestionsForTest(testId: string): Promise<DbQuestion[
     };
   });
 }
+
+// Cached: test questions are static once published — safe to cache for 1 hour.
+export const getDbQuestionsForTest = unstable_cache(
+  _getDbQuestionsForTest,
+  ["test-questions"],
+  { revalidate: 3600, tags: ["tests"] },
+);
 
 // ============================================================
 // QUERIES — sections for a test
@@ -783,24 +791,16 @@ export async function upsertAnswer(
   isMarkedForReview: boolean,
   timeSpentMsDelta: number
 ) {
-  const existing = await prisma.attemptAnswer.findUnique({
+  // Single upsert with atomic increment — replaces the old findUnique + update/create pattern.
+  return prisma.attemptAnswer.upsert({
     where: { attemptId_questionId: { attemptId, questionId } },
-  });
-
-  if (existing) {
-    return prisma.attemptAnswer.update({
-      where: { id: existing.id },
-      data: {
-        selectedOptionId,
-        isMarkedForReview,
-        timeSpentMs: existing.timeSpentMs + timeSpentMsDelta,
-        savedAt: new Date(),
-      },
-    });
-  }
-
-  return prisma.attemptAnswer.create({
-    data: {
+    update: {
+      selectedOptionId,
+      isMarkedForReview,
+      timeSpentMs: { increment: timeSpentMsDelta },
+      savedAt: new Date(),
+    },
+    create: {
       attemptId,
       questionId,
       selectedOptionId,
@@ -826,24 +826,19 @@ export async function bulkUpsertAnswers(
     timeSpentMs: number;
   }>
 ) {
-  for (const fa of finalAnswers) {
-    const existing = await prisma.attemptAnswer.findUnique({
-      where: { attemptId_questionId: { attemptId, questionId: fa.questionId } },
-    });
-
-    if (existing) {
-      await prisma.attemptAnswer.update({
-        where: { id: existing.id },
-        data: {
+  // Run all upserts in parallel instead of sequentially — reduces total time
+  // from O(n) round-trips to O(1) (one concurrent batch).
+  await Promise.all(
+    finalAnswers.map((fa) =>
+      prisma.attemptAnswer.upsert({
+        where: { attemptId_questionId: { attemptId, questionId: fa.questionId } },
+        update: {
           selectedOptionId: fa.selectedOptionId,
           isMarkedForReview: fa.isMarkedForReview,
           timeSpentMs: fa.timeSpentMs,
           savedAt: new Date(),
         },
-      });
-    } else {
-      await prisma.attemptAnswer.create({
-        data: {
+        create: {
           attemptId,
           questionId: fa.questionId,
           selectedOptionId: fa.selectedOptionId,
@@ -851,9 +846,9 @@ export async function bulkUpsertAnswers(
           timeSpentMs: fa.timeSpentMs,
           savedAt: new Date(),
         },
-      });
-    }
-  }
+      })
+    )
+  );
 }
 
 export async function getAllSubmittedAnswersForQuestion(questionId: string) {

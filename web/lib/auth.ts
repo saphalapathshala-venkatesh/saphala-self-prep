@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME, SESSION_TTL_MS, IDLE_TIMEOUT_MS } from "./constants";
-import { getSession, createSession, deleteSession } from "./sessionStore";
+import { createSession, deleteSession } from "./sessionStore";
 import { prisma } from "./db";
 import { randomBytes } from "crypto";
 
@@ -24,33 +24,103 @@ const USER_SELECT = {
   infringementBlocked: true,
 } as const;
 
-// Cached per-request: layout + page both call this but only one DB hit occurs.
-export const getCurrentUser = cache(async function _getCurrentUser() {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+// Only roll the idle window when less than half the TTL remains,
+// to avoid a DB write on every single request.
+const ROLL_THRESHOLD_MS = IDLE_TIMEOUT_MS / 2;
 
-  if (!sessionCookie?.value) {
-    return null;
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+type RawUser = {
+  id: string;
+  email: string | null;
+  mobile: string | null;
+  role: string;
+  fullName: string | null;
+  gender: string | null;
+  state: string | null;
+  createdAt: Date;
+  isBlocked: boolean;
+  isActive: boolean;
+  deletedAt: Date | null;
+  infringementBlocked: boolean;
+};
+
+type SessionWithUser = {
+  id: string;
+  userId: string;
+  expiresAt: Date;
+  user: RawUser;
+};
+
+/**
+ * Single-query session + user lookup.
+ * Replaces the old two-query pattern (getSession → findFirst, then user → findUnique)
+ * with a single Prisma query using include — one DB round-trip instead of two.
+ */
+async function lookupSessionAndUser(token: string): Promise<SessionWithUser | null> {
+  if (!token) return null;
+  const now = new Date();
+
+  const doQuery = () =>
+    prisma.session.findFirst({
+      where: { id: token, expiresAt: { gt: now }, revokedAt: null },
+      select: {
+        id: true,
+        userId: true,
+        expiresAt: true,
+        user: { select: USER_SELECT },
+      },
+    });
+
+  let result: SessionWithUser | null = null;
+  try {
+    result = (await doQuery()) as SessionWithUser | null;
+  } catch (err) {
+    console.warn("[auth] session lookup failed (attempt 1):", (err as Error).message ?? err);
+    try {
+      await sleep(400);
+      result = (await doQuery()) as SessionWithUser | null;
+      console.log("[auth] session lookup succeeded on retry");
+    } catch (retryErr) {
+      console.error("[auth] session lookup failed (attempt 2):", (retryErr as Error).message ?? retryErr);
+      return null;
+    }
   }
 
-  const session = await getSession(sessionCookie.value);
-  if (!session) {
-    return null;
+  if (!result?.user) return null;
+
+  // Throttled idle-window roll: only update when < half the TTL remains.
+  const remainingMs = result.expiresAt.getTime() - now.getTime();
+  if (remainingMs < ROLL_THRESHOLD_MS) {
+    const newExpiresAt = new Date(now.getTime() + IDLE_TIMEOUT_MS);
+    prisma.session
+      .update({ where: { id: token }, data: { expiresAt: newExpiresAt } })
+      .catch((e: unknown) => {
+        console.warn("[auth] session roll failed (non-critical):", (e as Error).message ?? e);
+      });
   }
 
-  const raw = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: USER_SELECT,
-  });
+  return result;
+}
 
-  if (!raw) return null;
-
+function extractUser(raw: RawUser) {
   if (raw.deletedAt || raw.isBlocked || raw.infringementBlocked || !raw.isActive) {
     return null;
   }
-
   const { isBlocked: _b, isActive: _a, deletedAt: _d, infringementBlocked: _i, ...user } = raw;
   return user;
+}
+
+// Cached per-request: layout + page both call getCurrentUser but only one DB hit occurs.
+export const getCurrentUser = cache(async function _getCurrentUser() {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+  if (!sessionCookie?.value) return null;
+
+  const result = await lookupSessionAndUser(sessionCookie.value);
+  if (!result) return null;
+
+  return extractUser(result.user);
 });
 
 export async function getCurrentUserAndSession(): Promise<{
@@ -61,21 +131,12 @@ export async function getCurrentUserAndSession(): Promise<{
   const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
   if (!sessionCookie?.value) return null;
 
-  const session = await getSession(sessionCookie.value);
-  if (!session) return null;
+  const result = await lookupSessionAndUser(sessionCookie.value);
+  if (!result) return null;
 
-  const raw = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: USER_SELECT,
-  });
+  const user = extractUser(result.user);
+  if (!user) return null;
 
-  if (!raw) return null;
-
-  if (raw.deletedAt || raw.isBlocked || raw.infringementBlocked || !raw.isActive) {
-    return null;
-  }
-
-  const { isBlocked: _b, isActive: _a, deletedAt: _d, infringementBlocked: _i, ...user } = raw;
   return { user, sessionToken: sessionCookie.value };
 }
 
