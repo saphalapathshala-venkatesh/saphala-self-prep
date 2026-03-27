@@ -5,8 +5,15 @@ import { prisma } from "@/lib/db";
 import Link from "next/link";
 import Image from "next/image";
 import { getCategoryImage } from "@/config/categoryImages";
+import { unstable_cache } from "next/cache";
 
 export const dynamic = "force-dynamic";
+
+const getCachedCategories = unstable_cache(
+  () => prisma.category.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  ["all-categories"],
+  { revalidate: 120, tags: ["categories"] },
+);
 
 function formatRupeesINR(rupees: number): string {
   return `₹${rupees.toLocaleString("en-IN")}`;
@@ -60,7 +67,7 @@ export default async function CoursesPage({
       productCategory: activeProductCategory ?? undefined,
       limit: 60,
     }),
-    prisma.category.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+    getCachedCategories(),
     activeCategory ? getExamsForCategory(activeCategory) : Promise.resolve([]),
   ]);
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/db";
+import { unstable_cache } from "next/cache";
 
 const PRODUCT_CATEGORY_LABEL: Record<string, string> = {
   FREE_DEMO: "Free Demo",
@@ -35,16 +36,15 @@ type UnifiedCard = {
   thumbnailUrl: string | null;
 };
 
-export default async function FeaturedCoursesSection() {
-  const cards: UnifiedCard[] = [];
+const getFeaturedCards = unstable_cache(
+  async (): Promise<UnifiedCard[]> => {
+    const cards: UnifiedCard[] = [];
 
-  try {
     const categories = await prisma.category.findMany({
       select: { id: true, name: true },
     });
     const catMap = new Map(categories.map((c) => [c.id, c.name]));
 
-    // 1. Featured Courses from the Course table (admin-owned — raw SQL read-only)
     type RawCourse = {
       id: string;
       name: string;
@@ -80,11 +80,9 @@ export default async function FeaturedCoursesSection() {
 
     for (const c of featuredCourses) {
       const isFreeCourse = c.isFree || c.productCategory === "FREE_DEMO";
-      // Admin-set Course.sellingPrice is the authoritative base price
       const sellingRupees = c.sellingPrice;
       const mrpRupees = c.mrp;
       const hasPricing = !isFreeCourse && sellingRupees != null && sellingRupees > 0;
-      // Convert rupees → paise to match formatPrice(paise) used by all cards
       const sellingPaise = hasPricing ? Math.round(sellingRupees! * 100) : null;
       const mrpPaise = hasPricing && mrpRupees != null && mrpRupees > sellingRupees!
         ? Math.round(mrpRupees * 100)
@@ -93,7 +91,6 @@ export default async function FeaturedCoursesSection() {
         hasPricing && mrpRupees != null && mrpRupees > sellingRupees!
           ? Math.round(((mrpRupees - sellingRupees!) / mrpRupees) * 100)
           : null;
-      // Include courseId so the checkout page uses admin-set selling price as base
       const ctaHref = hasPricing && c.packageId
         ? `/checkout?packageId=${c.packageId}&courseId=${c.id}`
         : `/courses/${c.id}`;
@@ -114,7 +111,6 @@ export default async function FeaturedCoursesSection() {
       });
     }
 
-    // 2. Fill remaining slots (up to 4 total) with published TestSeries
     const remaining = 4 - cards.length;
     if (remaining > 0) {
       const series = await prisma.testSeries.findMany({
@@ -152,6 +148,18 @@ export default async function FeaturedCoursesSection() {
         });
       }
     }
+
+    return cards;
+  },
+  ["featured-cards"],
+  { revalidate: 60, tags: ["courses"] },
+);
+
+export default async function FeaturedCoursesSection() {
+  let cards: UnifiedCard[] = [];
+
+  try {
+    cards = await getFeaturedCards();
   } catch (err) {
     console.error("[FeaturedCoursesSection] Query failed — rendering empty state.", err);
   }

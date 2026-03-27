@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { subjectColorFromName } from "@/lib/subjectColor";
 import { withCourseContext, type CourseContext } from "@/lib/courseNav";
+import { unstable_cache } from "next/cache";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -179,7 +180,7 @@ function mapCourse(r: RawCourse): CourseListItem {
  * Return all exams belonging to a given category.
  * Exam is admin-owned → raw SQL.
  */
-export async function getExamsForCategory(categoryId: string): Promise<ExamItem[]> {
+async function _getExamsForCategory(categoryId: string): Promise<ExamItem[]> {
   const safeId = categoryId.replace(/'/g, "''");
   const rows = await prisma.$queryRawUnsafe<ExamItem[]>(`
     SELECT id, name, slug, "categoryId"
@@ -190,11 +191,17 @@ export async function getExamsForCategory(categoryId: string): Promise<ExamItem[
   return rows;
 }
 
+export const getExamsForCategory = unstable_cache(
+  _getExamsForCategory,
+  ["exams-for-category"],
+  { revalidate: 120, tags: ["exams"] },
+);
+
 /**
  * Fetch active courses with optional filters.
  * Course is admin-owned → queried via raw SQL.
  */
-export async function getActiveCourses(opts?: {
+async function _getActiveCourses(opts?: {
   categoryId?: string;
   examId?: string;
   productCategory?: string;
@@ -253,11 +260,17 @@ export async function getActiveCourses(opts?: {
   return rows.map(mapCourse);
 }
 
+export const getActiveCourses = unstable_cache(
+  _getActiveCourses,
+  ["active-courses"],
+  { revalidate: 60, tags: ["courses"] },
+);
+
 /**
  * Fetch a single course with its full curriculum tree.
  * Only PUBLISHED lessons are included.
  */
-export async function getCourseWithCurriculum(courseId: string): Promise<CourseDetail | null> {
+async function _getCourseWithCurriculum(courseId: string): Promise<CourseDetail | null> {
   const safeId = courseId.replace(/'/g, "''");
 
   // PERFORMANCE: run course header + sections in parallel (both only need courseId).
@@ -442,6 +455,12 @@ export async function getCourseWithCurriculum(courseId: string): Promise<CourseD
   return { ...course, curriculum };
 }
 
+export const getCourseWithCurriculum = unstable_cache(
+  _getCourseWithCurriculum,
+  ["course-curriculum"],
+  { revalidate: 60, tags: ["courses"] },
+);
+
 // ── Enrolled courses ──────────────────────────────────────────────────────────
 
 /**
@@ -566,7 +585,7 @@ export function linkedContentSectionLabel(contentType: string): string {
  * CourseLinkedContent table. Returns an empty array if the table
  * does not exist yet (fail-soft).
  */
-export async function getLinkedContentForCourse(courseId: string): Promise<LinkedContentRow[]> {
+async function _getLinkedContentForCourse(courseId: string): Promise<LinkedContentRow[]> {
   const safeId = courseId.replace(/'/g, "''");
   try {
     return await prisma.$queryRawUnsafe<LinkedContentRow[]>(`
@@ -579,3 +598,9 @@ export async function getLinkedContentForCourse(courseId: string): Promise<Linke
     return [];
   }
 }
+
+export const getLinkedContentForCourse = unstable_cache(
+  _getLinkedContentForCourse,
+  ["linked-content-for-course"],
+  { revalidate: 60, tags: ["courses"] },
+);
