@@ -55,3 +55,7 @@ outputType = "webview"
 NEXT_PUBLIC_CASHFREE_ENV = "sandbox"
 CASHFREE_ENV = "sandbox"
 TZ = "Asia/Kolkata"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 120000

@@ -9,8 +9,20 @@ import { unstable_cache } from "next/cache";
 
 export const dynamic = "force-dynamic";
 
+// Named function keeps the unstable_cache key small — inline lambdas cause
+// Turbopack to serialise the full function body (>2 MB) which Next.js refuses to cache.
+async function _fetchAllCategories() {
+  try {
+    return await prisma.category.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  } catch {
+    return [] as { id: string; name: string }[];
+  }
+}
 const getCachedCategories = unstable_cache(
-  () => prisma.category.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+  _fetchAllCategories,
   ["all-categories"],
   { revalidate: 120, tags: ["categories"] },
 );

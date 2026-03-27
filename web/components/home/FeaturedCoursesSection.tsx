@@ -1,170 +1,17 @@
 import Link from "next/link";
 import Image from "next/image";
-import { prisma } from "@/lib/db";
-import { unstable_cache } from "next/cache";
-
-const PRODUCT_CATEGORY_LABEL: Record<string, string> = {
-  FREE_DEMO: "Free Demo",
-  STANDARD: "Standard",
-  PACKAGE: "Package",
-  COMPLETE_PREP_PACK: "Complete Prep",
-  VIDEO_ONLY: "Video Course",
-  SELF_PREP: "Self Prep",
-  PDF_ONLY: "PDF Course",
-  TEST_SERIES: "Test Series",
-  FLASHCARDS_ONLY: "Flashcards",
-  CURRENT_AFFAIRS: "Current Affairs",
-};
+import { getFeaturedCards, type FeaturedCard } from "@/lib/featuredCardsDb";
 
 function formatPrice(paise: number): string {
   return `₹${(paise / 100).toLocaleString("en-IN")}`;
 }
 
-type UnifiedCard = {
-  id: string;
-  title: string;
-  description: string | null;
-  categoryName: string | null;
-  isFree: boolean;
-  price: number | null;
-  originalPrice: number | null;
-  discountPercent: number | null;
-  badge: string | null;
-  href: string;
-  ctaHref: string;
-  cta: string;
-  thumbnailUrl: string | null;
-};
-
-const getFeaturedCards = unstable_cache(
-  async (): Promise<UnifiedCard[]> => {
-    try {
-    const cards: UnifiedCard[] = [];
-
-    const categories = await prisma.category.findMany({
-      select: { id: true, name: true },
-    });
-    const catMap = new Map(categories.map((c) => [c.id, c.name]));
-
-    type RawCourse = {
-      id: string;
-      name: string;
-      description: string | null;
-      productCategory: string;
-      categoryId: string | null;
-      isFree: boolean;
-      mrp: number | null;
-      sellingPrice: number | null;
-      packageId: string | null;
-      thumbnailUrl: string | null;
-    };
-    const featuredCourses = await prisma.$queryRaw<RawCourse[]>`
-      SELECT
-        c.id, c.name, c.description, c."productCategory", c."categoryId",
-        COALESCE(c."isFree", false) AS "isFree",
-        c.mrp,
-        c."sellingPrice",
-        c."thumbnailUrl",
-        pkg.id AS "packageId"
-      FROM "Course" c
-      LEFT JOIN LATERAL (
-        SELECT id FROM "ProductPackage"
-        WHERE "isActive" = true
-          AND "entitlementCodes" @> ARRAY[c."productCategory"]::text[]
-        ORDER BY "pricePaise" ASC
-        LIMIT 1
-      ) pkg ON true
-      WHERE c.featured = true AND c."isActive" = true
-      ORDER BY c."createdAt" DESC
-      LIMIT 4
-    `;
-
-    for (const c of featuredCourses) {
-      const isFreeCourse = c.isFree || c.productCategory === "FREE_DEMO";
-      const sellingRupees = c.sellingPrice;
-      const mrpRupees = c.mrp;
-      const hasPricing = !isFreeCourse && sellingRupees != null && sellingRupees > 0;
-      const sellingPaise = hasPricing ? Math.round(sellingRupees! * 100) : null;
-      const mrpPaise = hasPricing && mrpRupees != null && mrpRupees > sellingRupees!
-        ? Math.round(mrpRupees * 100)
-        : null;
-      const discount =
-        hasPricing && mrpRupees != null && mrpRupees > sellingRupees!
-          ? Math.round(((mrpRupees - sellingRupees!) / mrpRupees) * 100)
-          : null;
-      const ctaHref = hasPricing && c.packageId
-        ? `/checkout?packageId=${c.packageId}&courseId=${c.id}`
-        : `/courses/${c.id}`;
-      cards.push({
-        id: `course-${c.id}`,
-        title: c.name,
-        description: c.description,
-        categoryName: c.categoryId ? (catMap.get(c.categoryId) ?? null) : null,
-        isFree: isFreeCourse,
-        price: sellingPaise,
-        originalPrice: mrpPaise,
-        discountPercent: discount,
-        badge: PRODUCT_CATEGORY_LABEL[c.productCategory] ?? c.productCategory,
-        href: `/courses/${c.id}`,
-        ctaHref: ctaHref,
-        cta: isFreeCourse ? "Start Free" : hasPricing ? "Buy Now" : "View Course",
-        thumbnailUrl: c.thumbnailUrl ?? null,
-      });
-    }
-
-    const remaining = 4 - cards.length;
-    if (remaining > 0) {
-      const series = await prisma.testSeries.findMany({
-        where: { isPublished: true },
-        orderBy: { createdAt: "desc" },
-        take: remaining,
-        select: {
-          id: true,
-          title: true,
-          description: true,
-          pricePaise: true,
-          discountPaise: true,
-          categoryId: true,
-        },
-      });
-
-      for (const s of series) {
-        const isFree = s.pricePaise === 0;
-        cards.push({
-          id: `series-${s.id}`,
-          title: s.title,
-          description: s.description,
-          categoryName: s.categoryId ? (catMap.get(s.categoryId) ?? null) : null,
-          isFree,
-          price: s.pricePaise,
-          originalPrice: s.discountPaise > 0 ? s.pricePaise + s.discountPaise : null,
-          discountPercent: s.discountPaise > 0
-            ? Math.round((s.discountPaise / (s.pricePaise + s.discountPaise)) * 100)
-            : null,
-          badge: null,
-          href: "/testhub",
-          ctaHref: "/testhub",
-          cta: isFree ? "Start Free" : "View Tests",
-          thumbnailUrl: null,
-        });
-      }
-    }
-
-    return cards;
-    } catch (err) {
-      // Return empty state on DB error (e.g. Neon quota 402) so the result
-      // is cached for the TTL and we don't hammer Neon on every render.
-      console.error("[FeaturedCoursesSection] DB query failed, caching empty state:", (err as Error).message);
-      return [];
-    }
-  },
-  ["featured-cards"],
-  { revalidate: 60, tags: ["courses"] },
-);
-
 export default async function FeaturedCoursesSection() {
-  // Errors are caught inside getFeaturedCards; it always returns [] on DB failure.
-  const cards = await getFeaturedCards();
+  // DB query + caching is fully handled in lib/featuredCardsDb.ts.
+  // Keeping data fetching out of this file prevents Turbopack from using the
+  // entire component source as the unstable_cache key (which causes a >2 MB
+  // cache entry that Next.js silently refuses to store).
+  const cards: FeaturedCard[] = await getFeaturedCards();
 
   return (
     <section className="py-16 bg-white">
