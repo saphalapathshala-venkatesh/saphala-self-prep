@@ -23,57 +23,60 @@ export interface UserStreak {
 }
 
 export async function getUserStreak(userId: string): Promise<UserStreak> {
-  const rows = await prisma.$queryRawUnsafe<
-    { current_streak: number; longest_streak: number; last_active: string | null }[]
-  >(`
-    WITH days AS (
-      SELECT DISTINCT
-        (e."createdAt" AT TIME ZONE 'Asia/Kolkata')::date AS d
+  // Run both queries in parallel — they are independent reads on the same table.
+  const [rows, activeDaysRows] = await Promise.all([
+    prisma.$queryRawUnsafe<
+      { current_streak: number; longest_streak: number; last_active: string | null }[]
+    >(`
+      WITH days AS (
+        SELECT DISTINCT
+          (e."createdAt" AT TIME ZONE 'Asia/Kolkata')::date AS d
+        FROM "XpLedgerEntry" e
+        WHERE e."userId" = $1
+      ),
+      with_lag AS (
+        SELECT d,
+               LAG(d) OVER (ORDER BY d) AS prev_d
+        FROM days
+      ),
+      groups AS (
+        SELECT d,
+               SUM(CASE
+                 WHEN prev_d IS NULL OR d - prev_d > 1 THEN 1
+                 ELSE 0
+               END) OVER (ORDER BY d ROWS UNBOUNDED PRECEDING) AS g
+        FROM with_lag
+      ),
+      runs AS (
+        SELECT g, COUNT(*) AS len, MAX(d) AS last_d
+        FROM groups
+        GROUP BY g
+      )
+      SELECT
+        COALESCE(
+          (SELECT len
+           FROM runs
+           WHERE last_d >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date - 1
+           ORDER BY last_d DESC
+           LIMIT 1),
+          0
+        )::int                                       AS current_streak,
+        COALESCE(MAX(len), 0)::int                   AS longest_streak,
+        (SELECT MAX(d)::text FROM days)              AS last_active
+      FROM runs
+    `, userId),
+
+    prisma.$queryRawUnsafe<{ d: string }[]>(`
+      SELECT DISTINCT (e."createdAt" AT TIME ZONE 'Asia/Kolkata')::date::text AS d
       FROM "XpLedgerEntry" e
       WHERE e."userId" = $1
-    ),
-    with_lag AS (
-      SELECT d,
-             LAG(d) OVER (ORDER BY d) AS prev_d
-      FROM days
-    ),
-    groups AS (
-      SELECT d,
-             SUM(CASE
-               WHEN prev_d IS NULL OR d - prev_d > 1 THEN 1
-               ELSE 0
-             END) OVER (ORDER BY d ROWS UNBOUNDED PRECEDING) AS g
-      FROM with_lag
-    ),
-    runs AS (
-      SELECT g, COUNT(*) AS len, MAX(d) AS last_d
-      FROM groups
-      GROUP BY g
-    )
-    SELECT
-      COALESCE(
-        (SELECT len
-         FROM runs
-         WHERE last_d >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date - 1
-         ORDER BY last_d DESC
-         LIMIT 1),
-        0
-      )::int                                       AS current_streak,
-      COALESCE(MAX(len), 0)::int                   AS longest_streak,
-      (SELECT MAX(d)::text FROM days)              AS last_active
-    FROM runs
-  `, userId);
+        AND (e."createdAt" AT TIME ZONE 'Asia/Kolkata')::date
+            >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date - 6
+      ORDER BY d
+    `, userId),
+  ]);
 
   const result = rows[0] ?? { current_streak: 0, longest_streak: 0, last_active: null };
-
-  const activeDaysRows = await prisma.$queryRawUnsafe<{ d: string }[]>(`
-    SELECT DISTINCT (e."createdAt" AT TIME ZONE 'Asia/Kolkata')::date::text AS d
-    FROM "XpLedgerEntry" e
-    WHERE e."userId" = $1
-      AND (e."createdAt" AT TIME ZONE 'Asia/Kolkata')::date
-          >= (NOW() AT TIME ZONE 'Asia/Kolkata')::date - 6
-    ORDER BY d
-  `, userId);
 
   const activeDaysLast7 = activeDaysRows.map((r: { d: string }) => r.d);
 

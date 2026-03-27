@@ -1,0 +1,170 @@
+We need a FRONTEND PERFORMANCE OPTIMIZATION pass focused specifically on reducing unnecessary DB hits wherever possible.
+
+GOAL
+Reduce unnecessary database queries and repeated fetches in the student frontend app, without breaking correctness, access control, pricing, or course flow.
+
+IMPORTANT
+- Do NOT redesign the UI
+- Do NOT change business logic unless needed to eliminate duplicate queries
+- Do NOT weaken security or entitlement checks
+- Keep admin and student separation clean
+- Prefer minimal, safe optimizations
+- TypeScript must remain clean
+
+==================================================
+PRIMARY OBJECTIVE
+==================================================
+
+Audit the student frontend and identify where unnecessary DB hits are happening.
+
+Examples to look for:
+- repeated fetching of the same course data on multiple components/pages
+- duplicate entitlement checks for the same request
+- separate queries for course + pricing + package + linked content when they can be combined
+- N+1 queries in curriculum/content rendering
+- repeated user/session lookups within the same page request
+- repeated fetches during route transitions
+- fetching data that is not actually used
+- over-fetching heavy payloads when only summary data is needed
+
+==================================================
+PHASE 1 — AUDIT HOTSPOTS
+==================================================
+
+Inspect high-traffic / expensive areas first:
+
+1. Homepage
+2. Featured courses section
+3. Course listing pages
+4. Course detail page
+5. Curriculum/course content loading
+6. Dashboard / My Courses
+7. Checkout page
+8. Orders / payment status pages
+9. Flashcards / lessons / PDFs listing pages
+10. Video pages if already wired
+
+For each hotspot, find:
+- what data is fetched
+- whether there are duplicate or sequential unnecessary queries
+- whether same DB hit is being repeated in one request/render cycle
+
+==================================================
+PHASE 2 — OPTIMIZATION RULES
+==================================================
+
+Apply these principles wherever safe:
+
+1. COMBINE RELATED QUERIES
+If multiple pieces of data belong to the same page and can be fetched together cleanly, combine them.
+
+2. PARALLELIZE INDEPENDENT QUERIES
+Use Promise.all for independent server-side queries instead of sequential awaits.
+
+3. AVOID DUPLICATE SESSION / USER LOOKUPS
+If a page already fetched the session user, do not hit DB again for the same info unnecessarily.
+
+4. REMOVE UNUSED DATA
+If a query selects fields not used by the page, trim them.
+
+5. SPLIT SUMMARY VS DETAIL QUERIES
+Use lightweight summary queries for listing pages.
+Use detailed queries only on detail pages.
+
+6. CACHE SAFE PUBLIC DATA
+For public / slow-changing pages, use safe caching or revalidation where appropriate.
+Examples:
+- published course listings
+- featured courses
+- static informational pages
+
+7. DO NOT CACHE SENSITIVE / USER-SPECIFIC DATA UNSAFELY
+Examples:
+- entitlements
+- order/payment state
+- user dashboard personalized state
+
+8. PREVENT N+1
+Especially in:
+- curriculum sections
+- linked content
+- subject colors / taxonomy
+- listing cards
+
+9. CHECK ROUTE TRANSITIONS
+Avoid refetching the exact same data immediately after it was already loaded unless truly needed.
+
+==================================================
+PHASE 3 — HIGH-PRIORITY TARGETS
+==================================================
+
+Focus especially on these:
+
+A. Course detail page
+- reduce repeated course, entitlement, linked-content, curriculum, and pricing queries
+- merge where cleanly possible
+
+B. Checkout page
+- avoid separate package/course/price queries if they can be resolved together
+- only fetch the exact fields needed
+
+C. Dashboard
+- avoid multiple overlapping course/enrollment queries
+- avoid duplicate “my courses” + entitlement hits
+
+D. Course listing / featured courses
+- avoid repeated summary queries across homepage and listing sections if shared helper can be reused efficiently
+
+==================================================
+PHASE 4 — IMPLEMENTATION STYLE
+==================================================
+
+Prefer:
+- shared DB helper functions
+- summary mappers for cards
+- single-source query helpers for course summaries
+- promise parallelization
+- lean Prisma selects
+- safe Next.js caching/revalidate where suitable
+
+Do NOT:
+- create overcomplicated caching infrastructure
+- add Redis or external cache now
+- rewrite architecture unnecessarily
+
+==================================================
+PHASE 5 — VALIDATION
+==================================================
+
+After optimization, verify:
+
+1. Functionality remains unchanged:
+- pricing still correct
+- entitlement still correct
+- linked content still correct
+- subject colors still correct
+- checkout still correct
+
+2. Query reduction:
+- identify pages where DB hits were reduced
+- compare before vs after where possible
+
+3. Performance:
+- route transitions feel faster
+- course detail loads faster
+- checkout loads faster
+- dashboard loads faster
+
+==================================================
+FINAL REPORT
+==================================================
+
+Tell me:
+1. exact hotspots found
+2. exact unnecessary DB hits identified
+3. exact files/functions changed
+4. what was combined / parallelized / trimmed
+5. what was cached or revalidated
+6. any N+1 issues fixed
+7. where DB hits were reduced most
+8. any remaining expensive areas to optimize later

@@ -66,73 +66,18 @@ function blocksToHtml(contentBlocks: unknown): string {
   return doc.blocks.map(renderBlock).join("\n");
 }
 
-// ── Shared taxonomy helpers ───────────────────────────────────────────────────
+// ── Module-level TTL caches ────────────────────────────────────────────────────
+// Content lists are identical for all users and change infrequently.
+// A 60-second in-process cache eliminates repeated DB roundtrips on hot pages
+// without requiring any external cache infrastructure.
 
-async function buildTaxonomyMaps(
-  categoryIds: string[],
-  subjectIds: string[],
-  topicIds: string[],
-  subtopicIds: string[],
-) {
-  const [cats, subs, tops, subtops] = await Promise.all([
-    categoryIds.length
-      ? prisma.category.findMany({
-          where: { id: { in: categoryIds } },
-          select: { id: true, name: true },
-        })
-      : [],
-    subjectIds.length
-      ? prisma.subject.findMany({
-          where: { id: { in: subjectIds } },
-          select: { id: true, name: true, subjectColor: true },
-        })
-      : [],
-    topicIds.length
-      ? prisma.topic.findMany({
-          where: { id: { in: topicIds } },
-          select: { id: true, name: true },
-        })
-      : [],
-    subtopicIds.length
-      ? prisma.subtopic.findMany({
-          where: { id: { in: subtopicIds } },
-          select: { id: true, name: true },
-        })
-      : [],
-  ]);
+const CACHE_TTL = 60_000; // 60 s
 
-  return {
-    catMap:     new Map(cats.map((c) => [c.id, c.name])),
-    subMap:     new Map(subs.map((s) => [s.id, s.name])),
-    subColorMap: new Map(
-      (subs as { id: string; name: string; subjectColor?: string | null }[])
-        .map((s) => [s.id, s.subjectColor ?? null] as [string, string | null])
-    ),
-    topMap:     new Map(tops.map((t) => [t.id, t.name])),
-    subtopMap:  new Map(subtops.map((s) => [s.id, s.name])),
-  };
-}
+type TTLCache<T> = { data: T; expiresAt: number } | null;
 
-// ── Batch subject color resolver ──────────────────────────────────────────────
-//
-// Receives a subjectColorMap built from Subject.subjectColor (primary source).
-// Returns null for subjects whose Subject.subjectColor is null; the calling site
-// applies any secondary fallback (FlashcardDeck.subjectColor for decks, or brand
-// purple via the component's `?? BRAND_PURPLE` guard).
-
-async function batchSubjectColors(
-  subjectIds: string[],
-  subjectColorMap: Map<string, string | null>,
-): Promise<Map<string, string | null>> {
-  if (subjectIds.length === 0) return new Map();
-  // subjectColorMap already comes from buildTaxonomyMaps which queries Subject.subjectColor.
-  // Just pass it through, returning null for subjects with no color set.
-  const result = new Map<string, string | null>();
-  for (const id of subjectIds) {
-    result.set(id, subjectColorMap.get(id) ?? null);
-  }
-  return result;
-}
+let _lessonsCache: TTLCache<PublishedLesson[]> = null;
+let _pdfsCache: TTLCache<PublishedPdf[]> = null;
+let _decksCache: TTLCache<PublishedDeck[]> = null;
 
 // ── ContentPage ────────────────────────────────────────────────────────────────
 
@@ -166,11 +111,13 @@ export interface LessonDetail extends PublishedLesson {
 }
 
 export async function getPublishedLessons(): Promise<PublishedLesson[]> {
-  const now = new Date();
+  const now = Date.now();
+  if (_lessonsCache && _lessonsCache.expiresAt > now) return _lessonsCache.data;
+
   const pages = await prisma.contentPage.findMany({
     where: {
       isPublished: true,
-      OR: [{ unlockAt: null }, { unlockAt: { lte: now } }],
+      OR: [{ unlockAt: null }, { unlockAt: { lte: new Date() } }],
     },
     orderBy: { createdAt: "desc" },
     select: {
@@ -198,35 +145,22 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
     },
   });
 
-  // Build a subjectColor map directly from Subject.subjectColor (primary source).
-  const subjectColorMap = new Map<string, string | null>(
-    pages
-      .map((p) => p.subtopic?.topic.subject)
-      .filter((s): s is { id: string; name: string; subjectColor: string | null; category: { name: string } } => s != null)
-      .map((s) => [s.id, s.subjectColor ?? null] as [string, string | null]),
-  );
-  const uniqueSubjectIds = [...new Set(
-    pages
-      .map((p) => p.subtopic?.topic.subject.id)
-      .filter((id): id is string => id != null),
-  )];
-  const colorMap = await batchSubjectColors(uniqueSubjectIds, subjectColorMap);
+  // subjectColor comes directly from the Subject row fetched above — no extra query needed.
+  const data: PublishedLesson[] = pages.map((p) => ({
+    id: p.id,
+    title: p.title,
+    publishedAt: p.publishedAt,
+    subjectColor: p.subtopic?.topic.subject.subjectColor ?? null,
+    breadcrumb: {
+      category: p.subtopic?.topic.subject.category.name ?? null,
+      subject: p.subtopic?.topic.subject.name ?? null,
+      topic: p.subtopic?.topic.name ?? null,
+      subtopic: p.subtopic?.name ?? null,
+    },
+  }));
 
-  return pages.map((p) => {
-    const subjectId = p.subtopic?.topic.subject.id ?? null;
-    return {
-      id: p.id,
-      title: p.title,
-      publishedAt: p.publishedAt,
-      subjectColor: subjectId ? (colorMap.get(subjectId) ?? null) : null,
-      breadcrumb: {
-        category: p.subtopic?.topic.subject.category.name ?? null,
-        subject: p.subtopic?.topic.subject.name ?? null,
-        topic: p.subtopic?.topic.name ?? null,
-        subtopic: p.subtopic?.name ?? null,
-      },
-    };
-  });
+  _lessonsCache = { data, expiresAt: now + CACHE_TTL };
+  return data;
 }
 
 export async function getLessonById(id: string): Promise<LessonDetail | null> {
@@ -259,7 +193,6 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
           },
         },
       },
-      // Fetch multi-chapter content (new ebook model)
       ebookPages: {
         orderBy: { orderIndex: "asc" },
         select: {
@@ -276,19 +209,13 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
   if (!page || !page.isPublished) return null;
   if (page.unlockAt && page.unlockAt > new Date()) return null;
 
-  // Resolve subject color — primary source is Subject.subjectColor (from DB).
-  // No proxy, no FlashcardDeck lookup needed.
   const subjectColor = page.subtopic?.topic.subject.subjectColor ?? null;
 
-  // Helper: resolve the display HTML for an EBookPage.
-  // Priority: contentHtml (if non-empty) → blocksToHtml(contentBlocks) → ""
   function resolvePageHtml(ep: { contentHtml: string; contentBlocks: unknown }): string {
     if (ep.contentHtml && ep.contentHtml.trim()) return ep.contentHtml;
     return blocksToHtml(ep.contentBlocks);
   }
 
-  // Build the body from EBookPage chapters if they exist;
-  // fall back to the legacy ContentPage.body for older ebooks.
   let resolvedBody: string;
   if (page.ebookPages.length > 0) {
     resolvedBody = page.ebookPages
@@ -303,9 +230,6 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     resolvedBody = page.body;
   }
 
-  // Build the chapters array for the paginated reader.
-  // If the ebook uses multi-chapter EBookPage rows, each is a chapter.
-  // Otherwise, the legacy body becomes a single unnamed chapter.
   const chapters: EbookChapter[] =
     page.ebookPages.length > 0
       ? page.ebookPages.map((ep) => ({
@@ -350,57 +274,63 @@ export interface PublishedPdf {
   };
 }
 
+type PdfRow = {
+  id: string;
+  title: string;
+  fileUrl: string;
+  fileSize: number | null;
+  publishedAt: Date | null;
+  categoryName: string | null;
+  subjectName: string | null;
+  subjectColor: string | null;
+  topicName: string | null;
+  subtopicName: string | null;
+};
+
 export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
-  const now = new Date();
-  const pdfs = await prisma.pdfAsset.findMany({
-    where: {
-      isPublished: true,
-      OR: [{ unlockAt: null }, { unlockAt: { lte: now } }],
-    },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      fileUrl: true,
-      fileSize: true,
-      publishedAt: true,
-      categoryId: true,
-      subjectId: true,
-      topicId: true,
-      subtopicId: true,
-    },
-  });
+  const now = Date.now();
+  if (_pdfsCache && _pdfsCache.expiresAt > now) return _pdfsCache.data;
 
-  if (pdfs.length === 0) return [];
+  // Single JOIN query replaces: 1 PDF findMany + 4 taxonomy findMany queries.
+  const rows = await prisma.$queryRawUnsafe<PdfRow[]>(`
+    SELECT
+      pa.id,
+      pa.title,
+      pa."fileUrl",
+      pa."fileSize",
+      pa."publishedAt",
+      cat.name   AS "categoryName",
+      s.name     AS "subjectName",
+      s."subjectColor",
+      t.name     AS "topicName",
+      st.name    AS "subtopicName"
+    FROM "PdfAsset" pa
+    LEFT JOIN "Category" cat ON cat.id = pa."categoryId"
+    LEFT JOIN "Subject"  s   ON s.id   = pa."subjectId"
+    LEFT JOIN "Topic"    t   ON t.id   = pa."topicId"
+    LEFT JOIN "Subtopic" st  ON st.id  = pa."subtopicId"
+    WHERE pa."isPublished" = true
+      AND (pa."unlockAt" IS NULL OR pa."unlockAt" <= NOW())
+    ORDER BY pa."createdAt" DESC
+  `);
 
-  const unique = <T>(arr: (T | null | undefined)[]) =>
-    [...new Set(arr.filter((x): x is T => x != null))];
-
-  const { catMap, subMap, subColorMap, topMap, subtopMap } = await buildTaxonomyMaps(
-    unique(pdfs.map((p) => p.categoryId)),
-    unique(pdfs.map((p) => p.subjectId)),
-    unique(pdfs.map((p) => p.topicId)),
-    unique(pdfs.map((p) => p.subtopicId)),
-  );
-
-  // Resolve subject colors directly from Subject.subjectColor (primary source).
-  const pdfSubjectIds = unique(pdfs.map((p) => p.subjectId));
-  const colorMap = await batchSubjectColors(pdfSubjectIds, subColorMap);
-
-  return pdfs.map((p) => ({
-    id: p.id,
-    title: p.title,
-    fileUrl: p.fileUrl,
-    fileSize: p.fileSize,
-    publishedAt: p.publishedAt,
-    subjectColor: p.subjectId ? (colorMap.get(p.subjectId) ?? null) : null,
+  const data: PublishedPdf[] = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    fileUrl: r.fileUrl,
+    fileSize: r.fileSize,
+    publishedAt: r.publishedAt,
+    subjectColor: r.subjectColor ?? null,
     breadcrumb: {
-      category: p.categoryId ? (catMap.get(p.categoryId) ?? null) : null,
-      subject: p.subjectId ? (subMap.get(p.subjectId) ?? null) : null,
-      topic: p.topicId ? (topMap.get(p.topicId) ?? null) : null,
-      subtopic: p.subtopicId ? (subtopMap.get(p.subtopicId) ?? null) : null,
+      category: r.categoryName ?? null,
+      subject: r.subjectName ?? null,
+      topic: r.topicName ?? null,
+      subtopic: r.subtopicName ?? null,
     },
   }));
+
+  _pdfsCache = { data, expiresAt: now + CACHE_TTL };
+  return data;
 }
 
 // ── FlashcardDeck ─────────────────────────────────────────────────────────────
@@ -435,132 +365,153 @@ export interface DeckDetail extends PublishedDeck {
   cards: FlashCard[];
 }
 
+type DeckRow = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  deckSubjectColor: string | null;
+  xpEnabled: boolean;
+  xpValue: number;
+  cardCount: number;
+  categoryName: string | null;
+  subjectName: string | null;
+  subjectColor: string | null;
+  topicName: string | null;
+};
+
 export async function getPublishedDecks(): Promise<PublishedDeck[]> {
-  const now = new Date();
-  const decks = await prisma.flashcardDeck.findMany({
-    where: {
-      isPublished: true,
-      OR: [{ unlockAt: null }, { unlockAt: { lte: now } }],
+  const now = Date.now();
+  if (_decksCache && _decksCache.expiresAt > now) return _decksCache.data;
+
+  // Single JOIN query replaces: 1 deck findMany + 3 taxonomy findMany queries.
+  // cardCount computed via correlated subquery to avoid row explosion from JOIN.
+  const rows = await prisma.$queryRawUnsafe<DeckRow[]>(`
+    SELECT
+      fd.id,
+      fd.title,
+      fd.subtitle,
+      fd.description,
+      fd."subjectColor"          AS "deckSubjectColor",
+      fd."xpEnabled",
+      fd."xpValue",
+      (SELECT COUNT(*)::int
+         FROM "FlashcardCard" fc
+        WHERE fc."deckId" = fd.id) AS "cardCount",
+      cat.name   AS "categoryName",
+      s.name     AS "subjectName",
+      s."subjectColor",
+      t.name     AS "topicName"
+    FROM "FlashcardDeck" fd
+    LEFT JOIN "Category" cat ON cat.id = fd."categoryId"
+    LEFT JOIN "Subject"  s   ON s.id   = fd."subjectId"
+    LEFT JOIN "Topic"    t   ON t.id   = fd."topicId"
+    WHERE fd."isPublished" = true
+      AND (fd."unlockAt" IS NULL OR fd."unlockAt" <= NOW())
+    ORDER BY fd."createdAt" DESC
+  `);
+
+  const data: PublishedDeck[] = rows.map((r) => ({
+    id: r.id,
+    title: r.title,
+    subtitle: r.subtitle,
+    description: r.description,
+    cardCount: r.cardCount,
+    // Priority: Subject.subjectColor → FlashcardDeck.subjectColor → null
+    subjectColor: r.subjectColor ?? r.deckSubjectColor ?? null,
+    xpEnabled: r.xpEnabled,
+    xpValue: r.xpValue,
+    breadcrumb: {
+      category: r.categoryName ?? null,
+      subject: r.subjectName ?? null,
+      topic: r.topicName ?? null,
     },
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      title: true,
-      subtitle: true,
-      description: true,
-      subjectColor: true,
-      xpEnabled: true,
-      xpValue: true,
-      categoryId: true,
-      subjectId: true,
-      topicId: true,
-      _count: { select: { cards: true } },
-    },
-  });
+  }));
 
-  if (decks.length === 0) return [];
-
-  const unique = <T>(arr: (T | null | undefined)[]) =>
-    [...new Set(arr.filter((x): x is T => x != null))];
-
-  const { catMap, subMap, subColorMap, topMap } = await buildTaxonomyMaps(
-    unique(decks.map((d) => d.categoryId)),
-    unique(decks.map((d) => d.subjectId)),
-    unique(decks.map((d) => d.topicId)),
-    [],
-  );
-
-  return decks.map((d) => {
-    const subjectName = d.subjectId ? (subMap.get(d.subjectId) ?? null) : null;
-    // Priority: Subject.subjectColor → FlashcardDeck.subjectColor → null (component handles fallback)
-    const subjectColor =
-      (d.subjectId ? (subColorMap.get(d.subjectId) ?? null) : null) ??
-      d.subjectColor ??
-      null;
-    return {
-      id: d.id,
-      title: d.title,
-      subtitle: d.subtitle,
-      description: d.description,
-      cardCount: d._count.cards,
-      subjectColor,
-      xpEnabled: d.xpEnabled,
-      xpValue: d.xpValue,
-      breadcrumb: {
-        category: d.categoryId ? (catMap.get(d.categoryId) ?? null) : null,
-        subject: subjectName,
-        topic: d.topicId ? (topMap.get(d.topicId) ?? null) : null,
-      },
-    };
-  });
+  _decksCache = { data, expiresAt: now + CACHE_TTL };
+  return data;
 }
 
+type DeckDetailRow = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  description: string | null;
+  isPublished: boolean;
+  unlockAt: Date | null;
+  deckSubjectColor: string | null;
+  xpEnabled: boolean;
+  xpValue: number;
+  cardCount: number;
+  categoryName: string | null;
+  subjectName: string | null;
+  subjectColor: string | null;
+  topicName: string | null;
+};
+
 export async function getDeckById(id: string): Promise<DeckDetail | null> {
-  const deck = await prisma.flashcardDeck.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      title: true,
-      subtitle: true,
-      description: true,
-      isPublished: true,
-      unlockAt: true,
-      subjectColor: true,
-      xpEnabled: true,
-      xpValue: true,
-      categoryId: true,
-      subjectId: true,
-      topicId: true,
-      _count: { select: { cards: true } },
-      cards: {
-        orderBy: { order: "asc" },
-        select: {
-          id: true,
-          cardType: true,
-          front: true,
-          back: true,
-          imageUrl: true,
-          content: true,
-          order: true,
-        },
+  // Two parallel queries instead of the previous 4+ sequential/parallel queries:
+  // 1. Deck metadata + taxonomy names via JOIN (replaces findUnique + buildTaxonomyMaps)
+  // 2. Cards query (unchanged — one-to-many, stays separate)
+  const [deckRows, cards] = await Promise.all([
+    prisma.$queryRawUnsafe<DeckDetailRow[]>(`
+      SELECT
+        fd.id,
+        fd.title,
+        fd.subtitle,
+        fd.description,
+        fd."isPublished",
+        fd."unlockAt",
+        fd."subjectColor"          AS "deckSubjectColor",
+        fd."xpEnabled",
+        fd."xpValue",
+        (SELECT COUNT(*)::int
+           FROM "FlashcardCard" fc
+          WHERE fc."deckId" = fd.id) AS "cardCount",
+        cat.name   AS "categoryName",
+        s.name     AS "subjectName",
+        s."subjectColor",
+        t.name     AS "topicName"
+      FROM "FlashcardDeck" fd
+      LEFT JOIN "Category" cat ON cat.id = fd."categoryId"
+      LEFT JOIN "Subject"  s   ON s.id   = fd."subjectId"
+      LEFT JOIN "Topic"    t   ON t.id   = fd."topicId"
+      WHERE fd.id = $1
+      LIMIT 1
+    `, id),
+    prisma.flashcardCard.findMany({
+      where: { deckId: id },
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        cardType: true,
+        front: true,
+        back: true,
+        imageUrl: true,
+        content: true,
+        order: true,
       },
-    },
-  });
+    }),
+  ]);
 
+  const deck = deckRows[0];
   if (!deck || !deck.isPublished) return null;
-  if (deck.unlockAt && deck.unlockAt > new Date()) return null;
-
-  const unique = <T>(arr: (T | null | undefined)[]) =>
-    [...new Set(arr.filter((x): x is T => x != null))];
-
-  const { catMap, subMap, subColorMap, topMap } = await buildTaxonomyMaps(
-    unique([deck.categoryId]),
-    unique([deck.subjectId]),
-    unique([deck.topicId]),
-    [],
-  );
-
-  const subjectName = deck.subjectId ? (subMap.get(deck.subjectId) ?? null) : null;
-  // Priority: Subject.subjectColor → FlashcardDeck.subjectColor → null (component handles fallback)
-  const subjectColor =
-    (deck.subjectId ? (subColorMap.get(deck.subjectId) ?? null) : null) ??
-    deck.subjectColor ??
-    null;
+  if (deck.unlockAt && new Date(deck.unlockAt) > new Date()) return null;
 
   return {
     id: deck.id,
     title: deck.title,
     subtitle: deck.subtitle,
     description: deck.description,
-    cardCount: deck._count.cards,
-    subjectColor,
+    cardCount: deck.cardCount,
+    subjectColor: deck.subjectColor ?? deck.deckSubjectColor ?? null,
     xpEnabled: deck.xpEnabled,
     xpValue: deck.xpValue,
     breadcrumb: {
-      category: deck.categoryId ? (catMap.get(deck.categoryId) ?? null) : null,
-      subject: subjectName,
-      topic: deck.topicId ? (topMap.get(deck.topicId) ?? null) : null,
+      category: deck.categoryName ?? null,
+      subject: deck.subjectName ?? null,
+      topic: deck.topicName ?? null,
     },
-    cards: deck.cards,
+    cards,
   };
 }

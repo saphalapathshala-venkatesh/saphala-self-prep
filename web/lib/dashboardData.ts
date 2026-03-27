@@ -1,5 +1,4 @@
 import { prisma } from "./db";
-import { getPublishedTestsForStudent, type StudentTestItem } from "./testhubDb";
 
 export interface DashboardAttempt {
   id: string;
@@ -34,6 +33,15 @@ export interface XpBreakdown {
   pathshala: number;
 }
 
+/** Minimal type for the "Recommended Free Tests" card on the dashboard. */
+export interface DashboardFreeTest {
+  id: string;
+  title: string;
+  totalQuestions: number | null;
+  durationMinutes: number | null;
+  difficulty: string | null;
+}
+
 export interface DashboardData {
   attemptCount: number;
   recentAttempts: DashboardAttempt[];
@@ -42,7 +50,30 @@ export interface DashboardData {
   xpHasLedger: boolean;
   xpBreakdown: XpBreakdown;
   accuracyPct: number | null;
-  freeTests: StudentTestItem[];
+  freeTests: DashboardFreeTest[];
+}
+
+/**
+ * Lean direct query for up to 3 free published tests.
+ * Replaces the previous call to getPublishedTestsForStudent() which fetched
+ * ALL published tests plus two extra entitlement/attempt queries.
+ */
+async function getDashboardFreeTests(): Promise<DashboardFreeTest[]> {
+  try {
+    return await prisma.$queryRawUnsafe<DashboardFreeTest[]>(`
+      SELECT t.id, t.title, t."totalQuestions", t."durationMinutes", t.difficulty
+      FROM "Test" t
+      JOIN "TestSeries" ts ON ts.id = t."seriesId"
+      WHERE t."isPublished" = true
+        AND ts."isPublished" = true
+        AND (t."isFree" = true OR ts."isFree" = true)
+        AND (t."unlockAt" IS NULL OR t."unlockAt" <= NOW())
+      ORDER BY t."createdAt" DESC
+      LIMIT 3
+    `);
+  } catch {
+    return [];
+  }
 }
 
 export async function getDashboardData(userId: string): Promise<DashboardData> {
@@ -50,9 +81,12 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
     attemptCount,
     recentAttemptsRaw,
     activeAttemptRaw,
-    xpLedgerRows,
-    scoredAttemptsRaw,
-    allFreeTests,
+    // DB-side GROUP BY so only 4–5 aggregate rows travel over the wire
+    // instead of every XP ledger entry for the user.
+    xpGrouped,
+    // DB-side SUM so no attempt rows need to travel to compute accuracy.
+    scoredAgg,
+    freeTests,
   ] = await Promise.all([
     prisma.attempt.count({ where: { userId, status: "SUBMITTED" } }),
     prisma.attempt.findMany({
@@ -78,44 +112,42 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       orderBy: { startedAt: "desc" },
       include: { test: { select: { title: true } } },
     }),
-    prisma.xpLedgerEntry.findMany({
+    // GROUP BY refType — 1 row per XP source instead of N total rows.
+    prisma.xpLedgerEntry.groupBy({
+      by: ["refType"],
       where: { userId },
-      select: { delta: true, refType: true },
+      _sum: { delta: true },
+      _count: { _all: true },
     }),
-    prisma.attempt.findMany({
-      where: {
-        userId,
-        status: "SUBMITTED",
-        OR: [{ correctCount: { gt: 0 } }, { wrongCount: { gt: 0 } }],
-      },
-      select: { correctCount: true, wrongCount: true },
+    // Aggregate SUM — 1 row instead of all scored attempt rows.
+    prisma.attempt.aggregate({
+      where: { userId, status: "SUBMITTED" },
+      _sum: { correctCount: true, wrongCount: true },
+      _count: { _all: true },
     }),
-    getPublishedTestsForStudent(userId),
+    getDashboardFreeTests(),
   ]);
 
+  // Build XP breakdown from the grouped aggregate rows.
   const xpBreakdown: XpBreakdown = { total: 0, testHub: 0, flashcards: 0, ebooks: 0, pathshala: 0 };
-  for (const row of xpLedgerRows) {
-    const d = row.delta;
+  let xpHasLedger = false;
+  for (const row of xpGrouped) {
+    const d = row._sum.delta ?? 0;
     xpBreakdown.total += d;
-    if (row.refType === "Attempt") xpBreakdown.testHub += d;
+    xpHasLedger = true;
+    if (row.refType === "Attempt")       xpBreakdown.testHub    += d;
     else if (row.refType === "FlashcardDeck") xpBreakdown.flashcards += d;
-    else if (row.refType === "ContentPage") xpBreakdown.ebooks += d;
-    else if (row.refType === "Video") xpBreakdown.pathshala += d;
+    else if (row.refType === "ContentPage")   xpBreakdown.ebooks     += d;
+    else if (row.refType === "Video")         xpBreakdown.pathshala  += d;
   }
 
-  const xpTotal = xpBreakdown.total;
-  const xpHasLedger = xpLedgerRows.length > 0;
-
+  // Compute accuracy from the aggregate sums — no per-row data needed.
   let accuracyPct: number | null = null;
-  if (scoredAttemptsRaw.length > 0) {
-    const totalCorrect = scoredAttemptsRaw.reduce((s, a) => s + a.correctCount, 0);
-    const totalAnswered = scoredAttemptsRaw.reduce(
-      (s, a) => s + a.correctCount + a.wrongCount,
-      0
-    );
-    if (totalAnswered > 0) {
-      accuracyPct = Math.round((totalCorrect / totalAnswered) * 10000) / 100;
-    }
+  const totalCorrect  = scoredAgg._sum.correctCount  ?? 0;
+  const totalWrong    = scoredAgg._sum.wrongCount     ?? 0;
+  const totalAnswered = totalCorrect + totalWrong;
+  if (totalAnswered > 0) {
+    accuracyPct = Math.round((totalCorrect / totalAnswered) * 10000) / 100;
   }
 
   const recentAttempts: DashboardAttempt[] = recentAttemptsRaw.map((a) => ({
@@ -145,15 +177,11 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       }
     : null;
 
-  const freeTests = allFreeTests
-    .filter((t) => t.isFree)
-    .slice(0, 3);
-
   return {
     attemptCount,
     recentAttempts,
     activeAttempt,
-    xpTotal,
+    xpTotal: xpBreakdown.total,
     xpHasLedger,
     xpBreakdown,
     accuracyPct,

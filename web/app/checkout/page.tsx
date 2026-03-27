@@ -18,32 +18,34 @@ export default async function CheckoutPage({ searchParams }: Props) {
   const { packageId, courseId } = await searchParams;
   if (!packageId) redirect("/plans");
 
-  const pkg = await getActivePackage(packageId).catch(() => null);
+  type CoursePrice = { sellingPrice: number | null };
+
+  // Run package lookup and course price lookup in parallel.
+  const [pkg, coursePriceRows] = await Promise.all([
+    getActivePackage(packageId).catch(() => null),
+    courseId
+      ? prisma
+          .$queryRawUnsafe<CoursePrice[]>(
+            `SELECT "sellingPrice" FROM "Course"
+             WHERE id = $1 AND "isActive" = true LIMIT 1`,
+            courseId,
+          )
+          .catch(() => [] as CoursePrice[])
+      : Promise.resolve([] as CoursePrice[]),
+  ]);
+
   if (!pkg) redirect("/plans");
 
-  // If a courseId is present, use the admin-set course selling price as the
-  // display base. This keeps the checkout amount consistent with the course
-  // card and course detail page (both show Course.sellingPrice).
+  // Determine base price: course selling price takes priority when present.
   let basePricePaise = pkg.pricePaise;
   let priceLabel = "Package price";
 
-  if (courseId) {
-    const safeId = courseId.replace(/'/g, "''");
-    type CoursePrice = { sellingPrice: number | null };
-    const rows = await prisma
-      .$queryRawUnsafe<CoursePrice[]>(
-        `SELECT "sellingPrice" FROM "Course"
-         WHERE id = '${safeId}' AND "isActive" = true LIMIT 1`
-      )
-      .catch(() => [] as CoursePrice[]);
-    const sp = rows[0]?.sellingPrice;
-    if (sp != null && sp > 0) {
-      basePricePaise = Math.round(sp * 100);
-      priceLabel = "Course price";
-    }
+  const sp = coursePriceRows[0]?.sellingPrice;
+  if (sp != null && sp > 0) {
+    basePricePaise = Math.round(sp * 100);
+    priceLabel = "Course price";
   }
 
-  // Read Cashfree mode server-side — never exposed via NEXT_PUBLIC_
   const cashfreeMode = getCashfreeMode();
 
   return (
