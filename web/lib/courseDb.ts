@@ -197,6 +197,27 @@ function mapCourse(r: RawCourse): CourseListItem {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
+ * Cached list of all exam categories.
+ * Shared across the public course catalog and student course browser so both
+ * pages use a single cached round-trip instead of separate uncached fetches.
+ */
+async function _getAllCategories(): Promise<{ id: string; name: string }[]> {
+  try {
+    return await prisma.category.findMany({
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    });
+  } catch {
+    return [];
+  }
+}
+export const getCachedCategories = unstable_cache(
+  _getAllCategories,
+  ["all-categories"],
+  { revalidate: 120, tags: ["categories"] },
+);
+
+/**
  * Return all exams belonging to a given category.
  * Exam is admin-owned → raw SQL.
  */
