@@ -23,6 +23,10 @@ type RawAttempt = { testId: string; correct: number; wrong: number; unanswered: 
 type RawDeck = { id: string; title: string; cardCount: number };
 type RawEbook = { id: string; title: string };
 
+// ── Per-user in-memory TTL cache ─────────────────────────────────────────────
+const _practiceCache = new Map<string, { data: PracticeSuggestion[]; expiresAt: number }>();
+const PRACTICE_TTL = 60_000; // 60 s
+
 // ── Main function ─────────────────────────────────────────────────────────────
 
 /**
@@ -37,6 +41,15 @@ type RawEbook = { id: string; title: string };
  *   Ebook     → unread page first; else any published content page
  */
 export async function getDailyPractice(userId: string): Promise<PracticeSuggestion[]> {
+  const now = Date.now();
+  const cached = _practiceCache.get(userId);
+  if (cached && now < cached.expiresAt) return cached.data;
+  const result = await _fetchDailyPractice(userId);
+  _practiceCache.set(userId, { data: result, expiresAt: now + PRACTICE_TTL });
+  return result;
+}
+
+async function _fetchDailyPractice(userId: string): Promise<PracticeSuggestion[]> {
   const safeId = userId.replace(/'/g, "''");
 
   // Fire ALL queries simultaneously — one network round-trip to Neon instead of 7.

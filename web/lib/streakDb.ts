@@ -22,7 +22,22 @@ export interface UserStreak {
   todayActive: boolean;        // did user earn any XP today (IST)?
 }
 
+// Per-user TTL cache — streak data changes at most once per activity, rarely
+// more than once per minute. Caching for 30 s saves 2 parallel Neon round-trips
+// on every back-navigation to /dashboard within the same session window.
+const _streakCache = new Map<string, { data: UserStreak; expiresAt: number }>();
+const STREAK_TTL = 30_000; // 30 s
+
 export async function getUserStreak(userId: string): Promise<UserStreak> {
+  const now = Date.now();
+  const cached = _streakCache.get(userId);
+  if (cached && now < cached.expiresAt) return cached.data;
+  const result = await _fetchUserStreak(userId);
+  _streakCache.set(userId, { data: result, expiresAt: now + STREAK_TTL });
+  return result;
+}
+
+async function _fetchUserStreak(userId: string): Promise<UserStreak> {
   // Run both queries in parallel — they are independent reads on the same table.
   const [rows, activeDaysRows] = await Promise.all([
     prisma.$queryRawUnsafe<

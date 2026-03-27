@@ -76,7 +76,22 @@ async function getDashboardFreeTests(): Promise<DashboardFreeTest[]> {
   }
 }
 
+// ── Per-user in-memory TTL cache ─────────────────────────────────────────────
+// Repeated back-navigations to /dashboard within the TTL window are served
+// from cache instead of re-running 6 parallel Neon round-trips.
+const _dashCache = new Map<string, { data: DashboardData; expiresAt: number }>();
+const DASH_TTL = 60_000; // 60 s
+
 export async function getDashboardData(userId: string): Promise<DashboardData> {
+  const now = Date.now();
+  const cached = _dashCache.get(userId);
+  if (cached && now < cached.expiresAt) return cached.data;
+  const result = await _fetchDashboardData(userId);
+  _dashCache.set(userId, { data: result, expiresAt: now + DASH_TTL });
+  return result;
+}
+
+async function _fetchDashboardData(userId: string): Promise<DashboardData> {
   const [
     attemptCount,
     recentAttemptsRaw,

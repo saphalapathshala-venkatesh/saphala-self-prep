@@ -73,10 +73,12 @@ export default async function CourseDetailPage({
   const rawLessonId = sp["lessonId"];
   const initialLessonId = typeof rawLessonId === "string" ? rawLessonId : Array.isArray(rawLessonId) ? rawLessonId[0] : undefined;
 
-  const user = await getCurrentUser();
+  // PERF: auth + curriculum fetched in parallel — both only need the courseId.
+  const [user, data] = await Promise.all([
+    getCurrentUser(),
+    getCourseWithCurriculum(id),
+  ]);
   if (!user) redirect(`/login?from=/courses/${id}`);
-
-  const data = await getCourseWithCurriculum(id);
   if (!data) notFound();
 
   const [isEntitled, liveClasses, linkedContent] = await Promise.all([
