@@ -3,6 +3,8 @@ import { redirect, notFound } from "next/navigation";
 import { getVideoById, formatDuration } from "@/lib/videoDb";
 import Link from "next/link";
 import { parseCourseContext, courseReturnUrl } from "@/lib/courseNav";
+import { getMockPlaybackSource } from "@/lib/video/getMockPlaybackSource";
+import CourseVideoPlayer from "@/components/video/CourseVideoPlayer";
 
 export const dynamic = "force-dynamic";
 
@@ -20,26 +22,42 @@ export default async function VideoDetailPage({
   const video = await getVideoById(id, user.id);
   if (!video) notFound();
 
-  const ctx = parseCourseContext(sp);
+  const ctx      = parseCourseContext(sp);
   const backHref  = ctx ? courseReturnUrl(ctx) : "/videos";
   const backLabel = ctx ? "← Back to Course" : "← Recorded Videos";
 
-  const isLocked   = !video.isEntitled && !video.allowPreview;
-  const canWatch   = video.isEntitled || video.allowPreview;
-  const isYoutube  = video.provider === "YOUTUBE" && video.providerVideoId;
-  const duration   = formatDuration(video.durationSeconds);
+  const isLocked  = !video.isEntitled && !video.allowPreview;
+  const canWatch  = video.isEntitled || video.allowPreview;
+  const isYoutube = video.provider === "YOUTUBE" && video.providerVideoId;
+  const duration  = formatDuration(video.durationSeconds);
+
+  // ── Resolve the HLS manifest URL ──────────────────────────────────────────
+  // Priority: real hlsUrl from DB → mock source (dev-only, swapped with
+  // GET /api/videos/:id/playback once Bunny backend is integrated).
+  const manifestUrl: string | null = (() => {
+    if (!canWatch) return null;
+    if (isYoutube) return null;
+    if (video.hlsUrl) return video.hlsUrl;
+    // Mock: isolates the temporary source in one helper — easy to replace.
+    return getMockPlaybackSource(video.id).manifestUrl;
+  })();
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-400">
-        <Link href={backHref} className="hover:text-[#6D4BCB] transition-colors">{backLabel}</Link>
+        <Link href={backHref} className="hover:text-[#6D4BCB] transition-colors">
+          {backLabel}
+        </Link>
         <span>/</span>
         <span className="text-gray-600 truncate">{video.title}</span>
       </nav>
 
       {/* Player area */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+
+        {/* ── YouTube iframe ────────────────────────────────────────── */}
         {canWatch && isYoutube ? (
           <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
             <iframe
@@ -50,14 +68,18 @@ export default async function VideoDetailPage({
               className="absolute inset-0 w-full h-full"
             />
           </div>
-        ) : canWatch && video.playbackUrl ? (
-          <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
-            <video
-              src={video.playbackUrl}
-              controls
-              className="absolute inset-0 w-full h-full object-contain bg-black"
-            />
-          </div>
+
+        /* ── HLS / native video via CourseVideoPlayer ──────────────── */
+        ) : canWatch && manifestUrl ? (
+          <CourseVideoPlayer
+            title={video.title}
+            manifestUrl={manifestUrl}
+            posterUrl={video.thumbnailUrl}
+            lessonId={undefined}
+            courseId={video.courseId ?? undefined}
+          />
+
+        /* ── Locked ────────────────────────────────────────────────── */
         ) : isLocked ? (
           <div className="h-64 bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center gap-3">
             <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
@@ -67,6 +89,8 @@ export default async function VideoDetailPage({
             </div>
             <p className="text-sm font-semibold text-gray-600">Enroll to watch this video</p>
           </div>
+
+        /* ── No source yet ─────────────────────────────────────────── */
         ) : (
           <div className="h-64 bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex flex-col items-center justify-center gap-3">
             <svg className="w-12 h-12 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
@@ -77,12 +101,15 @@ export default async function VideoDetailPage({
           </div>
         )}
 
-        {/* Video info */}
+        {/* Video metadata */}
         <div className="p-6 space-y-3">
+
           {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
             {video.accessType === "FREE" && (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-800">Free</span>
+              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-800">
+                Free
+              </span>
             )}
             {isLocked && (
               <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 ring-1 ring-amber-200 flex items-center gap-1">
@@ -100,11 +127,15 @@ export default async function VideoDetailPage({
           <h1 className="text-xl font-bold text-[#2D1B69] leading-snug">{video.title}</h1>
 
           {video.facultyName && (
-            <p className="text-sm text-gray-600"><span className="font-medium">Faculty:</span> {video.facultyName}</p>
+            <p className="text-sm text-gray-600">
+              <span className="font-medium">Faculty:</span> {video.facultyName}
+            </p>
           )}
 
           {video.description && (
-            <p className="text-sm text-gray-600 leading-relaxed border-t border-gray-50 pt-3">{video.description}</p>
+            <p className="text-sm text-gray-600 leading-relaxed border-t border-gray-50 pt-3">
+              {video.description}
+            </p>
           )}
 
           {isLocked && (

@@ -1,0 +1,129 @@
+We are working in the Saphala Self Prep student frontend app.
+
+Task:
+Build the first clean version of the recorded video player system in the frontend only.
+Do NOT integrate Bunny security in this step.
+This step is only to build the player shell, lesson wiring, and playback UX cleanly so that backend Bunny integration can be plugged in next.
+
+Context:
+- Most users are Chrome-based, so optimize for Chrome first.
+- Use native HTML5 <video> with HLS.js support.
+- Keep architecture clean and reusable.
+- Do not overbuild advanced features.
+- Use a temporary test .m3u8 URL or clearly mocked manifest URL for now.
+- The player must be production-structured, even if playback source is temporary.
+
+What to build:
+
+1) Reusable player component
+Create a reusable component such as:
+- components/course/CourseVideoPlayer.tsx
+
+Requirements:
+- Use native <video>
+- Use HLS.js for browsers that need it
+- Use direct video src if browser supports native HLS
+- Clean mount/unmount logic
+- No memory leaks
+- Show loading state before stream is ready
+- Show error state with Retry button
+- Include:
+  - play/pause
+  - seek bar
+  - current time / total duration
+  - volume
+  - playback speed
+  - fullscreen
+- Keep UI simple, clean, mobile-friendly
+- Avoid fancy custom controls unless already easy to maintain
+- If needed, use native controls first, but structure component so custom controls can be improved later
+
+2) Input contract for player
+Design the player props cleanly, something like:
+- title
+- posterUrl
+- manifestUrl
+- lessonId
+- courseId
+- initialPositionSeconds optional
+- onProgress optional
+- onEnded optional
+- onError optional
+
+Keep props future-ready for real backend integration.
+
+3) HLS handling
+Implement correct browser logic:
+- If HLS.js is supported, use it
+- Else if browser can play HLS natively, set video.src directly
+- Else show friendly unsupported message
+
+4) Progress tracking hook
+Add basic throttled progress tracking in frontend only:
+- Track current playback position
+- Trigger onProgress callback every ~15 seconds while playing
+- Also trigger on pause and on ended
+- No DB/API integration yet unless a clean placeholder already exists
+- Keep it easy to connect to backend later
+
+5) Lesson/player integration
+Find the current student course detail / course learning page where recorded lesson playback should happen.
+Wire lesson click so that:
+- selecting a video lesson opens/loads the CourseVideoPlayer
+- active lesson state is maintained cleanly
+- player updates when lesson changes
+- avoid unnecessary full page reloads
+- next/previous lesson support can be basic if easy, otherwise prepare structure for it
+
+6) Temporary playback source
+For now:
+- use a temporary test manifest URL or local mock source clearly isolated in one place
+- do NOT hardcode test URLs throughout the app
+- centralize the temporary source logic behind a helper or mock function
+
+Example:
+- lib/video/getMockPlaybackSource.ts
+This should be easy to replace later with real backend playback API.
+
+7) UX requirements
+- Fast visual response on lesson click
+- Show poster/placeholder immediately
+- Show loading spinner/skeleton while player initializes
+- Show clean empty state if no video selected
+- Mobile-friendly sizing
+- Avoid layout shift as much as possible
+- Keep player area stable
+
+8) Performance requirements
+- Lazy-load HLS.js so it is only loaded on pages that actually play videos
+- Do not import heavy player logic globally
+- Avoid repeated re-initialization if the same lesson is selected again
+- Clean up HLS instance on unmount/change
+- Do not add unnecessary DB calls
+
+9) Code quality
+- Keep TypeScript clean
+- Use existing project conventions
+- Reuse existing UI primitives if present
+- Keep component boundaries clean
+- Add comments only where genuinely useful
+- No hacky quick fixes
+- No backend schema changes in this step
+
+10) Deliverables
+At the end, provide:
+- list of files created/updated
+- short explanation of component structure
+- what remains for backend Bunny integration next
+
+Important:
+This is frontend phase only.
+Do not implement signed Bunny URLs yet.
+Do not add insecure direct public production URLs.
+Build this in a way that the next step can replace mock manifestUrl with:
+GET /api/videos/:id/playback
+
+After implementation:
+- run TypeScript check
+- verify build/dev server is clean
+- confirm no obvious player mount/unmount issues
