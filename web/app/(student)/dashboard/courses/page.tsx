@@ -1,5 +1,4 @@
-import { getActiveCourses } from "@/lib/courseDb";
-import { prisma } from "@/lib/db";
+import { getActiveCourses, getCachedCategories } from "@/lib/courseDb";
 import Link from "next/link";
 import Image from "next/image";
 import { CoursesFilterBar } from "@/components/courses/CoursesFilterBar";
@@ -39,10 +38,7 @@ export default async function DashboardCoursesPage({
       productCategory: activeProduct   ?? undefined,
       limit: hasFilters ? 60 : 6,
     }),
-    prisma.category.findMany({
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    }),
+    getCachedCategories(),
   ]);
 
   const activeCatName      = categories.find((c) => c.id === activeCategory)?.name ?? null;

@@ -314,9 +314,11 @@ export const getActiveCourses = unstable_cache(
 async function _getCourseWithCurriculum(courseId: string): Promise<CourseDetail | null> {
   const safeId = courseId.replace(/'/g, "''");
 
-  // PERFORMANCE: run course header + sections in parallel (both only need courseId).
+  // PERFORMANCE: run course header + sections + chapters all in parallel.
+  // Chapters are fetched via CSS JOIN on courseId — no need to wait for sectionIds first.
   type RawSection = { sectionId: string; subjectId: string | null; subjectName: string; subjectColor: string | null; label: string | null; sortOrder: number };
-  const [courses, rawSections] = await Promise.all([
+  type RawChapter = { chapterId: string; sectionId: string; title: string; sortOrder: number };
+  const [courses, rawSections, rawChapters] = await Promise.all([
     prisma.$queryRawUnsafe<RawCourse[]>(`
       SELECT
         c.id,
@@ -368,6 +370,13 @@ async function _getCourseWithCurriculum(courseId: string): Promise<CourseDetail 
       WHERE css."courseId" = '${safeId}'
       ORDER BY css."sortOrder" ASC
     `),
+    prisma.$queryRawUnsafe<RawChapter[]>(`
+      SELECT ch.id AS "chapterId", ch."sectionId", ch.title, ch."sortOrder"
+      FROM "Chapter" ch
+      JOIN "CourseSubjectSection" css ON css.id = ch."sectionId"
+      WHERE css."courseId" = '${safeId}'
+      ORDER BY ch."sortOrder" ASC
+    `),
   ]);
   if (!courses.length) return null;
   const course = mapCourse(courses[0]);
@@ -381,16 +390,6 @@ async function _getCourseWithCurriculum(courseId: string): Promise<CourseDetail 
   const resolveColor = (s: { subjectId: string | null; subjectName: string; subjectColor: string | null }): string | null =>
     s.subjectColor ?? subjectColorFromName(s.subjectName) ?? null;
   // ─────────────────────────────────────────────────────────────────────────
-
-  const sectionIds = rawSections.map((s) => `'${s.sectionId}'`).join(",");
-
-  type RawChapter = { chapterId: string; sectionId: string; title: string; sortOrder: number };
-  const rawChapters = await prisma.$queryRawUnsafe<RawChapter[]>(`
-    SELECT id AS "chapterId", "sectionId", title, "sortOrder"
-    FROM "Chapter"
-    WHERE "sectionId" IN (${sectionIds})
-    ORDER BY "sortOrder" ASC
-  `);
 
   if (!rawChapters.length) {
     return {

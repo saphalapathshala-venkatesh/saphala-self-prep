@@ -1,31 +1,11 @@
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
-import { getActiveCourses, getExamsForCategory } from "@/lib/courseDb";
-import { prisma } from "@/lib/db";
+import { getActiveCourses, getExamsForCategory, getCachedCategories } from "@/lib/courseDb";
 import Link from "next/link";
 import Image from "next/image";
 import { getCategoryImage } from "@/config/categoryImages";
-import { unstable_cache } from "next/cache";
 
 export const dynamic = "force-dynamic";
-
-// Named function keeps the unstable_cache key small — inline lambdas cause
-// Turbopack to serialise the full function body (>2 MB) which Next.js refuses to cache.
-async function _fetchAllCategories() {
-  try {
-    return await prisma.category.findMany({
-      select: { id: true, name: true },
-      orderBy: { name: "asc" },
-    });
-  } catch {
-    return [] as { id: string; name: string }[];
-  }
-}
-const getCachedCategories = unstable_cache(
-  _fetchAllCategories,
-  ["all-categories"],
-  { revalidate: 120, tags: ["categories"] },
-);
 
 function formatRupeesINR(rupees: number): string {
   return `₹${rupees.toLocaleString("en-IN")}`;
