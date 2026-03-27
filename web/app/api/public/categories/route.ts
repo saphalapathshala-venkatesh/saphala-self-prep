@@ -7,24 +7,26 @@ export const revalidate = 120;
 
 const getCategories = unstable_cache(
   async () => {
-    const categories = await prisma.category.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    });
-    return categories.map((cat) => ({
-      ...cat,
-      thumbnailUrl: getCategoryImage(cat.id),
-    }));
+    try {
+      const categories = await prisma.category.findMany({
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      });
+      return categories.map((cat) => ({
+        ...cat,
+        thumbnailUrl: getCategoryImage(cat.id),
+      }));
+    } catch (err) {
+      // Cache empty state so we don't hammer Neon on every request when quota is exceeded.
+      console.error("[categories] DB query failed, caching empty state:", (err as Error).message);
+      return [];
+    }
   },
   ["public-categories"],
   { revalidate: 120, tags: ["categories"] },
 );
 
 export async function GET() {
-  try {
-    const enriched = await getCategories();
-    return NextResponse.json(enriched);
-  } catch {
-    return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 });
-  }
+  const enriched = await getCategories();
+  return NextResponse.json(enriched);
 }

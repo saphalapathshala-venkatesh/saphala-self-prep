@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, isNeonQuotaError } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import {
   validateEmail,
@@ -125,6 +125,12 @@ export async function POST(request: NextRequest) {
     } catch (dbErr) {
       const e1 = extractPrismaError(dbErr);
       console.error("[register] email lookup failed (attempt 1):", { code: e1.code, message: e1.message, meta: e1.meta, dbUrl: dbProbe });
+      if (isNeonQuotaError(dbErr)) {
+        return NextResponse.json(
+          { error: "Our database is temporarily at capacity. Please try again in a few minutes.", code: "DB_QUOTA" },
+          { status: 503 }
+        );
+      }
       try {
         await sleep(700);
         emailConflict = await dbFindByEmail(email);
@@ -152,6 +158,12 @@ export async function POST(request: NextRequest) {
     } catch (dbErr) {
       const e1 = extractPrismaError(dbErr);
       console.error("[register] mobile lookup failed (attempt 1):", { code: e1.code, message: e1.message, meta: e1.meta, dbUrl: dbProbe });
+      if (isNeonQuotaError(dbErr)) {
+        return NextResponse.json(
+          { error: "Our database is temporarily at capacity. Please try again in a few minutes.", code: "DB_QUOTA" },
+          { status: 503 }
+        );
+      }
       try {
         await sleep(700);
         mobileConflict = await dbFindByMobile(mobile);
@@ -187,6 +199,13 @@ export async function POST(request: NextRequest) {
     } catch (dbErr) {
       const e1 = extractPrismaError(dbErr);
       console.error("[register] user create failed (attempt 1):", { code: e1.code, message: e1.message, meta: e1.meta, dbUrl: dbProbe });
+
+      if (isNeonQuotaError(dbErr)) {
+        return NextResponse.json(
+          { error: "Our database is temporarily at capacity. Please try again in a few minutes.", code: "DB_QUOTA" },
+          { status: 503 }
+        );
+      }
 
       const code = e1.code;
       if (code === "P2002") {

@@ -3,6 +3,26 @@ import { subjectColorFromName } from "@/lib/subjectColor";
 import { withCourseContext, type CourseContext } from "@/lib/courseNav";
 import { unstable_cache } from "next/cache";
 
+/**
+ * Wraps an async function so it returns `fallback` instead of throwing.
+ * Used inside unstable_cache wrappers so that DB errors (e.g. Neon 402 quota)
+ * are cached as empty state for the TTL rather than being re-fetched every render.
+ */
+function withFallback<TArgs extends unknown[], TReturn>(
+  fn: (...args: TArgs) => Promise<TReturn>,
+  fallback: TReturn,
+  label: string,
+): (...args: TArgs) => Promise<TReturn> {
+  return async (...args: TArgs) => {
+    try {
+      return await fn(...args);
+    } catch (err) {
+      console.error(`[courseDb:${label}] DB query failed, caching fallback:`, (err as Error).message);
+      return fallback;
+    }
+  };
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export const PRODUCT_CATEGORY_LABEL: Record<string, string> = {
@@ -192,7 +212,7 @@ async function _getExamsForCategory(categoryId: string): Promise<ExamItem[]> {
 }
 
 export const getExamsForCategory = unstable_cache(
-  _getExamsForCategory,
+  withFallback(_getExamsForCategory, [], "getExamsForCategory"),
   ["exams-for-category"],
   { revalidate: 120, tags: ["exams"] },
 );
@@ -261,7 +281,7 @@ async function _getActiveCourses(opts?: {
 }
 
 export const getActiveCourses = unstable_cache(
-  _getActiveCourses,
+  withFallback(_getActiveCourses, [], "getActiveCourses"),
   ["active-courses"],
   { revalidate: 60, tags: ["courses"] },
 );
@@ -456,7 +476,7 @@ async function _getCourseWithCurriculum(courseId: string): Promise<CourseDetail 
 }
 
 export const getCourseWithCurriculum = unstable_cache(
-  _getCourseWithCurriculum,
+  withFallback(_getCourseWithCurriculum, null, "getCourseWithCurriculum"),
   ["course-curriculum"],
   { revalidate: 60, tags: ["courses"] },
 );
@@ -600,7 +620,7 @@ async function _getLinkedContentForCourse(courseId: string): Promise<LinkedConte
 }
 
 export const getLinkedContentForCourse = unstable_cache(
-  _getLinkedContentForCourse,
+  withFallback(_getLinkedContentForCourse, [], "getLinkedContentForCourse"),
   ["linked-content-for-course"],
   { revalidate: 60, tags: ["courses"] },
 );

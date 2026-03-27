@@ -79,7 +79,9 @@ export default function LoginForm() {
     }
 
     if (!response.ok) {
-      if (response.status === 503 || response.status === 502) {
+      if (data.code === "DB_QUOTA") {
+        setErrors({ general: "Our servers are at capacity right now. Please try again in a few minutes." });
+      } else if (response.status === 503 || response.status === 502) {
         setErrors({ general: "Login service is temporarily unavailable. Please try again in a moment." });
       } else if (data.code === "DEVICE_BLOCKED") {
         setDeviceBlocked(true);

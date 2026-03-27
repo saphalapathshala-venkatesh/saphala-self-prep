@@ -2,7 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { SESSION_COOKIE_NAME, SESSION_TTL_MS, IDLE_TIMEOUT_MS } from "./constants";
 import { createSession, deleteSession } from "./sessionStore";
-import { prisma } from "./db";
+import { prisma, isNeonQuotaError } from "./db";
 import { randomBytes } from "crypto";
 
 function generateToken(): string {
@@ -77,6 +77,11 @@ async function lookupSessionAndUser(token: string): Promise<SessionWithUser | nu
     result = (await doQuery()) as SessionWithUser | null;
   } catch (err) {
     console.warn("[auth] session lookup failed (attempt 1):", (err as Error).message ?? err);
+    // 402 quota errors are not transient — skip the retry immediately.
+    if (isNeonQuotaError(err)) {
+      console.error("[auth] Neon quota exceeded — skipping session retry");
+      return null;
+    }
     try {
       await sleep(400);
       result = (await doQuery()) as SessionWithUser | null;

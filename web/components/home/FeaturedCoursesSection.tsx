@@ -38,6 +38,7 @@ type UnifiedCard = {
 
 const getFeaturedCards = unstable_cache(
   async (): Promise<UnifiedCard[]> => {
+    try {
     const cards: UnifiedCard[] = [];
 
     const categories = await prisma.category.findMany({
@@ -150,19 +151,20 @@ const getFeaturedCards = unstable_cache(
     }
 
     return cards;
+    } catch (err) {
+      // Return empty state on DB error (e.g. Neon quota 402) so the result
+      // is cached for the TTL and we don't hammer Neon on every render.
+      console.error("[FeaturedCoursesSection] DB query failed, caching empty state:", (err as Error).message);
+      return [];
+    }
   },
   ["featured-cards"],
   { revalidate: 60, tags: ["courses"] },
 );
 
 export default async function FeaturedCoursesSection() {
-  let cards: UnifiedCard[] = [];
-
-  try {
-    cards = await getFeaturedCards();
-  } catch (err) {
-    console.error("[FeaturedCoursesSection] Query failed — rendering empty state.", err);
-  }
+  // Errors are caught inside getFeaturedCards; it always returns [] on DB failure.
+  const cards = await getFeaturedCards();
 
   return (
     <section className="py-16 bg-white">

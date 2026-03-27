@@ -49,3 +49,20 @@ export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
+
+/**
+ * Returns true when the error is a Neon HTTP 402 (data-transfer quota exceeded).
+ * A 402 is NOT transient — retrying immediately will not help and wastes quota.
+ * Callers should surface a "database is temporarily at capacity" message instead.
+ */
+export function isNeonQuotaError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as Record<string, unknown>;
+  // Neon HTTP adapter wraps the response status in the message string
+  const msg = String(e["message"] ?? "");
+  return (
+    msg.includes("HTTP status 402") ||
+    msg.includes("data transfer quota") ||
+    (e["code"] !== undefined && String(e["code"]) === "402")
+  );
+}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { prisma, isNeonQuotaError } from "@/lib/db";
 import { createSessionCookie } from "@/lib/auth";
 import bcrypt from "bcryptjs";
 import { normalizeIdentifier } from "@/lib/validation";
@@ -35,12 +35,20 @@ export async function POST(request: NextRequest) {
 
     const normalized = normalizeIdentifier(identifier);
 
-    // User lookup — retry once on transient connection failure
+    // User lookup — retry once on transient connection failure.
+    // Skip retry immediately on 402 (quota exceeded) — it won't recover within 700 ms.
     let user;
     try {
       user = await lookupUser(normalized);
     } catch (dbErr) {
       console.error("[login] DB lookup failed (attempt 1):", dbErr);
+      if (isNeonQuotaError(dbErr)) {
+        console.error("[login] Neon quota exceeded — skipping retry");
+        return NextResponse.json(
+          { error: "Our database is temporarily at capacity. Please try again in a few minutes.", code: "DB_QUOTA" },
+          { status: 503 }
+        );
+      }
       try {
         await sleep(700);
         user = await lookupUser(normalized);
@@ -239,12 +247,20 @@ export async function POST(request: NextRequest) {
     }
     // ── End Single Device Policy ────────────────────────────────────────────
 
-    // Session creation — retry once on transient failure
+    // Session creation — retry once on transient failure.
+    // Skip retry on 402 quota error — it won't recover within 700 ms.
     let cookie;
     try {
       cookie = await createSessionCookie(user.id);
     } catch (sessionErr) {
       console.error("[login] Session creation failed (attempt 1):", sessionErr);
+      if (isNeonQuotaError(sessionErr)) {
+        console.error("[login] Neon quota exceeded during session creation — skipping retry");
+        return NextResponse.json(
+          { error: "Our database is temporarily at capacity. Please try again in a few minutes.", code: "DB_QUOTA" },
+          { status: 503 }
+        );
+      }
       try {
         await sleep(700);
         cookie = await createSessionCookie(user.id);

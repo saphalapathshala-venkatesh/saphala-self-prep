@@ -1,6 +1,22 @@
 import { prisma } from "./db";
 import { unstable_cache } from "next/cache";
 
+// Returns `fallback` instead of throwing so unstable_cache can store the empty state.
+function withFallback<TArgs extends unknown[], TReturn>(
+  fn: (...args: TArgs) => Promise<TReturn>,
+  fallback: TReturn,
+  label: string,
+): (...args: TArgs) => Promise<TReturn> {
+  return async (...args: TArgs) => {
+    try {
+      return await fn(...args);
+    } catch (err) {
+      console.error(`[testhubDb:${label}] DB query failed, caching fallback:`, (err as Error).message);
+      return fallback;
+    }
+  };
+}
+
 // ============================================================
 // ACCESS RESOLUTION
 // Rule: a test is accessible when:
@@ -407,8 +423,9 @@ async function _getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
 }
 
 // Cached: test questions are static once published — safe to cache for 1 hour.
+// withFallback ensures DB errors are cached as [] rather than re-fetched every render.
 export const getDbQuestionsForTest = unstable_cache(
-  _getDbQuestionsForTest,
+  withFallback(_getDbQuestionsForTest, [], "getDbQuestionsForTest"),
   ["test-questions"],
   { revalidate: 3600, tags: ["tests"] },
 );
