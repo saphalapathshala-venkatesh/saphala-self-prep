@@ -47,8 +47,8 @@ Provides listings of live classes (LIVE NOW, Upcoming, Past). Access is controll
 A video library from the `Video` table, featuring entitlement-based access, YouTube embeds, and HLS streaming for other providers. XP is awarded on first watch. The video player uses HLS.js for robust playback and progress tracking.
 
 **Video Playback Pipeline:**
-- `app/api/student/videos/[id]/playback`: Protected endpoint — validates session + entitlement, signs Bunny URLs server-side, returns `{ manifestUrl, posterUrl, provider, providerVideoId }`. Signed URL never appears in SSR HTML.
-- `lib/video/bunnyPlayback.ts`: `signBunnyUrl()` applies HMAC-SHA256 Bunny token auth when `BUNNY_SECURITY_KEY` is set; passes URL through otherwise. `resolveManifestUrl()` picks best playable URL from a video row.
+- `app/api/student/videos/[id]/playback`: Protected endpoint — validates session + entitlement, signs Bunny URLs server-side, returns `{ manifestUrl, embedUrl, posterUrl, provider, providerVideoId }`. Signed URL never appears in SSR HTML.
+- `lib/video/bunnyPlayback.ts`: `signBunnyUrl()` applies HMAC-SHA256 Bunny token auth when `BUNNY_SECURITY_KEY` is set; passes URL through otherwise. `resolveManifestUrl()` resolution order: (1) explicit `hlsUrl` from DB, (2) auto-constructed Bunny Stream HLS URL `https://vz-{BUNNY_LIBRARY_ID}.b-cdn.net/{providerVideoId}/playlist.m3u8` for any Bunny video with `providerVideoId`, (3) `playbackUrl`, (4) null → iframe embed fallback. All Bunny videos with `providerVideoId` use native HLS (no iframe embed), ensuring skip controls, XP events, and quality selector work.
 - `components/video/CourseVideoPlayer.tsx`: Client component. Accepts `playbackApiUrl` (fetches on mount) or direct `manifestUrl`. Handles HLS.js, native Safari HLS, YouTube iframe, loading/error/unsupported states, and 15-second progress tracking.
 
 #### Video XP (Sadhana Points)
