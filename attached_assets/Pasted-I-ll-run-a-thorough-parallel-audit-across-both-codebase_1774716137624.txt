@@ -1,0 +1,83 @@
+I'll run a thorough parallel audit across both codebases right now.
+
+Now let me audit the admin side and XP display components:
+
+That's all I need. Here is the complete, file-exact audit.
+
+Audit Report
+FEATURE 1: Video XP
+What Already Exists
+File	Finding
+web/lib/dashboardData.ts L147–156	xpBreakdown.pathshala bucket already sums XpLedgerEntry rows where refType = 'Video' — the dashboard is wired and waiting
+web/app/(student)/dashboard/page.tsx L635	<XpRow label="Pathshala" value={data.xpBreakdown.pathshala} /> already renders — always shows 0 since nothing writes to it yet
+web/prisma/schema.prisma L633–645	XpLedgerEntry model has refType: String and refId: String — the same open-ended fields used by ebooks (refType="ContentPage") and flashcards (refType="FlashcardDeck"). A refType="Video" entry would be picked up automatically
+web/app/api/student/ebooks/complete/route.ts	Established XP award pattern (check xpEnabled → count prior completions → 1st=100%, 2nd=50%, 3rd+=0%) — directly reusable
+web/app/api/student/flashcards/complete/route.ts	Same pattern — second confirmed reference implementation
+web/components/video/CourseVideoPlayer.tsx	Has onProgress and onEnded callback props — they exist on the interface but the video detail page passes neither
+web/lib/xpCelebration.ts	Confetti utility — used after ebook/flashcard completion, ready to reuse
+What Partially Exists
+File	Finding
+web/components/video/CourseVideoPlayer.tsx	onEnded prop is defined and wired to HLS events internally, but the video detail page (videos/[id]/page.tsx) passes onEnded={undefined} — the hook is there, nothing listens
+DB — UserXpSourceProgress table	Has sourceType, sourceId, completionCount, totalXpAwarded columns — could track per-video completion counts, but not used by any current code
+What Is Missing
+xpEnabled / xpValue columns on the Video table — not in Prisma schema, not in DB. The Video model does not even appear in schema.prisma (all video queries use prisma.$queryRawUnsafe). The three models that do have xpEnabled/xpValue are Test (L346–347), FlashcardDeck (L476–477), and ContentPage (L523–524).
+POST /api/student/videos/complete route — no such file exists anywhere.
+XP trigger on video end — the video detail page (videos/[id]/page.tsx) never passes onEnded to CourseVideoPlayer.
+Admin UI for video XP configuration — the admin app has only four pages: layout.tsx, page.tsx, users/page.tsx, users/[id]/attempts/page.tsx. There is no video management page of any kind.
+VIDEO_XP in XpRuleKey enum — the enum only has LOGIN_XP, TEST_XP, IMPROVEMENT_BONUS_XP, FLASHCARD_XP, RR_XP. (However, the ebook and flashcard XP system does NOT use XpRuleKey — it writes directly to XpLedgerEntry with a string reason. So adding VIDEO_XP to the enum is not required to match the existing pattern.)
+FEATURE 2: Video Doubts
+What Already Exists
+Nothing. Zero files, zero DB tables, zero API routes, zero UI components.
+
+grep -r "doubt\|Doubt" across all of web/app, web/lib, web/components returns no results.
+DB query for tables matching %doubt% returns empty array.
+No Doubt or DoubtReply model exists in schema.prisma.
+What Is Missing (100% new build)
+Schema / DB:
+
+Doubt model — videoId, userId, title, body, status (OPEN / ADDRESSED / CLOSED), createdAt, updatedAt
+DoubtReply model — doubtId, authorId (student or admin/mentor), body, isAdminReply flag, createdAt
+Student API routes:
+
+POST /api/student/doubts — submit a doubt for a video
+GET /api/student/doubts — list student's own doubts
+GET /api/student/doubts/[id] — view full thread
+Admin API routes:
+
+GET /api/admin/doubts — list all doubts (filterable by status/video)
+PATCH /api/admin/doubts/[id] — update status (ADDRESSED / CLOSED)
+POST /api/admin/doubts/[id]/reply — add admin/mentor reply
+Student frontend:
+
+"Ask a Doubt" button + modal on /(student)/videos/[id]/page.tsx
+/(student)/doubts/page.tsx — student's full doubts history/thread list
+Dashboard card in /dashboard/page.tsx for "Your doubt was addressed — See reply"
+Admin frontend:
+
+/admin/doubts/page.tsx — doubt management table with status filters
+Reply inline form on the same page or /admin/doubts/[id]/page.tsx
+Summary Table
+Component	Video XP	Video Doubts
+DB model / table	❌ Missing (Video has no xpEnabled/xpValue; no Video model in schema)	❌ Missing entirely
+XP ledger bucket (dashboard)	✅ Already wired (shows 0)	—
+XP award API	❌ Missing	—
+Player callback hook	⚠️ Partial (prop exists, page never passes it)	—
+Student UI	⚠️ Partial (XP row shows, no doubt button)	❌ Missing
+Admin UI	❌ Missing	❌ Missing
+Proposed Implementation Plan
+Video XP — 2 tasks, tightly scoped:
+
+T-VXP-1 (Schema + API): ALTER TABLE "Video" ADD COLUMN IF NOT EXISTS "xpEnabled" BOOLEAN DEFAULT false, ADD COLUMN IF NOT EXISTS "xpValue" INT DEFAULT 0; add the fields to VideoRow type in videoDb.ts; create POST /api/student/videos/complete mirroring the ebook pattern exactly (refType="Video", same 1st/2nd/3rd multiplier, reads xpValue from DB); wire onEnded in videos/[id]/page.tsx to call the endpoint and trigger triggerXpCelebration().
+
+T-VXP-2 (Admin config): Add a minimal /admin/videos page that lists videos and allows toggling xpEnabled + setting xpValue per video via a PATCH /api/admin/videos/[id] route.
+
+Video Doubts — 3 tasks, ordered:
+
+T-DBT-1 (Schema + migrations): Add Doubt and DoubtReply models to schema.prisma; run ALTER TABLE migrations; prisma generate.
+
+T-DBT-2 (APIs): All student routes (POST/GET /api/student/doubts, GET /api/student/doubts/[id]) and admin routes (GET /api/admin/doubts, POST /api/admin/doubts/[id]/reply, PATCH /api/admin/doubts/[id]). Blocked by T-DBT-1.
+
+T-DBT-3 (UI): Student "Ask a Doubt" button+modal on video page, /(student)/doubts history page, dashboard "addressed" card, /admin/doubts management page. Blocked by T-DBT-2.
+
+Would you like me to proceed to build, or adjust the scope/sequencing first?
+

@@ -4,6 +4,7 @@ import Link from "next/link";
 import LoginSuccessToast from "@/components/dashboard/LoginSuccessToast";
 import { getDashboardData } from "@/lib/dashboardData";
 import { getActiveCourses, getEnrolledCourses } from "@/lib/courseDb";
+import { prisma } from "@/lib/db";
 import { getDailyPractice, type PracticeSuggestion } from "@/lib/practiceDb";
 import { getUserStreak, type UserStreak } from "@/lib/streakDb";
 import { getDashboardLiveClass, type LiveClassStudent } from "@/lib/liveClassDb";
@@ -137,7 +138,7 @@ async function DashboardDataSections({
   user: DashboardUser;
   displayName: string;
 }) {
-  const [data, freeCourses, practiceSuggestions, streak, dashboardClass, enrolledCourses] =
+  const [data, freeCourses, practiceSuggestions, streak, dashboardClass, enrolledCourses, addressedDoubts] =
     await Promise.all([
       getDashboardData(user.id),
       getActiveCourses({ productCategory: "FREE_DEMO", limit: 4 }).catch(() => []),
@@ -145,6 +146,12 @@ async function DashboardDataSections({
       getUserStreak(user.id),
       getDashboardLiveClass(user.id).catch(() => null),
       getEnrolledCourses(user.id).catch(() => []),
+      prisma.doubt.findMany({
+        where: { userId: user.id, status: "ADDRESSED" },
+        orderBy: { updatedAt: "desc" },
+        take: 3,
+        include: { replies: { where: { isAdminReply: true }, orderBy: { createdAt: "desc" }, take: 1 } },
+      }).catch(() => []),
     ]);
 
   const xpDisplay = data.xpTotal > 0 ? String(data.xpTotal) : "0";
@@ -499,6 +506,40 @@ async function DashboardDataSections({
               </svg>
             </Link>
           </div>
+
+          {/* Addressed doubts notification */}
+          {addressedDoubts.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-50">
+                <h2 className="text-base font-bold text-[#2D1B69]">Doubts Answered</h2>
+                <Link href="/doubts" className="text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors">
+                  View All
+                </Link>
+              </div>
+              <div className="divide-y divide-gray-50">
+                {addressedDoubts.map((doubt) => (
+                  <Link key={doubt.id} href="/doubts" className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors">
+                    <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[#2D1B69] truncate">{doubt.title}</p>
+                      {doubt.replies[0] && (
+                        <p className="text-xs text-gray-500 truncate mt-0.5">
+                          Mentor: {doubt.replies[0].body.slice(0, 80)}{doubt.replies[0].body.length > 80 ? "…" : ""}
+                        </p>
+                      )}
+                    </div>
+                    <svg className="w-4 h-4 text-gray-300 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right: Profile card + XP + Products */}

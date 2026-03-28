@@ -156,6 +156,8 @@ model User {
   purchases      Purchase[]
   paymentOrders  PaymentOrder[]
   refundRequests RefundRequest[]
+  doubts         Doubt[]
+  doubtReplies   DoubtReply[]   @relation("DoubtReplies")
   @@index([role])
 }
 model Session {
@@ -767,4 +769,41 @@ model RefundRequest {
   @@index([userId, createdAt])
   @@index([paymentOrderId])
   @@index([status])
+}
+
+// DOUBTS
+enum DoubtStatus {
+  OPEN
+  ADDRESSED
+  CLOSED
+}
+
+model Doubt {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoId   String
+  title     String
+  body      String
+  status    DoubtStatus @default(OPEN)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  replies   DoubtReply[]
+
+  @@index([userId, createdAt])
+  @@index([videoId, status])
+  @@index([status, createdAt])
+}
+
+model DoubtReply {
+  id           String   @id @default(cuid())
+  doubtId      String
+  doubt        Doubt    @relation(fields: [doubtId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User     @relation("DoubtReplies", fields: [authorId], references: [id], onDelete: Cascade)
+  body         String
+  isAdminReply Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([doubtId, createdAt])
 }

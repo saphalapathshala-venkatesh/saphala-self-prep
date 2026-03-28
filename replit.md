@@ -51,6 +51,16 @@ A video library from the `Video` table, featuring entitlement-based access, YouT
 - `lib/video/bunnyPlayback.ts`: `signBunnyUrl()` applies HMAC-SHA256 Bunny token auth when `BUNNY_SECURITY_KEY` is set; passes URL through otherwise. `resolveManifestUrl()` picks best playable URL from a video row.
 - `components/video/CourseVideoPlayer.tsx`: Client component. Accepts `playbackApiUrl` (fetches on mount) or direct `manifestUrl`. Handles HLS.js, native Safari HLS, YouTube iframe, loading/error/unsupported states, and 15-second progress tracking.
 
+#### Video XP (Sadhana Points)
+Videos award XP on completion via `POST /api/student/videos/complete`. `Video` table has `xpEnabled` (bool) and `xpValue` (int) columns. XP follows the 1st=100% / 2nd=50% / 3rd+=0% pattern, stored as `XpLedgerEntry` rows with `refType="Video"`. The `VideoPlayerWithXp` client component handles the `onEnded` event, calls the complete API, shows confetti, and displays the XP banner. Admin controls XP settings at `/admin/videos` via `PATCH /api/admin/videos/[id]`.
+
+#### Video Doubts
+Students can ask doubts while watching videos via the `DoubtModal` client component (rendered in `VideoPlayerWithXp`). Doubts are stored in the `Doubt` table with statuses: `OPEN → ADDRESSED → CLOSED`. Admin replies via `/admin/doubts` page. Students view their doubt history at `/doubts`. Dashboard shows a card for recently answered doubts. Sidebar includes a "My Doubts" nav link.
+
+- DB: `Doubt` + `DoubtReply` Prisma models (tables created via raw SQL)
+- Student APIs: `POST/GET /api/student/doubts`, `GET /api/student/doubts/[id]`
+- Admin APIs: `GET /api/admin/doubts`, `PATCH /api/admin/doubts/[id]`, `POST /api/admin/doubts/[id]/reply`
+
 #### Course Pricing & Checkout
 Course pricing is managed by `Course.sellingPrice` and `Course.mrp` (for strikethrough). The checkout flow integrates with Cashfree for payments, supports coupons, and manages `ProductPackage` for entitlement mapping. The system ensures robust security for payment credentials.
 

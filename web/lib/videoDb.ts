@@ -21,6 +21,8 @@ export interface VideoRow {
   unlockAt: Date | null;
   publishedAt: Date | null;
   isEntitled: boolean;
+  xpEnabled: boolean;
+  xpValue: number;
 }
 
 // ── Entitlement SQL ───────────────────────────────────────────────────────────
@@ -88,6 +90,8 @@ export async function getVideosForStudent(opts: {
       v."allowPreview",
       v."unlockAt",
       v."publishedAt",
+      v."xpEnabled",
+      v."xpValue",
       ${videoEntitlementExpr(userId)} AS "isEntitled"
     FROM "Video" v
     LEFT JOIN "Faculty" f ON f.id = v."facultyId"
@@ -123,6 +127,8 @@ export async function getVideoById(id: string, userId: string): Promise<VideoRow
       v."allowPreview",
       v."unlockAt",
       v."publishedAt",
+      v."xpEnabled",
+      v."xpValue",
       ${videoEntitlementExpr(userId)} AS "isEntitled"
     FROM "Video" v
     LEFT JOIN "Faculty" f ON f.id = v."facultyId"
