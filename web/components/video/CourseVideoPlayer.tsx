@@ -148,6 +148,16 @@ export default function CourseVideoPlayer({
   // (hides the "Mark as Watched" button after it is clicked)
   const [bunnyManualDone, setBunnyManualDone] = useState(false);
 
+  // Bunny iframe src — controlled so we can reload at a new startTime for seek.
+  // Initialised from effectiveEmbedUrl; updated by skip handlers.
+  const [iframeSrc, setIframeSrc] = useState<string>("");
+
+  // Fullscreen state — true when bunnyContainerRef is the fullscreen element.
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Ref for the Bunny player outer container — used for custom fullscreen.
+  const bunnyContainerRef = useRef<HTMLDivElement>(null);
+
   const { handleTimeUpdate, handlePause } = useProgressTracker(videoRef, onProgress);
 
   // ── Completion signal — single entry point ────────────────────────────────
@@ -221,6 +231,39 @@ export default function CourseVideoPlayer({
     return () => {
       if (bunnyTimerRef.current) clearInterval(bunnyTimerRef.current);
     };
+  }, []);
+
+  // Keep iframeSrc in sync with the resolved embed URL.
+  // Skip handlers update iframeSrc independently to add &startTime=N.
+  useEffect(() => {
+    if (effectiveEmbedUrl) setIframeSrc(effectiveEmbedUrl);
+  }, [effectiveEmbedUrl]);
+
+  // Track whether the Bunny container is the active fullscreen element.
+  useEffect(() => {
+    const onFsChange = () => {
+      setIsFullscreen(
+        !!document.fullscreenElement &&
+        (document.fullscreenElement === bunnyContainerRef.current ||
+         bunnyContainerRef.current?.contains(document.fullscreenElement) === true),
+      );
+    };
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  // Toggle fullscreen on the Bunny container (our outer div, not the iframe).
+  // This keeps our skip buttons inside the fullscreen context.
+  const handleBunnyFullscreen = useCallback(async () => {
+    const el = bunnyContainerRef.current;
+    if (!el) return;
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await el.requestFullscreen();
+      }
+    } catch { /* browser may deny fullscreen in some contexts */ }
   }, []);
 
   // ── Step 2: no-source guard ──────────────────────────────────────────────────
@@ -544,28 +587,30 @@ export default function CourseVideoPlayer({
   // Bunny's embed player accepts { action: 'seek', currentTime: N } via
   // postMessage. currentTime is tracked from timeupdate events.
 
+  // ── Bunny skip: reload the iframe with &startTime=N ──────────────────────────
+  // postMessage seek does NOT move the Bunny player reliably.
+  // Changing the iframe src to include &startTime=N is guaranteed to seek.
+  // bunnyCurrentTimeRef is already up-to-date (wall-clock timer), so the
+  // value we pass is accurate, and the timer continues from there on reload.
+
   const handleBunnySkipBackward = useCallback(() => {
-    const iframe = iframeRef.current;
-    const ct     = bunnyCurrentTimeRef.current;
+    const ct      = bunnyCurrentTimeRef.current;
     const newTime = Math.max(0, ct - 10);
-    console.log("[BUNNY_SKIP] ← backward | ct=" + ct.toFixed(2) + " → seek to " + newTime.toFixed(2) + " | iframeRef=" + (iframe ? "SET" : "NULL"));
-    if (!iframe?.contentWindow) return;
-    iframe.contentWindow.postMessage(
-      JSON.stringify({ action: "seek", currentTime: newTime }), "*",
-    );
-  }, []);
+    console.log("[BUNNY_SKIP] ← backward | ct=" + ct.toFixed(1) + "s → reload at startTime=" + Math.floor(newTime));
+    bunnyCurrentTimeRef.current = newTime;
+    if (!effectiveEmbedUrl) return;
+    setIframeSrc(effectiveEmbedUrl + "&startTime=" + Math.floor(newTime));
+  }, [effectiveEmbedUrl]);
 
   const handleBunnySkipForward = useCallback(() => {
-    const iframe  = iframeRef.current;
     const ct      = bunnyCurrentTimeRef.current;
     const dur     = bunnyDurationRef.current;
     const newTime = dur > 0 ? Math.min(dur, ct + 10) : ct + 10;
-    console.log("[BUNNY_SKIP] → forward  | ct=" + ct.toFixed(2) + " dur=" + dur.toFixed(2) + " → seek to " + newTime.toFixed(2) + " | iframeRef=" + (iframe ? "SET" : "NULL"));
-    if (!iframe?.contentWindow) return;
-    iframe.contentWindow.postMessage(
-      JSON.stringify({ action: "seek", currentTime: newTime }), "*",
-    );
-  }, []);
+    console.log("[BUNNY_SKIP] → forward  | ct=" + ct.toFixed(1) + "s dur=" + dur.toFixed(1) + "s → reload at startTime=" + Math.floor(newTime));
+    bunnyCurrentTimeRef.current = newTime;
+    if (!effectiveEmbedUrl) return;
+    setIframeSrc(effectiveEmbedUrl + "&startTime=" + Math.floor(newTime));
+  }, [effectiveEmbedUrl]);
 
   // ── Retry ────────────────────────────────────────────────────────────────────
 
@@ -588,10 +633,18 @@ export default function CourseVideoPlayer({
   // ── Iframe embed (YouTube or Bunny embed player) ──────────────────────────────
   //
   // Bunny embed:
-  //   - ref={iframeRef} lets us postMessage seek commands (skip ±10s)
-  //   - onLoad sends { action: 'subscribe' } so Bunny starts posting events
-  //   - Skip buttons call handleBunnySkipBackward/Forward via postMessage
-  //   - videoReady becomes true after first playerReady or timeupdate event
+  //   - iframeSrc state controls the src; skip handlers update it with &startTime=N
+  //     which is the ONLY reliable way to seek in Bunny's embed player.
+  //   - Wall-clock setInterval tracks elapsed time so consecutive skips accumulate.
+  //   - Skip buttons are shown:
+  //       • Normal mode  → below the video (in the black bar)
+  //       • Fullscreen   → overlaid at the bottom of the video (absolute positioned
+  //                        inside the 16:9 wrapper, above the iframe). This works
+  //                        because we call requestFullscreen() on bunnyContainerRef
+  //                        (the outer div), keeping our React overlay inside the
+  //                        fullscreen context.
+  //   - Custom fullscreen button (Expand/Collapse icon) sits next to the skip buttons
+  //     in both modes and toggles bunnyContainerRef fullscreen.
   //
   // YouTube embed:
   //   - No skip controls (YouTube doesn't support seek via postMessage)
@@ -599,54 +652,95 @@ export default function CourseVideoPlayer({
 
   const isBunnyEmbed = resolved?.provider === "BUNNY" && Boolean(effectiveEmbedUrl);
 
+  // Shared skip + fullscreen button bar — used in both normal and fullscreen modes.
+  const bunnyControlBar = (overlay: boolean) => (
+    <div
+      className={
+        overlay
+          // Fullscreen overlay: pinned to bottom of the 16:9 wrapper, above the iframe.
+          // pointer-events-none on wrapper so clicks pass through to Bunny player;
+          // pointer-events-auto re-enabled per-button.
+          ? "absolute bottom-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-gradient-to-t from-black/85 to-transparent pointer-events-none"
+          // Normal mode: plain flex row below the video.
+          : "flex items-center justify-between px-4 py-2 bg-black/95"
+      }
+    >
+      {/* ← 10 s */}
+      <button
+        onClick={handleBunnySkipBackward}
+        className={`flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors ${overlay ? "pointer-events-auto" : ""}`}
+        aria-label="Skip back 10 seconds"
+      >
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+        </svg>
+        10s
+      </button>
+
+      {/* Fullscreen toggle */}
+      <button
+        onClick={handleBunnyFullscreen}
+        className={`flex items-center gap-1 text-white/70 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors ${overlay ? "pointer-events-auto" : ""}`}
+        aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+      >
+        {isFullscreen ? (
+          /* Collapse icon */
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 9h4.5M15 9V4.5M15 9l5.25-5.25M9 15H4.5M9 15v4.5M9 15l-5.25 5.25M15 15h4.5M15 15v4.5M15 15l5.25 5.25" />
+          </svg>
+        ) : (
+          /* Expand icon */
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+          </svg>
+        )}
+        {isFullscreen ? "Exit" : "Fullscreen"}
+      </button>
+
+      {/* 10 s → */}
+      <button
+        onClick={handleBunnySkipForward}
+        className={`flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors ${overlay ? "pointer-events-auto" : ""}`}
+        aria-label="Skip forward 10 seconds"
+      >
+        10s
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
+        </svg>
+      </button>
+    </div>
+  );
+
   if (useIframeEmbed && effectiveEmbedUrl) {
     return (
-      <div className="relative w-full bg-black select-none">
+      <div ref={bunnyContainerRef} className="relative w-full bg-black select-none">
+        {/* ── 16:9 video box ─────────────────────────────────────────────── */}
         <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
           <iframe
             ref={isBunnyEmbed ? iframeRef : undefined}
-            src={effectiveEmbedUrl}
+            src={iframeSrc || effectiveEmbedUrl}
             title={title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowFullScreen
             onLoad={isBunnyEmbed ? handleIframeLoad : undefined}
             className="absolute inset-0 w-full h-full border-0"
           />
+
+          {/* Fullscreen-mode skip controls: overlaid at bottom of the video box.
+              Visible because bunnyContainerRef (our outer div) is the fullscreen
+              element — so our React children remain inside the fullscreen context. */}
+          {isBunnyEmbed && videoReady && isFullscreen && bunnyControlBar(true)}
         </div>
 
-        {/* Skip controls — Bunny embed only, visible after iframe load */}
-        {isBunnyEmbed && videoReady && (
-          <div className="flex items-center justify-center gap-4 py-2 bg-black/95">
-            <button
-              onClick={handleBunnySkipBackward}
-              className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
-              aria-label="Skip back 10 seconds"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
-              </svg>
-              10s
-            </button>
-            <button
-              onClick={handleBunnySkipForward}
-              className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
-              aria-label="Skip forward 10 seconds"
-            >
-              10s
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
-              </svg>
-            </button>
-          </div>
-        )}
+        {/* Normal-mode skip controls: below the video, always visible. */}
+        {isBunnyEmbed && videoReady && !isFullscreen && bunnyControlBar(false)}
 
-        {/* ── Mark as Watched button ─────────────────────────────────────────
+        {/* ── Mark as Watched button ────────────────────────────────────────
             Guaranteed XP trigger for Bunny iframe videos.
-            Bunny's "ended" postMessage event is unreliable, so we provide
-            an explicit button the student can press when done watching.
             fireCompletion is already guarded (completionSentRef), so
-            clicking after automatic detection is a safe no-op. */}
-        {isBunnyEmbed && !bunnyManualDone && (
+            clicking after automatic detection is a safe no-op.
+            Hidden in fullscreen (user can exit first, then click). */}
+        {isBunnyEmbed && !bunnyManualDone && !isFullscreen && (
           <div className="px-4 pb-3 pt-1 bg-black/95">
             <button
               onClick={() => {
