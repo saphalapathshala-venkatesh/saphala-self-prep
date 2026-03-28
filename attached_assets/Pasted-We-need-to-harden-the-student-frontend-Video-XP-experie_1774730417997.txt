@@ -1,0 +1,94 @@
+We need to harden the student frontend Video XP experience.
+
+Current issue:
+XP logic is working backend-side, and admin video XP config is now fully wired. But in the student frontend, XP/confetti/XP-card update did not happen reliably after fast-forwarding and completing a video.
+
+Audit first, then fix root cause. Do not patch blindly.
+
+FILES TO AUDIT
+- video player component used in student video playback
+- XP completion caller
+- XP dashboard card component
+- any confetti helper
+- any event-based XP refresh logic
+
+GOAL
+Ensure all of this works reliably:
+1. completion is detected even after fast-forward near the end
+2. XP API is called exactly once per completion
+3. confetti always fires when xpAwarded > 0
+4. XP card updates instantly after completion
+5. no duplicate XP calls
+6. default video quality is 480p via code, with remembered user preference
+
+PART 1 — COMPLETION DETECTION
+For native <video> playback:
+- use both onEnded and onTimeUpdate
+- treat as complete if currentTime >= duration - 2 seconds
+- guard with completionFiredRef so API is called once only
+
+For iframe/Bunny/YouTube playback:
+- keep existing postMessage ended detection
+- verify Bunny ended event handling
+- verify YouTube playerState=0 handling
+- add fallback logging if iframe events do not fire reliably
+
+PART 2 — XP API CALL
+On completion:
+- call the single canonical route already used by this app
+- log the exact API response during debugging
+- handle xpAwarded, completionNumber, xpMultiplier, newTotal safely
+
+PART 3 — CONFETTI + FEEDBACK
+If xpAwarded > 0:
+- always trigger confetti immediately after successful API response
+- show strong message:
+  - 1st: “🎉 You earned {xpAwarded} XP!”
+  - 2nd: “✨ You earned {xpAwarded} XP on your second completion”
+If xpAwarded = 0:
+- show: “✓ Video completed — No XP for this attempt”
+
+Do not let confetti depend on stale state.
+
+PART 4 — XP CARD UPDATE
+Immediately after successful completion:
+- dispatch window CustomEvent("xp-awarded", { detail: { xpAwarded, newTotal } })
+- also write localStorage.setItem("xp-last-update", Date.now().toString())
+
+In the XP card component:
+- listen to both "xp-awarded" and "storage"
+- refetch XP summary on those events
+- ensure no stale cache after event-driven refresh
+
+PART 5 — DEFAULT QUALITY = 480P
+Set default video quality in frontend code, not Bunny dashboard.
+- read preferred quality from localStorage
+- if absent, default to 480p
+- persist user-selected quality
+- keep manual quality switching available
+
+PART 6 — DEBUG LOGGING
+Temporarily add logs for:
+- VIDEO_COMPLETION_TRIGGERED
+- XP_API_CALLED
+- XP_RESPONSE
+- CONFETTI_TRIGGERED
+- XP_CARD_REFRESH_TRIGGERED
+
+PART 7 — VALIDATION
+Verify:
+1. normal completion triggers XP
+2. fast-forward to end still triggers XP
+3. 1st/2nd/3rd completion rules still work
+4. confetti always appears when xpAwarded > 0
+5. XP card updates instantly
+6. no duplicate API calls
+7. 480p is default unless user changed preference
+
+DELIVERABLE
+Return:
+1. exact root cause of missed XP/confetti on fast-forward completion
+2. files changed
+3. what was fixed in each file
+4. proof that XP card now refreshes immediately
+5. proof that 480p default is applied from frontend code
