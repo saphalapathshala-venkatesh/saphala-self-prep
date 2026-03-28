@@ -41,7 +41,7 @@ function videoEntitlementExpr(userId: string): string {
           AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
           AND (
             ue."productCode" = v."courseId"
-            OR ue."productCode" = c."productCategory"
+            OR ue."productCode" = c."productCategory"::text
           )
       )
     END
