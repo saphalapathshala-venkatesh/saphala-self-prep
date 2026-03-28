@@ -8,13 +8,15 @@ export const dynamic = "force-dynamic";
 
 const STATUS_LABEL: Record<DoubtStatus, string> = {
   OPEN:      "Open",
-  ADDRESSED: "Answered",
+  ANSWERED:  "Answered",
+  ADDRESSED: "Addressed",
   CLOSED:    "Closed",
 };
 
 const STATUS_STYLES: Record<DoubtStatus, string> = {
   OPEN:      "bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200",
-  ADDRESSED: "bg-green-50 text-green-700 ring-1 ring-green-200",
+  ANSWERED:  "bg-green-50 text-green-700 ring-1 ring-green-200",
+  ADDRESSED: "bg-blue-50 text-blue-700 ring-1 ring-blue-200",
   CLOSED:    "bg-gray-100 text-gray-500",
 };
 
@@ -39,11 +41,8 @@ export default async function AdminDoubtsPage({
     orderBy: { createdAt: "desc" },
     take: 100,
     include: {
-      user: { select: { id: true, name: true, fullName: true, email: true, mobile: true } },
-      replies: {
-        orderBy: { createdAt: "asc" },
-        include: { author: { select: { name: true, fullName: true, role: true } } },
-      },
+      user:         { select: { id: true, name: true, fullName: true, email: true, mobile: true } },
+      answerAuthor: { select: { id: true, name: true, fullName: true, role: true } },
     },
   });
 
@@ -52,6 +51,8 @@ export default async function AdminDoubtsPage({
     _count: { _all: true },
   });
   const countMap = Object.fromEntries(counts.map((c) => [c.status, c._count._all]));
+
+  const filterStatuses: DoubtStatus[] = ["OPEN", "ANSWERED", "ADDRESSED", "CLOSED"];
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
@@ -62,8 +63,8 @@ export default async function AdminDoubtsPage({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {(["OPEN", "ADDRESSED", "CLOSED"] as DoubtStatus[]).map((s) => (
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {filterStatuses.map((s) => (
           <Link
             key={s}
             href={s === filterStatus ? "/admin/doubts" : `/admin/doubts?status=${s}`}
@@ -96,7 +97,9 @@ export default async function AdminDoubtsPage({
                 <div className="flex items-start gap-4 px-5 py-4 border-b border-gray-50">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-bold text-[#2D1B69] truncate">{doubt.title}</p>
+                      <p className="text-sm font-bold text-[#2D1B69] truncate">
+                        {doubt.title ?? <span className="italic text-gray-400">No title</span>}
+                      </p>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_STYLES[doubt.status]}`}>
                         {STATUS_LABEL[doubt.status]}
                       </span>
@@ -108,13 +111,15 @@ export default async function AdminDoubtsPage({
                       {" · "}{formatDate(doubt.createdAt)}
                     </p>
                   </div>
-                  <Link
-                    href={`/videos/${doubt.videoId}`}
-                    target="_blank"
-                    className="text-xs text-[#6D4BCB] hover:underline flex-shrink-0"
-                  >
-                    View video ↗
-                  </Link>
+                  {doubt.videoId && (
+                    <Link
+                      href={`/videos/${doubt.videoId}`}
+                      target="_blank"
+                      className="text-xs text-[#6D4BCB] hover:underline flex-shrink-0"
+                    >
+                      View video ↗
+                    </Link>
+                  )}
                 </div>
 
                 {/* Doubt body */}
@@ -122,27 +127,23 @@ export default async function AdminDoubtsPage({
                   <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{doubt.body}</p>
                 </div>
 
-                {/* Existing replies */}
-                {doubt.replies.length > 0 && (
-                  <div className="px-5 py-4 space-y-3 border-t border-gray-50">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Replies</p>
-                    {doubt.replies.map((reply) => (
-                      <div key={reply.id} className={`rounded-xl p-3 ${reply.isAdminReply ? "bg-purple-50 border border-purple-100" : "bg-gray-50"}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs font-semibold text-gray-700">
-                            {reply.author.fullName || reply.author.name || "Admin"}
-                            {reply.isAdminReply && (
-                              <span className="ml-1.5 text-[10px] text-[#6D4BCB]">Mentor</span>
-                            )}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">{reply.body}</p>
+                {/* Existing answer */}
+                {doubt.answer && (
+                  <div className="px-5 py-4 space-y-2 border-t border-gray-50">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Current Answer</p>
+                    <div className="rounded-xl p-3 bg-purple-50 border border-purple-100">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold text-gray-700">
+                          {doubt.answerAuthor?.fullName || doubt.answerAuthor?.name || "Mentor"}
+                          <span className="ml-1.5 text-[10px] text-[#6D4BCB]">Mentor</span>
+                        </span>
                       </div>
-                    ))}
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap">{doubt.answer}</p>
+                    </div>
                   </div>
                 )}
 
-                {/* Reply form */}
+                {/* Reply / Close actions */}
                 <AdminDoubtActions doubtId={doubt.id} currentStatus={doubt.status} />
               </div>
             );

@@ -147,10 +147,10 @@ async function DashboardDataSections({
       getDashboardLiveClass(user.id).catch(() => null),
       getEnrolledCourses(user.id).catch(() => []),
       prisma.doubt.findMany({
-        where: { userId: user.id, status: "ADDRESSED" },
+        where: { userId: user.id, status: { in: ["ADDRESSED", "ANSWERED"] } },
         orderBy: { updatedAt: "desc" },
         take: 3,
-        include: { replies: { where: { isAdminReply: true }, orderBy: { createdAt: "desc" }, take: 1 } },
+        select: { id: true, title: true, answer: true, status: true },
       }).catch(() => []),
     ]);
 
@@ -525,10 +525,10 @@ async function DashboardDataSections({
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-[#2D1B69] truncate">{doubt.title}</p>
-                      {doubt.replies[0] && (
+                      <p className="text-sm font-semibold text-[#2D1B69] truncate">{doubt.title ?? "Untitled doubt"}</p>
+                      {doubt.answer && (
                         <p className="text-xs text-gray-500 truncate mt-0.5">
-                          Mentor: {doubt.replies[0].body.slice(0, 80)}{doubt.replies[0].body.length > 80 ? "…" : ""}
+                          Mentor: {doubt.answer.slice(0, 80)}{doubt.answer.length > 80 ? "…" : ""}
                         </p>
                       )}
                     </div>

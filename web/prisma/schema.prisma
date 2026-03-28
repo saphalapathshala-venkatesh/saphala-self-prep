@@ -156,8 +156,8 @@ model User {
   purchases      Purchase[]
   paymentOrders  PaymentOrder[]
   refundRequests RefundRequest[]
-  doubts         Doubt[]
-  doubtReplies   DoubtReply[]   @relation("DoubtReplies")
+  doubts         Doubt[]        @relation("StudentDoubts")
+  answeredDoubts Doubt[]        @relation("AnsweredDoubts")
   @@index([role])
 }
 model Session {
@@ -774,36 +774,26 @@ model RefundRequest {
 // DOUBTS
 enum DoubtStatus {
   OPEN
+  ANSWERED
   ADDRESSED
   CLOSED
 }
 
 model Doubt {
-  id        String      @id @default(cuid())
-  userId    String
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  videoId   String
-  title     String
-  body      String
-  status    DoubtStatus @default(OPEN)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  replies   DoubtReply[]
+  id           String      @id @default(cuid())
+  userId       String
+  user         User        @relation("StudentDoubts", fields: [userId], references: [id], onDelete: Cascade)
+  videoId      String?
+  courseId     String?
+  title        String?
+  body         String
+  answer       String?
+  answeredById String?
+  answerAuthor User?       @relation("AnsweredDoubts", fields: [answeredById], references: [id], onDelete: SetNull)
+  status       DoubtStatus @default(OPEN)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
   @@index([userId, createdAt])
-  @@index([videoId, status])
   @@index([status, createdAt])
-}
-
-model DoubtReply {
-  id           String   @id @default(cuid())
-  doubtId      String
-  doubt        Doubt    @relation(fields: [doubtId], references: [id], onDelete: Cascade)
-  authorId     String
-  author       User     @relation("DoubtReplies", fields: [authorId], references: [id], onDelete: Cascade)
-  body         String
-  isAdminReply Boolean  @default(false)
-  createdAt    DateTime @default(now())
-
-  @@index([doubtId, createdAt])
 }

@@ -1,0 +1,105 @@
+We need a clean production-safe fix for the student/frontend Doubts module in the Saphala frontend app. The admin doubts module was already fixed after discovering schema drift in the live Neon DB. Now the frontend /doubts page is crashing with a server-side exception. Fix the frontend doubts flow fully and align it with the actual live Prisma/DB schema and the corrected doubts APIs.
+
+IMPORTANT CONTEXT
+The real live Doubt table is already aligned to this shape:
+- userId (not studentId)
+- body (not question)
+- title exists
+- videoId may be nullable
+- courseId may be nullable
+- answer may be nullable
+- answeredById may be nullable
+- no tenantId
+- status includes OPEN / ANSWERED / ADDRESSED (preserve actual schema values if they differ)
+Admin doubts was already fixed accordingly. Now the frontend app must be aligned too.
+
+GOAL
+Fix the frontend/student doubts system end-to-end so that:
+1. /doubts page loads without server-side crash
+2. student can view their own doubts
+3. student can create a doubt safely
+4. frontend uses the real schema/API shape
+5. null relations do not crash the UI
+6. no old field assumptions remain
+
+TASKS
+
+A) AUDIT FIRST
+1. Inspect the frontend /doubts page and any related components
+2. Inspect any frontend doubts API routes used by the page
+3. Inspect the shared Prisma schema / client actually used by this app
+4. Inspect current doubt create/list/read code paths
+5. Find every old assumption still using:
+   - question
+   - studentId
+   - tenantId
+   - old relation names
+6. Identify the exact line(s) causing the server-side crash on /doubts
+
+B) FIX FRONTEND DOUBTS PAGE
+1. Update /doubts page to use the real doubt fields:
+   - body instead of question
+   - userId instead of studentId where relevant
+   - title if present
+   - answer if present
+2. Ensure page only fetches doubts for the logged-in user
+3. Add proper loading, empty, and error states
+4. Add null-safe rendering for optional relations:
+   - video
+   - course
+   - answeredBy
+5. Do not let missing video/course crash the page
+6. If server fetch fails, show a friendly student-facing error state instead of a framework crash
+
+C) FIX STUDENT DOUBTS API / DATA FETCHING
+1. If the student-facing doubts API still uses old fields, align it to the real schema
+2. Do NOT trust studentId from request body; derive userId from session
+3. Use body as the main doubt text field
+4. Keep title optional if appropriate
+5. Ensure only the authenticated student can read their own doubts
+6. Ensure create/list routes return a stable JSON shape
+7. Remove any tenantId usage if it no longer exists in schema
+
+D) FIX CREATE DOUBT FLOW
+1. Audit the doubt submission flow from video page / course page
+2. Make sure create route writes using:
+   - userId from session
+   - body from form input
+   - optional title
+   - optional videoId/courseId
+3. Preserve compatibility with current UI where possible
+4. Ensure success response shape matches what the frontend expects
+5. Add safe validation errors for empty doubt body
+
+E) DEFENSIVE UI + ERROR HANDLING
+1. Add proper try/catch in server actions / route handlers / page loaders
+2. Add useful logs for server-side failures
+3. Avoid silent empty states when API fails
+4. Prevent runtime crash if status is unknown or answer is null
+
+F) DO NOT DO THESE
+1. Do NOT make unrelated refactors
+2. Do NOT introduce new schema changes unless absolutely required
+3. Do NOT reintroduce tenantId/studentId/question if live schema uses userId/body
+4. Do NOT expose other students’ doubts
+5. Do NOT break the already-working admin doubts fix
+
+G) VALIDATION
+Before finishing, verify:
+1. /doubts page loads without crash
+2. logged-in student sees their own doubts
+3. student can submit a new doubt from video/course flow
+4. newly submitted doubt appears in student doubts list
+5. admin can still see the same doubt in admin app
+6. null course/video/answer values do not break UI
+7. non-logged-in user is redirected or blocked appropriately
+
+H) DELIVERABLES
+After changes, provide:
+1. exact root cause of the /doubts page crash
+2. files changed
+3. what was fixed in each file
+4. whether any old question/studentId/tenantId assumptions were found
+5. any remaining follow-up recommendations
+
+This must be a precise schema-alignment fix, not a patch. Inspect actual code first, then update the frontend doubts page and related APIs to match the real live Doubt model.

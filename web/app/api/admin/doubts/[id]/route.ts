@@ -17,13 +17,8 @@ export async function GET(
   const doubt = await prisma.doubt.findUnique({
     where: { id },
     include: {
-      user: { select: { id: true, name: true, fullName: true, email: true, mobile: true } },
-      replies: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          author: { select: { id: true, name: true, fullName: true, role: true } },
-        },
-      },
+      user:         { select: { id: true, name: true, fullName: true, email: true, mobile: true } },
+      answerAuthor: { select: { id: true, name: true, fullName: true, role: true } },
     },
   });
 
@@ -49,9 +44,12 @@ export async function PATCH(
   }
 
   const { status } = body;
-  const validStatuses: DoubtStatus[] = ["OPEN", "ADDRESSED", "CLOSED"];
+  const validStatuses: DoubtStatus[] = ["OPEN", "ANSWERED", "ADDRESSED", "CLOSED"];
   if (!status || !validStatuses.includes(status)) {
-    return NextResponse.json({ error: "Valid status required: OPEN, ADDRESSED, CLOSED" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Valid status required: OPEN, ANSWERED, ADDRESSED, CLOSED" },
+      { status: 400 },
+    );
   }
 
   const doubt = await prisma.doubt.findUnique({ where: { id } });

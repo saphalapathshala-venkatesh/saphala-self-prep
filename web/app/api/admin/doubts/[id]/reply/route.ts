@@ -27,19 +27,15 @@ export async function POST(
   const doubt = await prisma.doubt.findUnique({ where: { id } });
   if (!doubt) return NextResponse.json({ error: "Doubt not found" }, { status: 404 });
 
-  const reply = await prisma.doubtReply.create({
+  // Store the answer inline on the Doubt row (no separate DoubtReply table)
+  const updated = await prisma.doubt.update({
+    where: { id },
     data: {
-      doubtId: id,
-      authorId: auth.user.id,
-      body: body.body.trim(),
-      isAdminReply: true,
+      answer:       body.body.trim(),
+      answeredById: auth.user.id,
+      status:       "ADDRESSED",
     },
   });
 
-  await prisma.doubt.update({
-    where: { id },
-    data: { status: "ADDRESSED" },
-  });
-
-  return NextResponse.json({ reply }, { status: 201 });
+  return NextResponse.json({ doubt: updated }, { status: 201 });
 }

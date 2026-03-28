@@ -16,12 +16,7 @@ export async function GET(
   const doubt = await prisma.doubt.findFirst({
     where: { id, userId: user.id },
     include: {
-      replies: {
-        orderBy: { createdAt: "asc" },
-        include: {
-          author: { select: { id: true, name: true, fullName: true, role: true } },
-        },
-      },
+      answerAuthor: { select: { id: true, fullName: true, name: true, role: true } },
     },
   });
 

@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
       skip,
       take: limit,
       include: {
-        user: { select: { id: true, name: true, fullName: true, email: true, mobile: true } },
-        replies: { select: { id: true, isAdminReply: true } },
+        user:         { select: { id: true, name: true, fullName: true, email: true, mobile: true } },
+        answerAuthor: { select: { id: true, fullName: true, name: true } },
       },
     }),
     prisma.doubt.count({ where }),
