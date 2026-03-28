@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface XpSummary {
   xpTotal: number;
@@ -18,49 +18,71 @@ interface XpMetricCardProps {
   initialIsReal: boolean;
 }
 
+const XP_SIGNAL_KEY = "xp-last-update";
+
 export default function XpMetricCard({ initialXpTotal, initialIsReal }: XpMetricCardProps) {
   const [xpTotal, setXpTotal] = useState(initialXpTotal);
   const [isReal, setIsReal]   = useState(initialIsReal);
   const [flash, setFlash]     = useState(false);
 
+  // Keep a ref to xpTotal so the refresh callback always compares against the
+  // current value without needing xpTotal in its dependency array (which would
+  // recreate the callback on every update and break the event listeners).
+  const xpTotalRef = useRef(initialXpTotal);
+  useEffect(() => { xpTotalRef.current = xpTotal; }, [xpTotal]);
+
+  const applyFlash = useCallback((newTotal: number) => {
+    setXpTotal(newTotal);
+    setIsReal(newTotal > 0);
+    setFlash(true);
+    setTimeout(() => setFlash(false), 1500);
+  }, []);
+
   const refresh = useCallback(async () => {
     try {
-      const res = await fetch("/api/student/xp/summary");
+      const res = await fetch("/api/student/xp/summary", { cache: "no-store" });
       if (!res.ok) return;
       const data: XpSummary = await res.json();
-      if (data.xpTotal !== xpTotal) {
-        setXpTotal(data.xpTotal);
-        setIsReal(data.xpTotal > 0);
-        setFlash(true);
-        setTimeout(() => setFlash(false), 1500);
+      if (data.xpTotal !== xpTotalRef.current) {
+        applyFlash(data.xpTotal);
       }
-    } catch {
-      // silent — stale value stays
-    }
-  }, [xpTotal]);
+    } catch { /* silent — stale value stays */ }
+  }, [applyFlash]);
 
-  // Fetch live value on mount to override any stale SSR data
+  // ── 1. Fetch live value on mount to override any stale SSR data ──────────────
   useEffect(() => {
     refresh();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Listen for XP-awarded event dispatched by VideoPlayerWithXp (same-page scenarios)
+  // ── 2. Same-tab: listen for xp-awarded custom event ─────────────────────────
+  //    Fires when VideoPlayerWithXp is on the same page as the dashboard card.
   useEffect(() => {
     function onXpAwarded(e: Event) {
       const ev = e as CustomEvent<{ xpAwarded: number; newTotal: number }>;
-      if (ev.detail.xpAwarded > 0) {
-        setXpTotal(ev.detail.newTotal);
-        setIsReal(true);
-        setFlash(true);
-        setTimeout(() => setFlash(false), 1500);
+      // Update immediately with the value from the API response (no extra fetch needed)
+      if (ev.detail.newTotal !== xpTotalRef.current) {
+        applyFlash(ev.detail.newTotal);
       }
     }
     window.addEventListener("xp-awarded", onXpAwarded);
     return () => window.removeEventListener("xp-awarded", onXpAwarded);
-  }, []);
+  }, [applyFlash]);
 
-  // Re-fetch when the tab regains focus (student navigated back from a video page)
+  // ── 3. Cross-tab: listen for localStorage signal set by VideoPlayerWithXp ───
+  //    When the student has the video in one tab and the dashboard in another,
+  //    the storage event fires in the dashboard tab → triggers a fresh fetch.
+  useEffect(() => {
+    function onStorage(e: StorageEvent) {
+      if (e.key === XP_SIGNAL_KEY) {
+        refresh();
+      }
+    }
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [refresh]);
+
+  // ── 4. Tab focus: re-fetch when the student navigates back from a video page ─
   useEffect(() => {
     window.addEventListener("focus", refresh);
     return () => window.removeEventListener("focus", refresh);
@@ -69,7 +91,7 @@ export default function XpMetricCard({ initialXpTotal, initialIsReal }: XpMetric
   const displayValue = String(xpTotal);
   const subtitle = xpTotal > 0
     ? "Keep learning to earn more"
-    : "Complete tests & flashcards to earn XP";
+    : "Complete tests & lessons to earn XP";
 
   return (
     <div
@@ -82,9 +104,15 @@ export default function XpMetricCard({ initialXpTotal, initialIsReal }: XpMetric
           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
         </svg>
       </div>
-      <p className={`text-xl font-bold text-[#2D1B69] leading-tight transition-all ${
-        !isReal ? "opacity-50" : flash ? "scale-110 text-amber-600" : ""
-      }`}>
+      <p
+        className={`text-xl font-bold leading-tight transition-all duration-300 ${
+          !isReal
+            ? "text-[#2D1B69] opacity-50"
+            : flash
+            ? "text-amber-600 scale-110"
+            : "text-[#2D1B69]"
+        }`}
+      >
         {displayValue}
       </p>
       <p className="text-xs text-gray-400 font-medium mt-0.5">XP Earned</p>

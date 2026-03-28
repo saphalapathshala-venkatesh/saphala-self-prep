@@ -29,6 +29,9 @@ interface VideoPlayerWithXpProps {
 
 type XpStatus = "idle" | "loading" | "done" | "error";
 
+// localStorage key — signals other open tabs (dashboard) that XP was updated
+const XP_SIGNAL_KEY = "xp-last-update";
+
 export default function VideoPlayerWithXp({
   videoId,
   title,
@@ -42,19 +45,26 @@ export default function VideoPlayerWithXp({
   accessType,
   onXpAwarded,
 }: VideoPlayerWithXpProps) {
-  const [xpStatus, setXpStatus]             = useState<XpStatus>("idle");
-  const [xpAwarded, setXpAwarded]           = useState(0);
-  const [xpMultiplier, setXpMultiplier]     = useState(0);
-  const [xpCompletionNumber, setXpNumber]   = useState(0);
-  const [newTotal, setNewTotal]             = useState(0);
-  const [doubtOpen, setDoubtOpen]           = useState(false);
-  const [doubtDone, setDoubtDone]           = useState(false);
-  const completedRef                        = useRef(false);
+  const [xpStatus, setXpStatus]           = useState<XpStatus>("idle");
+  const [xpAwarded, setXpAwarded]         = useState(0);
+  const [xpCompletionNumber, setXpNumber] = useState(0);
+  const [newTotal, setNewTotal]           = useState(0);
+  const [doubtOpen, setDoubtOpen]         = useState(false);
+  const [doubtDone, setDoubtDone]         = useState(false);
+
+  // Prevents the XP API from being called more than once per player session.
+  // CourseVideoPlayer's completionSentRef prevents duplicate onEnded() calls at
+  // the player level; this ref prevents duplicates at the XP API call level.
+  const xpCalledRef = useRef(false);
 
   async function handleVideoEnded() {
-    if (completedRef.current) return;
-    completedRef.current = true;
+    if (xpCalledRef.current) {
+      console.log("[XP_API_CALLED] skipped — already fired for this session");
+      return;
+    }
+    xpCalledRef.current = true;
     setXpStatus("loading");
+    console.log("[XP_API_CALLED] POST /api/student/videos/complete", { videoId });
 
     try {
       const res = await fetch("/api/student/videos/complete", {
@@ -63,27 +73,47 @@ export default function VideoPlayerWithXp({
         body: JSON.stringify({ videoId }),
       });
       const data = await res.json();
+      console.log("[XP_RESPONSE]", data);
+
       const awarded: number    = data.xpAwarded        ?? 0;
       const multiplier: number = data.xpMultiplier     ?? 0;
       const completion: number = data.completionNumber ?? 0;
       const total: number      = data.newTotal         ?? 0;
+
       setXpAwarded(awarded);
-      setXpMultiplier(multiplier);
       setXpNumber(completion);
       setNewTotal(total);
       setXpStatus("done");
-      if (awarded > 0) triggerXpCelebration();
-      // Notify any XP card listening on this page
+
+      if (awarded > 0) {
+        console.log("[CONFETTI_TRIGGERED] xpAwarded=" + awarded);
+        triggerXpCelebration();
+      }
+
+      // ── Notify XP card on the same page (same-tab, same-route scenarios)
       window.dispatchEvent(
         new CustomEvent("xp-awarded", { detail: { xpAwarded: awarded, newTotal: total } }),
       );
-      onXpAwarded?.({ xpAwarded: awarded, completionNumber: completion, xpMultiplier: multiplier, newTotal: total });
-    } catch {
+
+      // ── Signal other open tabs (e.g. dashboard tab) via localStorage
+      try {
+        localStorage.setItem(XP_SIGNAL_KEY, Date.now().toString());
+      } catch { /* ignore */ }
+
+      onXpAwarded?.({
+        xpAwarded:        awarded,
+        completionNumber: completion,
+        xpMultiplier:     multiplier,
+        newTotal:         total,
+      });
+    } catch (err) {
+      console.error("[XP_RESPONSE] fetch failed", err);
       setXpStatus("error");
     }
   }
 
-  // ── XP result banner copy ─────────────────────────────────────────────────
+  // ── XP result banner ────────────────────────────────────────────────────────
+
   function renderXpBanner() {
     if (!xpEnabled) {
       return (
@@ -95,18 +125,16 @@ export default function VideoPlayerWithXp({
     }
 
     if (xpAwarded > 0) {
-      const headingEmoji = xpCompletionNumber === 1 ? "🎉" : "✨";
-      const headingText  = xpCompletionNumber === 1
+      const emoji   = xpCompletionNumber === 1 ? "🎉" : "✨";
+      const message = xpCompletionNumber === 1
         ? `You earned ${xpAwarded} XP!`
         : `You earned ${xpAwarded} XP on your second completion`;
 
       return (
-        <div className="mx-6 my-4 space-y-2">
+        <div className="mx-6 my-4">
           <div className="bg-gradient-to-r from-[#2D1B69] to-[#6D4BCB] rounded-xl px-4 py-3 flex items-center justify-between">
             <div>
-              <p className="text-white font-bold text-sm">
-                {headingEmoji} {headingText}
-              </p>
+              <p className="text-white font-bold text-sm">{emoji} {message}</p>
               <p className="text-white/70 text-xs mt-0.5">
                 Total XP: {newTotal} · Keep learning to level up!
               </p>
@@ -120,12 +148,11 @@ export default function VideoPlayerWithXp({
       );
     }
 
-    // xpAwarded === 0 but xpEnabled
-    const isThirdPlus = xpCompletionNumber >= 3;
+    // xpEnabled but xpAwarded === 0
     return (
       <div className="mx-6 my-4 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
         <p className="text-sm font-semibold text-gray-700">✓ Video completed — no XP for this attempt</p>
-        {isThirdPlus && (
+        {xpCompletionNumber >= 3 && (
           <p className="text-xs text-gray-500 mt-0.5">
             XP is only awarded on the 1st and 2nd completion. You&apos;ve already earned the maximum XP for this video.
           </p>
@@ -165,7 +192,7 @@ export default function VideoPlayerWithXp({
           </div>
         )}
 
-        {/* ── Pre-play XP indication (idle state only) ── */}
+        {/* ── Pre-play XP indication ── */}
         {xpEnabled && xpValue > 0 && xpStatus === "idle" && (
           <div className="px-6 pt-4">
             <div className="bg-purple-50 rounded-xl px-4 py-3 border border-[#6D4BCB]/15">
@@ -206,19 +233,27 @@ export default function VideoPlayerWithXp({
           )}
         </div>
 
-        {/* XP loading spinner */}
+        {/* XP saving spinner */}
         {xpStatus === "loading" && (
           <div className="mx-6 my-4 bg-purple-50 rounded-xl px-4 py-3 flex items-center gap-3">
             <svg className="w-5 h-5 text-[#6D4BCB] animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
             </svg>
-            <p className="text-sm text-[#6D4BCB] font-medium">Saving XP…</p>
+            <p className="text-sm text-[#6D4BCB] font-medium">Saving progress…</p>
           </div>
         )}
 
         {/* XP result banner */}
         {xpStatus === "done" && renderXpBanner()}
+
+        {/* Network error */}
+        {xpStatus === "error" && (
+          <div className="mx-6 my-4 bg-red-50 rounded-xl px-4 py-3 border border-red-100">
+            <p className="text-sm font-semibold text-red-700">✓ Video completed</p>
+            <p className="text-xs text-red-500 mt-0.5">Could not save progress — please check your connection.</p>
+          </div>
+        )}
 
         {/* Ask a Doubt button — show only when entitled */}
         {canWatch && (

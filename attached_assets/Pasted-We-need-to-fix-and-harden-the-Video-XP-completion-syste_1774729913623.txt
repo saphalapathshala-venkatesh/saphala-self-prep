@@ -1,0 +1,169 @@
+We need to fix and harden the Video XP + completion system in the student frontend.
+
+Current issues:
+1. XP is not triggering when user fast-forwards and completes video
+2. Confetti is not always shown
+3. XP dashboard card is not updating instantly
+4. Default video quality must be 480p (not handled yet)
+
+Do NOT assume anything. First audit existing implementation in:
+- components/video/VideoPlayerWithXp.tsx (or CourseVideoPlayer)
+- XP API call (/api/student/videos/complete)
+- XP card component (XpMetricCard or dashboard XP component)
+
+--------------------------------------------------
+PART 1: FIX VIDEO COMPLETION DETECTION (CRITICAL)
+--------------------------------------------------
+
+Problem:
+onEnded is not reliable when user seeks to end.
+
+Implement robust detection:
+
+For <video>:
+- Use BOTH:
+  1. onEnded
+  2. onTimeUpdate
+
+Logic:
+- Get duration
+- If currentTime >= duration - 2 seconds → treat as completed
+
+IMPORTANT:
+- Use a ref: completionFiredRef to prevent duplicate API calls
+
+Example behavior:
+IF (duration - currentTime <= 2 seconds) AND not already fired
+→ trigger completion
+
+--------------------------------------------------
+PART 2: HANDLE IFRAME PLAYERS (BUNNY / YOUTUBE)
+--------------------------------------------------
+
+Check existing postMessage logic.
+
+Ensure:
+- Bunny: { event: "ended" }
+- YouTube: playerState === 0
+
+Also ADD fallback:
+- If iframe does not emit reliably → implement polling:
+  - Check playback time if API available
+  - Otherwise fallback to ended event only
+
+--------------------------------------------------
+PART 3: ENSURE XP API CALL IS ALWAYS FIRED
+--------------------------------------------------
+
+When completion is detected:
+
+Call:
+POST /api/student/videos/complete
+body: { videoId }
+
+After response:
+- ALWAYS log response
+- Handle:
+  {
+    xpAwarded,
+    completionNumber,
+    xpMultiplier,
+    newTotal
+  }
+
+--------------------------------------------------
+PART 4: FIX CONFETTI + XP FEEDBACK (MANDATORY)
+--------------------------------------------------
+
+After API success:
+
+IF xpAwarded > 0:
+- Trigger confetti
+- Show banner:
+  🎉 "You earned {xpAwarded} XP"
+
+ELSE:
+- Show:
+  "✓ Video completed — No XP for this attempt"
+
+CONFETTI REQUIREMENTS:
+- Must trigger EVERY time xpAwarded > 0
+- Must NOT depend on stale state
+- Use direct trigger after API response
+
+--------------------------------------------------
+PART 5: FORCE XP DASHBOARD UPDATE (VERY IMPORTANT)
+--------------------------------------------------
+
+Immediately after success:
+
+Dispatch global event:
+
+window.dispatchEvent(new CustomEvent("xp-awarded", {
+  detail: { xpAwarded, newTotal }
+}));
+
+AND ALSO:
+
+localStorage.setItem("xp-last-update", Date.now().toString());
+
+--------------------------------------------------
+PART 6: UPDATE XP CARD LISTENER
+--------------------------------------------------
+
+In XP dashboard card component:
+
+Listen to:
+- "xp-awarded"
+- "storage"
+
+On event:
+→ refetch /api/student/xp/summary
+
+NO caching allowed after event
+
+--------------------------------------------------
+PART 7: DEFAULT VIDEO QUALITY = 480p
+--------------------------------------------------
+
+Implement in player:
+
+- Read preferredQuality from localStorage
+- If not set → default = "480p"
+
+Apply to:
+- HLS (hls.js startLevel)
+OR
+- Bunny player config
+
+Also:
+- Add quality selector UI (if not present)
+- Save preference to localStorage
+
+--------------------------------------------------
+PART 8: DEBUG LOGGING (TEMPORARY)
+--------------------------------------------------
+
+Add logs:
+
+- "VIDEO_COMPLETION_TRIGGERED"
+- "XP_API_CALLED"
+- "XP_RESPONSE"
+- "CONFETTI_TRIGGERED"
+
+So we can verify flow
+
+--------------------------------------------------
+PART 9: FINAL VERIFICATION CHECKLIST
+--------------------------------------------------
+
+After implementation confirm:
+
+1. Normal watch → XP triggered
+2. Fast forward → XP triggered
+3. Multiple watches → 100% / 50% / 0 works
+4. Confetti always shows when XP > 0
+5. XP card updates instantly without refresh
+6. No duplicate API calls
+
+Do NOT skip any step. Fix root cause, not patch.

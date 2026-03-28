@@ -37,16 +37,36 @@ export interface CourseVideoPlayerProps {
 interface ResolvedSource {
   /** HLS .m3u8 URL (Bunny signed or plain). Null when using embed path. */
   manifestUrl: string | null;
-  /**
-   * Iframe embed URL. Set for:
-   *   - YouTube  → https://www.youtube.com/embed/{id}?...
-   *   - Bunny    → https://iframe.mediadelivery.net/embed/{libId}/{videoId}?...
-   *                (only when hlsUrl is absent and BUNNY_LIBRARY_ID is configured)
-   */
   embedUrl: string | null;
   provider: string;
   providerVideoId: string | null;
   posterUrl: string | null;
+}
+
+// ── Quality level ─────────────────────────────────────────────────────────────
+
+interface QualityLevel {
+  index: number; // -1 = auto
+  label: string; // "Auto" | "1080p" | "720p" | etc.
+  height: number;
+}
+
+const QUALITY_KEY = "saphala_video_quality";
+
+function getPreferredQuality(): string {
+  try { return localStorage.getItem(QUALITY_KEY) ?? "480p"; } catch { return "480p"; }
+}
+
+function savePreferredQuality(q: string): void {
+  try { localStorage.setItem(QUALITY_KEY, q); } catch { /* ignore */ }
+}
+
+function pickLevelForHeight(levels: QualityLevel[], targetHeight: number): number {
+  if (levels.length === 0) return -1;
+  // Prefer the highest level that is <= targetHeight; fall back to lowest available
+  const candidates = levels.filter((l) => l.height > 0 && l.height <= targetHeight);
+  if (candidates.length === 0) return levels[0].index; // lowest available
+  return candidates.reduce((best, l) => (l.height > best.height ? l : best)).index;
 }
 
 // ── Progress tracker hook ─────────────────────────────────────────────────────
@@ -54,7 +74,6 @@ interface ResolvedSource {
 function useProgressTracker(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   onProgress?: CourseVideoPlayerProps["onProgress"],
-  onEnded?: CourseVideoPlayerProps["onEnded"],
 ) {
   const lastEmitRef = useRef<number>(0);
   const THROTTLE_MS = 15_000;
@@ -74,12 +93,8 @@ function useProgressTracker(
 
   const handleTimeUpdate = useCallback(() => emit(false), [emit]);
   const handlePause      = useCallback(() => emit(true),  [emit]);
-  const handleEnded      = useCallback(() => {
-    emit(true);
-    onEnded?.();
-  }, [emit, onEnded]);
 
-  return { handleTimeUpdate, handlePause, handleEnded };
+  return { handleTimeUpdate, handlePause };
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -101,20 +116,41 @@ export default function CourseVideoPlayer({
   const loadedUrlRef = useRef<string>("");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Source resolution state (only used when playbackApiUrl is provided)
+  // One-shot guard: prevents CourseVideoPlayer from calling onEnded more than once
+  // per video session (covers both near-end detection AND the "ended" DOM event).
+  const completionSentRef = useRef(false);
+
+  // Keep a stable ref to onEnded so callbacks always call the latest version
+  const onEndedRef = useRef(onEnded);
+  useEffect(() => { onEndedRef.current = onEnded; }, [onEnded]);
+
+  // Source resolution state
   const [resolved,   setResolved]   = useState<ResolvedSource | null>(null);
   const [resolving,  setResolving]  = useState(false);
   const [resolveErr, setResolveErr] = useState<string | null>(null);
 
-  // HLS initialisation state
+  // HLS state
   const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
   const [unsupported, setUnsupported] = useState(false);
 
-  const { handleTimeUpdate, handlePause, handleEnded } =
-    useProgressTracker(videoRef, onProgress, onEnded);
+  // Quality selector state (HLS only)
+  const [availableLevels, setAvailableLevels] = useState<QualityLevel[]>([]);
+  const [currentQuality,  setCurrentQuality]  = useState<string>(getPreferredQuality());
+  const [qualityMenuOpen, setQualityMenuOpen] = useState(false);
 
-  // ── Step 1: resolve source from API (when playbackApiUrl is given) ──────────
+  const { handleTimeUpdate, handlePause } = useProgressTracker(videoRef, onProgress);
+
+  // ── Completion signal — single point of entry ────────────────────────────────
+
+  const fireCompletion = useCallback((reason: string) => {
+    if (completionSentRef.current) return;
+    completionSentRef.current = true;
+    console.log(`[VIDEO_COMPLETION_TRIGGERED] reason=${reason}`);
+    onEndedRef.current?.();
+  }, []);
+
+  // ── Step 1: resolve source from API ─────────────────────────────────────────
 
   const fetchSource = useCallback(async () => {
     if (!playbackApiUrl) return;
@@ -140,60 +176,111 @@ export default function CourseVideoPlayer({
   }, [playbackApiUrl]);
 
   useEffect(() => {
-    if (playbackApiUrl) {
-      fetchSource();
-    }
+    if (playbackApiUrl) fetchSource();
   }, [playbackApiUrl, fetchSource]);
 
   // ── Derived source values ────────────────────────────────────────────────────
 
-  // HLS manifest URL: direct prop wins, else from API response
   const effectiveManifestUrl = manifestUrlProp ?? resolved?.manifestUrl ?? null;
-  // Iframe embed URL: from API response only (never a prop — the player decides)
   const effectiveEmbedUrl    = resolved?.embedUrl ?? null;
-  // Poster: prop wins over API response
   const effectivePoster      = posterUrlProp ?? resolved?.posterUrl ?? null;
+  const useIframeEmbed       = Boolean(effectiveEmbedUrl);
 
-  // True when this video must render as an iframe (YouTube embed or Bunny embed)
-  const useIframeEmbed = Boolean(effectiveEmbedUrl);
+  // Reset completion guard when the video source changes
+  useEffect(() => {
+    completionSentRef.current = false;
+  }, [effectiveManifestUrl, effectiveEmbedUrl]);
 
-  // ── Step 2: detect resolved-with-no-source → clear loading spinner ──────────
+  // ── Step 2: no-source guard ──────────────────────────────────────────────────
 
   useEffect(() => {
-    // If the API responded but gave us neither an HLS URL nor an embed URL,
-    // stop the spinner and show a "not available" message instead of spinning forever.
-    if (
-      !resolving &&
-      resolved !== null &&
-      !effectiveManifestUrl &&
-      !effectiveEmbedUrl
-    ) {
+    if (!resolving && resolved !== null && !effectiveManifestUrl && !effectiveEmbedUrl) {
       setLoading(false);
       setError("This video is not available yet. Please check back later.");
     }
   }, [resolving, resolved, effectiveManifestUrl, effectiveEmbedUrl]);
 
-  // ── Step 3: initialise HLS once we have a manifest URL ──────────────────────
+  // ── Step 3: near-end detection for <video> element ──────────────────────────
+  // This fires onEnded when the user seeks near the end (within 2s), ensuring
+  // completion is captured even if the browser doesn't reliably fire "ended".
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || useIframeEmbed) return;
+
+    function checkNearEnd() {
+      if (!el || completionSentRef.current) return;
+      if (isNaN(el.duration) || el.duration < 1) return;
+      if (el.duration - el.currentTime <= 2) {
+        fireCompletion("near-end-timeupdate");
+      }
+    }
+
+    el.addEventListener("timeupdate", checkNearEnd);
+    return () => el.removeEventListener("timeupdate", checkNearEnd);
+  }, [useIframeEmbed, fireCompletion]);
+
+  // ── Step 4: ended DOM event handler ─────────────────────────────────────────
+
+  const handleEnded = useCallback(() => {
+    // Report final position via progress tracker
+    const el = videoRef.current;
+    if (el && !isNaN(el.duration)) {
+      onProgress?.({ currentTime: el.currentTime, duration: el.duration });
+    }
+    fireCompletion("ended-event");
+  }, [fireCompletion, onProgress, videoRef]);
+
+  // ── Step 5: iframe postMessage listener (Bunny / YouTube) ───────────────────
+
+  useEffect(() => {
+    if (!useIframeEmbed) return;
+
+    function onMessage(e: MessageEvent) {
+      try {
+        const raw  = e.data;
+        const data = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (!data || typeof data !== "object") return;
+
+        // Bunny player events: { event: "videoEnded" } or { event: "ended" }
+        if (data.event === "videoEnded" || data.event === "ended") {
+          fireCompletion("iframe-bunny-ended");
+          return;
+        }
+
+        // YouTube player events: { event: "infoDelivery", info: { playerState: 0 } }
+        if (
+          data.event === "infoDelivery" &&
+          data.info &&
+          typeof data.info === "object" &&
+          data.info.playerState === 0
+        ) {
+          fireCompletion("iframe-youtube-ended");
+          return;
+        }
+      } catch { /* non-JSON messages — ignore */ }
+    }
+
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [useIframeEmbed, fireCompletion]);
+
+  // ── Step 6: HLS initialisation with quality defaulting ──────────────────────
 
   const initHls = useCallback(async () => {
     const el = videoRef.current;
-    // Skip HLS init when using iframe embed or when there is no manifest
     if (!el || !effectiveManifestUrl || useIframeEmbed) return;
-
-    // Skip re-init for the same URL
     if (loadedUrlRef.current === effectiveManifestUrl) return;
     loadedUrlRef.current = effectiveManifestUrl;
 
-    // Tear down any existing instance
     hlsRef.current?.destroy();
     hlsRef.current = null;
     el.removeAttribute("src");
-
     setLoading(true);
     setError(null);
     setUnsupported(false);
+    setAvailableLevels([]);
 
-    // Dynamic import — keeps hls.js out of the global bundle
     const { default: Hls } = await import("hls.js");
 
     if (Hls.isSupported()) {
@@ -205,6 +292,31 @@ export default function CourseVideoPlayer({
       hls.once(Hls.Events.MANIFEST_PARSED, () => {
         setLoading(false);
         if (initialPositionSeconds) el.currentTime = initialPositionSeconds;
+
+        // Build quality level list for the selector
+        const levels: QualityLevel[] = hls.levels.map((l, i) => ({
+          index: i,
+          label: l.height > 0 ? `${l.height}p` : `Level ${i}`,
+          height: l.height ?? 0,
+        }));
+        if (levels.length > 1) {
+          setAvailableLevels(levels);
+          // Apply saved / default quality preference
+          const preferred = getPreferredQuality();
+          if (preferred !== "auto") {
+            const targetHeight = parseInt(preferred, 10);
+            if (!isNaN(targetHeight)) {
+              const idx = pickLevelForHeight(levels, targetHeight);
+              hls.startLevel = idx;
+              const matchedLabel = levels.find((l) => l.index === idx)?.label ?? preferred;
+              setCurrentQuality(matchedLabel);
+              console.log(`[VIDEO_QUALITY] default set to ${matchedLabel} (startLevel=${idx})`);
+            }
+          } else {
+            hls.startLevel = -1;
+            setCurrentQuality("Auto");
+          }
+        }
       });
 
       hls.on(Hls.Events.ERROR, (_, data) => {
@@ -241,7 +353,28 @@ export default function CourseVideoPlayer({
     };
   }, [initHls]);
 
-  // ── Retry ───────────────────────────────────────────────────────────────────
+  // ── Quality change handler ───────────────────────────────────────────────────
+
+  const handleQualityChange = useCallback((label: string) => {
+    const hls = hlsRef.current;
+    if (!hls) return;
+    if (label === "Auto") {
+      hls.currentLevel = -1;
+      setCurrentQuality("Auto");
+      savePreferredQuality("auto");
+    } else {
+      const level = availableLevels.find((l) => l.label === label);
+      if (level) {
+        hls.currentLevel = level.index;
+        setCurrentQuality(level.label);
+        savePreferredQuality(level.label);
+        console.log(`[VIDEO_QUALITY] switched to ${level.label} (level=${level.index})`);
+      }
+    }
+    setQualityMenuOpen(false);
+  }, [availableLevels]);
+
+  // ── Retry ────────────────────────────────────────────────────────────────────
 
   const handleRetry = useCallback(() => {
     if (resolveErr) {
@@ -252,46 +385,34 @@ export default function CourseVideoPlayer({
     }
   }, [resolveErr, fetchSource, initHls]);
 
-  // ── Fullscreen ──────────────────────────────────────────────────────────────
-
-  const handleFullscreen = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    if (!document.fullscreenElement) {
-      el.requestFullscreen?.();
-    } else {
-      document.exitFullscreen?.();
-    }
-  }, []);
-  void handleFullscreen;
-
-  // ── Derived display states ─────────────────────────────────────────────────
+  // ── Derived display states ───────────────────────────────────────────────────
 
   const showResolvingSpinner = resolving || (!!playbackApiUrl && !resolved && !resolveErr);
   const showHlsSpinner       = !showResolvingSpinner && !useIframeEmbed && loading && !error && !unsupported;
   const showError            = resolveErr ?? error ?? null;
 
-  // ── Iframe embed (YouTube or Bunny embed player) ───────────────────────────
-  // Render as soon as we have an embed URL — no loading state needed, the iframe handles it.
+  // ── Iframe embed (YouTube or Bunny embed player) ──────────────────────────────
 
   if (useIframeEmbed && effectiveEmbedUrl) {
     return (
-      <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
-        <iframe
-          src={effectiveEmbedUrl}
-          title={title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-          allowFullScreen
-          className="absolute inset-0 w-full h-full border-0"
-        />
+      <div>
+        <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
+          <iframe
+            src={effectiveEmbedUrl}
+            title={title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+            allowFullScreen
+            className="absolute inset-0 w-full h-full border-0"
+          />
+        </div>
       </div>
     );
   }
 
-  // ── HLS / native <video> player ────────────────────────────────────────────
+  // ── HLS / native <video> player ──────────────────────────────────────────────
 
   return (
-    <div ref={containerRef} className="relative w-full bg-black select-none group">
+    <div ref={containerRef} className="relative w-full bg-black select-none">
       <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
 
         {/* The video element — always rendered so ref is stable */}
@@ -354,12 +475,51 @@ export default function CourseVideoPlayer({
             </p>
           </Overlay>
         )}
+
+        {/* Quality selector button — top-right, only when levels are available */}
+        {availableLevels.length > 1 && !showHlsSpinner && !showError && (
+          <div className="absolute top-2 right-2 z-20">
+            <div className="relative">
+              <button
+                onClick={() => setQualityMenuOpen((o) => !o)}
+                className="flex items-center gap-1 bg-black/60 hover:bg-black/80 text-white text-[11px] font-semibold px-2.5 py-1 rounded-md border border-white/20 transition-colors"
+                aria-label="Video quality"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                {currentQuality}
+              </button>
+
+              {qualityMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-black/90 border border-white/20 rounded-lg py-1 min-w-[90px] z-30 shadow-lg">
+                  <button
+                    onClick={() => handleQualityChange("Auto")}
+                    className={`w-full text-left px-3 py-1.5 text-[11px] font-medium hover:bg-white/10 transition-colors ${currentQuality === "Auto" ? "text-[#9B7BE0]" : "text-white"}`}
+                  >
+                    Auto
+                  </button>
+                  {[...availableLevels].reverse().map((l) => (
+                    <button
+                      key={l.index}
+                      onClick={() => handleQualityChange(l.label)}
+                      className={`w-full text-left px-3 py-1.5 text-[11px] font-medium hover:bg-white/10 transition-colors ${currentQuality === l.label ? "text-[#9B7BE0]" : "text-white"}`}
+                    >
+                      {l.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ── Small shared UI helpers ───────────────────────────────────────────────────
+// ── Small shared UI helpers ────────────────────────────────────────────────────
 
 function Overlay({
   children,
