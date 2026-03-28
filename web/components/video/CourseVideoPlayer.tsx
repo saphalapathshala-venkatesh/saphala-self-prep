@@ -284,7 +284,21 @@ export default function CourseVideoPlayer({
     const { default: Hls } = await import("hls.js");
 
     if (Hls.isSupported()) {
-      const hls = new Hls({ enableWorker: true, lowLatencyMode: false });
+      // Pre-read preference so we can pass a constructor hint.
+      // For fixed-quality modes we start at level 0 (lowest) and lock after
+      // MANIFEST_PARSED. For Auto we leave startLevel=-1 (ABR default).
+      const savedPreference = getPreferredQuality();
+      const isAutoMode = savedPreference === "auto";
+      console.log(`[VIDEO_QUALITY] saved preference="${savedPreference}" mode=${isAutoMode ? "Auto ABR" : "fixed"}`);
+
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        // Start at lowest quality for fixed modes so the first buffered segment
+        // is cheap. We'll lock the correct level in MANIFEST_PARSED.
+        // For auto mode, -1 lets ABR pick freely from the start.
+        startLevel: isAutoMode ? -1 : 0,
+      });
       hlsRef.current = hls;
       hls.loadSource(effectiveManifestUrl);
       hls.attachMedia(el);
@@ -301,21 +315,28 @@ export default function CourseVideoPlayer({
         }));
         if (levels.length > 1) {
           setAvailableLevels(levels);
-          // Apply saved / default quality preference
-          const preferred = getPreferredQuality();
-          if (preferred !== "auto") {
-            const targetHeight = parseInt(preferred, 10);
-            if (!isNaN(targetHeight)) {
-              const idx = pickLevelForHeight(levels, targetHeight);
-              hls.startLevel = idx;
-              const matchedLabel = levels.find((l) => l.index === idx)?.label ?? preferred;
-              setCurrentQuality(matchedLabel);
-              console.log(`[VIDEO_QUALITY] default set to ${matchedLabel} (startLevel=${idx})`);
-            }
-          } else {
-            hls.startLevel = -1;
-            setCurrentQuality("Auto");
-          }
+        }
+
+        if (isAutoMode) {
+          // Auto ABR: let HLS.js manage quality freely
+          hls.currentLevel = -1;
+          setCurrentQuality("Auto");
+          console.log("[VIDEO_QUALITY] Auto ABR active (currentLevel=-1)");
+        } else {
+          // Fixed quality: LOCK via currentLevel (not just startLevel).
+          // hls.startLevel is only a hint for the first segment; ABR can
+          // override it immediately. hls.currentLevel = N disables ABR and
+          // holds the player at that level until changed by the user.
+          const targetHeight = parseInt(savedPreference, 10);
+          const idx = isNaN(targetHeight)
+            ? pickLevelForHeight(levels, 480)          // corrupt pref → fall back to 480p
+            : pickLevelForHeight(levels, targetHeight);
+          hls.currentLevel = idx;                      // ← THIS disables ABR and locks quality
+          const matchedLabel = levels.find((l) => l.index === idx)?.label ?? `${targetHeight}p`;
+          setCurrentQuality(matchedLabel);
+          console.log(
+            `[VIDEO_QUALITY] fixed lock: preference="${savedPreference}" → matched="${matchedLabel}" currentLevel=${idx} (ABR disabled)`,
+          );
         }
       });
 
