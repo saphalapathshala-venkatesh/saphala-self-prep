@@ -19,6 +19,7 @@
 import { createHash } from "crypto";
 
 const BUNNY_SECURITY_KEY     = process.env.BUNNY_SECURITY_KEY ?? "";
+const BUNNY_LIBRARY_ID       = process.env.BUNNY_LIBRARY_ID   ?? "";
 const DEFAULT_EXPIRY_SECONDS = 3600; // 1 hour
 
 /**
@@ -61,8 +62,8 @@ export function signBunnyUrl(
  *
  * Priority:
  *   1. hlsUrl (Bunny or other HLS) — signed if Bunny + key is set
- *   2. playbackUrl  — returned as-is
- *   3. null         — no playable source
+ *   2. playbackUrl  — returned as-is (may be an HLS or embed URL)
+ *   3. null         — no playable HLS source
  */
 export function resolveManifestUrl(opts: {
   provider: string;
@@ -78,4 +79,21 @@ export function resolveManifestUrl(opts: {
     return playbackUrl;
   }
   return null;
+}
+
+/**
+ * Builds a Bunny Stream iframe embed URL for a given video ID.
+ *
+ * Requires BUNNY_LIBRARY_ID to be set in environment variables.
+ * Set this to your Bunny Stream library ID (numeric, found in the Bunny dashboard).
+ *
+ * Returns null if BUNNY_LIBRARY_ID is not configured or providerVideoId is empty.
+ */
+export function buildBunnyEmbedUrl(providerVideoId: string | null): string | null {
+  if (!BUNNY_LIBRARY_ID || !providerVideoId) return null;
+  // Standard Bunny Stream embed URL
+  return (
+    `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${providerVideoId}` +
+    `?autoplay=false&loop=false&muted=false&preload=true&responsive=true`
+  );
 }

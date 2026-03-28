@@ -14,14 +14,13 @@ export interface CourseVideoPlayerProps {
 
   // ── Source (use exactly one) ───────────────────────────────────────────────
   /**
-   * Direct HLS manifest URL. Use for non-Bunny sources or when the caller
-   * already holds a safe URL (e.g. YouTube is handled separately).
+   * Direct HLS manifest URL (.m3u8). Use for non-Bunny sources or when the
+   * caller already holds a safe HLS URL.
    */
   manifestUrl?: string;
   /**
-   * API endpoint that returns { manifestUrl, provider, providerVideoId }.
-   * The player fetches this on mount so the signed URL never appears in
-   * the server-rendered HTML.
+   * API endpoint that returns { manifestUrl, embedUrl, provider, providerVideoId }.
+   * The player fetches this on mount so signed/raw URLs never appear in SSR HTML.
    * Example: "/api/student/videos/abc123/playback"
    */
   playbackApiUrl?: string;
@@ -36,7 +35,15 @@ export interface CourseVideoPlayerProps {
 // ── Playback source resolved from API ─────────────────────────────────────────
 
 interface ResolvedSource {
+  /** HLS .m3u8 URL (Bunny signed or plain). Null when using embed path. */
   manifestUrl: string | null;
+  /**
+   * Iframe embed URL. Set for:
+   *   - YouTube  → https://www.youtube.com/embed/{id}?...
+   *   - Bunny    → https://iframe.mediadelivery.net/embed/{libId}/{videoId}?...
+   *                (only when hlsUrl is absent and BUNNY_LIBRARY_ID is configured)
+   */
+  embedUrl: string | null;
   provider: string;
   providerVideoId: string | null;
   posterUrl: string | null;
@@ -95,9 +102,9 @@ export default function CourseVideoPlayer({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Source resolution state (only used when playbackApiUrl is provided)
-  const [resolved,    setResolved]    = useState<ResolvedSource | null>(null);
-  const [resolving,   setResolving]   = useState(false);
-  const [resolveErr,  setResolveErr]  = useState<string | null>(null);
+  const [resolved,   setResolved]   = useState<ResolvedSource | null>(null);
+  const [resolving,  setResolving]  = useState(false);
+  const [resolveErr, setResolveErr] = useState<string | null>(null);
 
   // HLS initialisation state
   const [loading,     setLoading]     = useState(true);
@@ -138,18 +145,40 @@ export default function CourseVideoPlayer({
     }
   }, [playbackApiUrl, fetchSource]);
 
-  // ── Step 2: initialise HLS once we have a manifest URL ──────────────────────
+  // ── Derived source values ────────────────────────────────────────────────────
 
-  // The effective manifest URL: prop takes priority, else from resolved API response
+  // HLS manifest URL: direct prop wins, else from API response
   const effectiveManifestUrl = manifestUrlProp ?? resolved?.manifestUrl ?? null;
-  // Effective poster: prop overrides API response
+  // Iframe embed URL: from API response only (never a prop — the player decides)
+  const effectiveEmbedUrl    = resolved?.embedUrl ?? null;
+  // Poster: prop wins over API response
   const effectivePoster      = posterUrlProp ?? resolved?.posterUrl ?? null;
-  // YouTube is handled via the embed below — skip HLS init
-  const isYoutube = resolved?.provider === "YOUTUBE";
+
+  // True when this video must render as an iframe (YouTube embed or Bunny embed)
+  const useIframeEmbed = Boolean(effectiveEmbedUrl);
+
+  // ── Step 2: detect resolved-with-no-source → clear loading spinner ──────────
+
+  useEffect(() => {
+    // If the API responded but gave us neither an HLS URL nor an embed URL,
+    // stop the spinner and show a "not available" message instead of spinning forever.
+    if (
+      !resolving &&
+      resolved !== null &&
+      !effectiveManifestUrl &&
+      !effectiveEmbedUrl
+    ) {
+      setLoading(false);
+      setError("This video is not available yet. Please check back later.");
+    }
+  }, [resolving, resolved, effectiveManifestUrl, effectiveEmbedUrl]);
+
+  // ── Step 3: initialise HLS once we have a manifest URL ──────────────────────
 
   const initHls = useCallback(async () => {
     const el = videoRef.current;
-    if (!el || !effectiveManifestUrl || isYoutube) return;
+    // Skip HLS init when using iframe embed or when there is no manifest
+    if (!el || !effectiveManifestUrl || useIframeEmbed) return;
 
     // Skip re-init for the same URL
     if (loadedUrlRef.current === effectiveManifestUrl) return;
@@ -201,7 +230,7 @@ export default function CourseVideoPlayer({
       setUnsupported(true);
       setLoading(false);
     }
-  }, [effectiveManifestUrl, initialPositionSeconds, isYoutube, onError]);
+  }, [effectiveManifestUrl, useIframeEmbed, initialPositionSeconds, onError]);
 
   useEffect(() => {
     initHls();
@@ -234,31 +263,32 @@ export default function CourseVideoPlayer({
       document.exitFullscreen?.();
     }
   }, []);
-  void handleFullscreen; // exposed for future custom controls
+  void handleFullscreen;
 
   // ── Derived display states ─────────────────────────────────────────────────
 
   const showResolvingSpinner = resolving || (!!playbackApiUrl && !resolved && !resolveErr);
-  const showHlsSpinner       = !showResolvingSpinner && loading && !error && !unsupported;
+  const showHlsSpinner       = !showResolvingSpinner && !useIframeEmbed && loading && !error && !unsupported;
   const showError            = resolveErr ?? error ?? null;
 
-  // ── YouTube embed ──────────────────────────────────────────────────────────
+  // ── Iframe embed (YouTube or Bunny embed player) ───────────────────────────
+  // Render as soon as we have an embed URL — no loading state needed, the iframe handles it.
 
-  if (resolved?.provider === "YOUTUBE" && resolved.providerVideoId) {
+  if (useIframeEmbed && effectiveEmbedUrl) {
     return (
       <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
         <iframe
-          src={`https://www.youtube.com/embed/${resolved.providerVideoId}?rel=0&modestbranding=1`}
+          src={effectiveEmbedUrl}
           title={title}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
-          className="absolute inset-0 w-full h-full"
+          className="absolute inset-0 w-full h-full border-0"
         />
       </div>
     );
   }
 
-  // ── HLS / native player ────────────────────────────────────────────────────
+  // ── HLS / native <video> player ────────────────────────────────────────────
 
   return (
     <div ref={containerRef} className="relative w-full bg-black select-none group">
@@ -302,12 +332,14 @@ export default function CourseVideoPlayer({
               </svg>
             </div>
             <p className="text-white text-sm font-semibold text-center mt-3 px-4">{showError}</p>
-            <button
-              onClick={handleRetry}
-              className="mt-3 px-5 py-2 rounded-lg bg-[#6D4BCB] hover:bg-[#5C3DB5] text-white text-sm font-semibold transition-colors"
-            >
-              Retry
-            </button>
+            {resolveErr && (
+              <button
+                onClick={handleRetry}
+                className="mt-3 px-5 py-2 rounded-lg bg-[#6D4BCB] hover:bg-[#5C3DB5] text-white text-sm font-semibold transition-colors"
+              >
+                Retry
+              </button>
+            )}
           </Overlay>
         )}
 
