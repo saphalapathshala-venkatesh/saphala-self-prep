@@ -101,9 +101,15 @@ export default function CourseVideoPlayer({
   onError,
 }: CourseVideoPlayerProps) {
   const videoRef     = useRef<HTMLVideoElement>(null);
+  const iframeRef    = useRef<HTMLIFrameElement>(null);
   const hlsRef       = useRef<import("hls.js").default | null>(null);
   const loadedUrlRef = useRef<string>("");
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Bunny iframe time tracking — updated via timeupdate postMessage events.
+  // Used by skip controls to compute seek targets without querying the DOM.
+  const bunnyCurrentTimeRef = useRef<number>(0);
+  const bunnyDurationRef    = useRef<number>(0);
 
   // One-shot guard: prevents calling onEnded more than once per video session.
   // Covers timeupdate, seeked, and the ended DOM event.
@@ -250,7 +256,33 @@ export default function CourseVideoPlayer({
     fireCompletion("ended-event");
   }, [fireCompletion, onProgress, videoRef]);
 
-  // ── Step 5: iframe postMessage listener (Bunny / YouTube) ───────────────────
+  // ── Step 5: Bunny iframe load handler ───────────────────────────────────────
+  //
+  // When the Bunny embed iframe finishes loading its document, we send an
+  // initial { action: 'subscribe' } so it starts posting events.
+  // We also re-send on playerReady in case the iframe fires that event before
+  // our onLoad fires (race condition on fast connections).
+
+  const handleIframeLoad = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+    console.log("[BUNNY_IFRAME] iframe loaded — sending subscribe");
+    iframe.contentWindow.postMessage(JSON.stringify({ action: "subscribe" }), "*");
+  }, []);
+
+  // ── Step 6: iframe postMessage listener (Bunny / YouTube) ───────────────────
+  //
+  // Bunny embed player events (received after subscribing):
+  //   playerReady  — player is initialised; re-send subscribe and mark ready
+  //   timeupdate   — { event, currentTime, duration } fired ~every second
+  //   ended        — video playback reached the end
+  //   play/pause   — (unused, ignored)
+  //
+  // Bunny embed player commands (sent TO the iframe):
+  //   { action: 'subscribe' }            — start receiving events
+  //   { action: 'seek', currentTime: N } — jump to position N seconds
+  //
+  // YouTube events are handled separately via infoDelivery / playerState.
 
   useEffect(() => {
     if (!useIframeEmbed) return;
@@ -261,25 +293,48 @@ export default function CourseVideoPlayer({
         const data = typeof raw === "string" ? JSON.parse(raw) : raw;
         if (!data || typeof data !== "object") return;
 
-        // Bunny player: { event: "videoEnded" } or { event: "ended" }
-        if (data.event === "videoEnded" || data.event === "ended") {
-          console.log("[IFRAME_MESSAGE] Bunny ended event received");
+        const event = (data.event as string | undefined) ?? "";
+
+        // ── Bunny: playerReady ─────────────────────────────────────────────
+        if (event === "playerReady") {
+          console.log("[BUNNY_IFRAME] playerReady — re-subscribing");
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ action: "subscribe" }), "*",
+          );
+          setVideoReady(true);
+          return;
+        }
+
+        // ── Bunny: timeupdate ──────────────────────────────────────────────
+        if (event === "timeupdate") {
+          const ct = Number(data.currentTime ?? 0);
+          const dur = Number(data.duration   ?? 0);
+          bunnyCurrentTimeRef.current = ct;
+          if (dur > 0) bunnyDurationRef.current = dur;
+          // Mark ready on first timeupdate (guards against missed playerReady)
+          setVideoReady(true);
+          return;
+        }
+
+        // ── Bunny: ended ───────────────────────────────────────────────────
+        if (event === "ended" || event === "videoEnded") {
+          console.log("[BUNNY_IFRAME] ended event — firing completion");
           fireCompletion("iframe-bunny-ended");
           return;
         }
 
-        // YouTube: { event: "infoDelivery", info: { playerState: 0 } }
+        // ── YouTube: infoDelivery + playerState=0 ─────────────────────────
         if (
-          data.event === "infoDelivery" &&
+          event === "infoDelivery" &&
           data.info &&
           typeof data.info === "object" &&
-          data.info.playerState === 0
+          (data.info as Record<string, unknown>).playerState === 0
         ) {
-          console.log("[IFRAME_MESSAGE] YouTube playerState=0 received");
+          console.log("[IFRAME_MESSAGE] YouTube playerState=0 — firing completion");
           fireCompletion("iframe-youtube-ended");
           return;
         }
-      } catch { /* non-JSON messages — ignore */ }
+      } catch { /* non-JSON postMessages (React DevTools, extensions) — ignore */ }
     }
 
     window.addEventListener("message", onMessage);
@@ -404,7 +459,7 @@ export default function CourseVideoPlayer({
     setQualityMenuOpen(false);
   }, [availableLevels]);
 
-  // ── Skip controls ────────────────────────────────────────────────────────────
+  // ── Skip controls — HLS / native <video> ────────────────────────────────────
 
   const handleSkipBackward = useCallback(() => {
     const el = videoRef.current;
@@ -415,9 +470,35 @@ export default function CourseVideoPlayer({
   const handleSkipForward = useCallback(() => {
     const el = videoRef.current;
     if (!el || isNaN(el.duration)) return;
-    // Do NOT clamp to duration - 2 here. We deliberately allow seeking to the
-    // last 2 seconds so the near-end detection (seeked event) can fire.
     el.currentTime = Math.min(el.duration, el.currentTime + 10);
+  }, []);
+
+  // ── Skip controls — Bunny iframe (postMessage seek) ──────────────────────────
+  //
+  // Bunny's embed player accepts { action: 'seek', currentTime: N } via
+  // postMessage. currentTime is tracked from timeupdate events.
+
+  const handleBunnySkipBackward = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+    const newTime = Math.max(0, bunnyCurrentTimeRef.current - 10);
+    console.log("[BUNNY_SKIP] backward → seek to", newTime);
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ action: "seek", currentTime: newTime }), "*",
+    );
+  }, []);
+
+  const handleBunnySkipForward = useCallback(() => {
+    const iframe = iframeRef.current;
+    if (!iframe?.contentWindow) return;
+    const dur     = bunnyDurationRef.current;
+    const newTime = dur > 0
+      ? Math.min(dur, bunnyCurrentTimeRef.current + 10)
+      : bunnyCurrentTimeRef.current + 10;
+    console.log("[BUNNY_SKIP] forward → seek to", newTime);
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ action: "seek", currentTime: newTime }), "*",
+    );
   }, []);
 
   // ── Retry ────────────────────────────────────────────────────────────────────
@@ -439,19 +520,59 @@ export default function CourseVideoPlayer({
   const showSkipControls     = videoReady && !showError && !unsupported && !useIframeEmbed;
 
   // ── Iframe embed (YouTube or Bunny embed player) ──────────────────────────────
+  //
+  // Bunny embed:
+  //   - ref={iframeRef} lets us postMessage seek commands (skip ±10s)
+  //   - onLoad sends { action: 'subscribe' } so Bunny starts posting events
+  //   - Skip buttons call handleBunnySkipBackward/Forward via postMessage
+  //   - videoReady becomes true after first playerReady or timeupdate event
+  //
+  // YouTube embed:
+  //   - No skip controls (YouTube doesn't support seek via postMessage)
+  //   - Completion detected via infoDelivery / playerState=0
+
+  const isBunnyEmbed = resolved?.provider === "BUNNY" && Boolean(effectiveEmbedUrl);
 
   if (useIframeEmbed && effectiveEmbedUrl) {
     return (
-      <div>
+      <div className="relative w-full bg-black select-none">
         <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
           <iframe
+            ref={isBunnyEmbed ? iframeRef : undefined}
             src={effectiveEmbedUrl}
             title={title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowFullScreen
+            onLoad={isBunnyEmbed ? handleIframeLoad : undefined}
             className="absolute inset-0 w-full h-full border-0"
           />
         </div>
+
+        {/* Skip controls — Bunny embed only, visible after first timeupdate */}
+        {isBunnyEmbed && videoReady && (
+          <div className="flex items-center justify-center gap-4 py-2 bg-black/95">
+            <button
+              onClick={handleBunnySkipBackward}
+              className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label="Skip back 10 seconds"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+              </svg>
+              10s
+            </button>
+            <button
+              onClick={handleBunnySkipForward}
+              className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+              aria-label="Skip forward 10 seconds"
+            >
+              10s
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
+              </svg>
+            </button>
+          </div>
+        )}
       </div>
     );
   }

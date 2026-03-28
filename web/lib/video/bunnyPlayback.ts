@@ -1,20 +1,19 @@
 /**
  * Bunny Stream playback URL helper — server-side only.
  *
- * HLS URL format for Bunny Stream:
- *   https://vz-{BUNNY_LIBRARY_ID}.b-cdn.net/{videoId}/playlist.m3u8
+ * Bunny Stream videos always use the iframe embed player at
+ * iframe.mediadelivery.net. The embed player supports a full postMessage API:
+ *   - Parent sends { action: 'subscribe' } after iframe load to start events
+ *   - Player sends timeupdate, ended, playerReady, play, pause events
+ *   - Parent sends { action: 'seek', currentTime: N } for skip controls
+ * This is handled in CourseVideoPlayer.tsx (Bunny iframe path).
  *
- * All Bunny videos with a providerVideoId always use native HLS playback
- * (never the iframe embed). This enables skip controls, DOM-event XP
- * completion detection, and the quality selector.
+ * NON-Bunny HLS sources (e.g. external m3u8 stored in hlsUrl or playbackUrl)
+ * are still served directly and signed when BUNNY_SECURITY_KEY is set.
  *
- * When BUNNY_SECURITY_KEY is set, the HLS URL is signed with a short-lived
- * token so the CDN rejects requests from unauthorised clients.
- *
- * Bunny token auth spec (no-IP variant):
+ * Token auth spec (no-IP variant) for external HLS:
  *   token   = Base64URL( SHA256( SecurityKey + videoPath + expires ) )
  *   signed  = {originUrl}?token={token}&expires={expires}
- *
  * Reference: https://support.bunny.net/hc/en-us/articles/360016055099
  */
 
@@ -22,10 +21,10 @@ import { createHash } from "crypto";
 
 const BUNNY_SECURITY_KEY     = process.env.BUNNY_SECURITY_KEY ?? "";
 const BUNNY_LIBRARY_ID       = process.env.BUNNY_LIBRARY_ID   ?? "";
-const DEFAULT_EXPIRY_SECONDS = 3600; // 1 hour
+const DEFAULT_EXPIRY_SECONDS = 3600;
 
 /**
- * Returns a signed Bunny HLS URL. If BUNNY_SECURITY_KEY is not configured
+ * Returns a signed HLS URL. If BUNNY_SECURITY_KEY is not configured
  * the original URL is returned unchanged (token auth not active).
  */
 export function signBunnyUrl(
@@ -38,10 +37,9 @@ export function signBunnyUrl(
 
   try {
     const url       = new URL(hlsUrl);
-    const videoPath = url.pathname; // e.g. "/abc-guid/playlist.m3u8"
+    const videoPath = url.pathname;
     const expires   = Math.floor(Date.now() / 1000) + expirySeconds;
 
-    // token = Base64URL( SHA256( key + path + expires ) )
     const token = createHash("sha256")
       .update(BUNNY_SECURITY_KEY + videoPath + String(expires))
       .digest("base64")
@@ -61,15 +59,14 @@ export function signBunnyUrl(
 /**
  * Resolves the best manifest URL from a video row.
  *
- * Priority:
- *   1. hlsUrl (explicitly stored in DB) — signed if Bunny + key is set
- *   2. Bunny Stream auto-constructed HLS URL:
- *        https://vz-{BUNNY_LIBRARY_ID}.b-cdn.net/{providerVideoId}/playlist.m3u8
- *      — used for any Bunny video with providerVideoId, regardless of whether
- *        hlsUrl is stored. This ensures all Bunny videos use native HLS playback
- *        (skip controls, reliable XP, quality selector) instead of iframe embed.
- *   3. playbackUrl — returned as-is
- *   4. null — no playable source found
+ * For Bunny Stream videos this always returns null — they use the iframe
+ * embed player (buildBunnyEmbedUrl) rather than direct HLS delivery.
+ * Bunny's CDN does not allow cross-origin HLS requests from custom domains.
+ *
+ * Priority for non-Bunny sources:
+ *   1. hlsUrl (explicit, stored in DB)
+ *   2. playbackUrl
+ *   3. null
  */
 export function resolveManifestUrl(opts: {
   provider: string;
@@ -77,23 +74,19 @@ export function resolveManifestUrl(opts: {
   playbackUrl: string | null;
   providerVideoId?: string | null;
 }): string | null {
-  const { provider, hlsUrl, playbackUrl, providerVideoId } = opts;
+  const { provider, hlsUrl, playbackUrl } = opts;
+
+  // Bunny Stream videos must use the embed player — return null so the
+  // playback route falls through to buildBunnyEmbedUrl.
+  if (provider === "BUNNY") {
+    console.log("VIDEO_SOURCE: BUNNY — using iframe embed player");
+    return null;
+  }
 
   if (hlsUrl) {
-    const resolved = provider === "BUNNY" ? signBunnyUrl(hlsUrl) : hlsUrl;
-    console.log("VIDEO_SOURCE:", resolved);
-    return resolved;
+    console.log("VIDEO_SOURCE:", hlsUrl);
+    return hlsUrl;
   }
-
-  // Bunny Stream: auto-construct HLS URL from library ID + video ID.
-  // Format: https://vz-{libraryId}.b-cdn.net/{videoId}/playlist.m3u8
-  if (provider === "BUNNY" && providerVideoId && BUNNY_LIBRARY_ID) {
-    const bunnyHls = `https://vz-${BUNNY_LIBRARY_ID}.b-cdn.net/${providerVideoId}/playlist.m3u8`;
-    const resolved = signBunnyUrl(bunnyHls);
-    console.log("VIDEO_SOURCE:", resolved);
-    return resolved;
-  }
-
   if (playbackUrl) {
     console.log("VIDEO_SOURCE:", playbackUrl);
     return playbackUrl;
@@ -105,11 +98,10 @@ export function resolveManifestUrl(opts: {
 
 /**
  * Builds a Bunny Stream iframe embed URL.
+ * This is the primary (and only) playback path for Bunny Stream videos.
+ * The embed player supports full postMessage control and event subscription.
  *
- * This is now only used as a last-resort fallback when BUNNY_LIBRARY_ID
- * is not set (i.e. resolveManifestUrl cannot auto-construct the HLS URL).
- * Under normal operation with BUNNY_LIBRARY_ID configured, Bunny videos
- * will always use native HLS and this function will not be called.
+ * Returns null if BUNNY_LIBRARY_ID is not configured or providerVideoId is empty.
  */
 export function buildBunnyEmbedUrl(providerVideoId: string | null): string | null {
   if (!BUNNY_LIBRARY_ID || !providerVideoId) return null;
