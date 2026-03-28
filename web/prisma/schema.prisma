@@ -158,6 +158,7 @@ model User {
   refundRequests RefundRequest[]
   doubts         Doubt[]        @relation("StudentDoubts")
   answeredDoubts Doubt[]        @relation("AnsweredDoubts")
+  videoProgress  VideoProgress[]
   @@index([role])
 }
 model Session {
@@ -644,6 +645,20 @@ model XpLedgerEntry {
   createdAt DateTime @default(now())
   @@index([userId, createdAt])
 }
+
+model VideoProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoId         String
+  attemptCount    Int      @default(0)
+  lastCompletedAt DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@unique([userId, videoId])
+  @@index([userId])
+}
+
 // REVENUE + ANALYTICS
 model Purchase {
   id           String @id @default(cuid())

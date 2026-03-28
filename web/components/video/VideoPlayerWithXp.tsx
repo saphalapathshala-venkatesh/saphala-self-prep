@@ -5,6 +5,13 @@ import CourseVideoPlayer from "./CourseVideoPlayer";
 import DoubtModal from "./DoubtModal";
 import { triggerXpCelebration } from "@/lib/xpCelebration";
 
+export interface XpResult {
+  xpAwarded:        number;
+  completionNumber: number;
+  xpMultiplier:     number;
+  newTotal:         number;
+}
+
 interface VideoPlayerWithXpProps {
   videoId: string;
   title: string;
@@ -16,6 +23,8 @@ interface VideoPlayerWithXpProps {
   canWatch: boolean;
   isLocked: boolean;
   accessType: string;
+  /** Optional callback fired after the completion API responds. */
+  onXpAwarded?: (result: XpResult) => void;
 }
 
 type XpStatus = "idle" | "loading" | "done" | "error";
@@ -31,6 +40,7 @@ export default function VideoPlayerWithXp({
   canWatch,
   isLocked,
   accessType,
+  onXpAwarded,
 }: VideoPlayerWithXpProps) {
   const [xpStatus, setXpStatus]             = useState<XpStatus>("idle");
   const [xpAwarded, setXpAwarded]           = useState(0);
@@ -52,12 +62,16 @@ export default function VideoPlayerWithXp({
         body: JSON.stringify({ videoId }),
       });
       const data = await res.json();
-      const awarded: number = data.xpAwarded ?? 0;
+      const awarded: number    = data.xpAwarded        ?? 0;
+      const multiplier: number = data.xpMultiplier     ?? 0;
+      const completion: number = data.completionNumber ?? 0;
+      const total: number      = data.newTotal         ?? 0;
       setXpAwarded(awarded);
-      setXpMultiplier(data.xpMultiplier ?? 0);
-      setXpNumber(data.completionNumber ?? 0);
+      setXpMultiplier(multiplier);
+      setXpNumber(completion);
       setXpStatus("done");
       if (awarded > 0) triggerXpCelebration();
+      onXpAwarded?.({ xpAwarded: awarded, completionNumber: completion, xpMultiplier: multiplier, newTotal: total });
     } catch {
       setXpStatus("error");
     }
