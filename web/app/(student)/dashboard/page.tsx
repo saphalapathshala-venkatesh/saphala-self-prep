@@ -9,6 +9,7 @@ import { getDailyPractice, type PracticeSuggestion } from "@/lib/practiceDb";
 import { getUserStreak, type UserStreak } from "@/lib/streakDb";
 import { getDashboardLiveClass, type LiveClassStudent } from "@/lib/liveClassDb";
 import { PRODUCTS, ROUTES } from "@/config/terminology";
+import XpMetricCard from "@/components/dashboard/XpMetricCard";
 
 export const dynamic = "force-dynamic";
 
@@ -154,7 +155,6 @@ async function DashboardDataSections({
       }).catch(() => []),
     ]);
 
-  const xpDisplay = data.xpTotal > 0 ? String(data.xpTotal) : "0";
   const accuracyDisplay = data.accuracyPct !== null ? `${data.accuracyPct}%` : "—";
   const hasAttempts = data.attemptCount > 0;
 
@@ -204,13 +204,9 @@ async function DashboardDataSections({
           color="purple"
           isReal
         />
-        <MetricCard
-          label="XP Earned"
-          value={xpDisplay}
-          subtitle={data.xpTotal > 0 ? "Keep learning to earn more" : "Complete tests & flashcards to earn XP"}
-          icon="star"
-          color="amber"
-          isReal={data.xpHasLedger}
+        <XpMetricCard
+          initialXpTotal={data.xpTotal}
+          initialIsReal={data.xpHasLedger}
         />
         <MetricCard
           label="Accuracy"

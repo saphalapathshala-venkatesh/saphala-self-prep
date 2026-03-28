@@ -82,6 +82,14 @@ async function getDashboardFreeTests(): Promise<DashboardFreeTest[]> {
 const _dashCache = new Map<string, { data: DashboardData; expiresAt: number }>();
 const DASH_TTL = 60_000; // 60 s
 
+/**
+ * Evict the cached dashboard data for a user.
+ * Call this whenever XP is awarded so the next /dashboard render is always fresh.
+ */
+export function clearDashboardCache(userId: string): void {
+  _dashCache.delete(userId);
+}
+
 export async function getDashboardData(userId: string): Promise<DashboardData> {
   const now = Date.now();
   const cached = _dashCache.get(userId);

@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { clearDashboardCache } from "@/lib/dashboardData";
 
 export const dynamic = "force-dynamic";
 
@@ -156,6 +157,9 @@ export async function POST(request: Request) {
       totalXpAwarded: { increment: xpEarned },
     },
   });
+
+  // ── 9. Bust dashboard cache so next /dashboard render is always fresh ──────
+  clearDashboardCache(user.id);
 
   return Response.json({
     xpAwarded:        xpEarned,

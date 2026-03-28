@@ -63,6 +63,14 @@ Videos award XP on completion via `POST /api/student/videos/complete`. `Video` t
 - `VideoPlayerWithXp` accepts `onXpAwarded?(result: XpResult)` callback for external consumers.
 - **Removed:** `VideoProgress` model/table (was a duplicate of `UserXpSourceProgress`).
 
+**XP Dashboard Integration:**
+- `GET /api/student/xp/summary` — uncached endpoint returning `{ xpTotal, xpBreakdown: { total, testHub, flashcards, ebooks, pathshala } }` from `XpLedgerEntry.groupBy`.
+- `components/dashboard/XpMetricCard.tsx` — client component replacing static XP MetricCard. Fetches live value on mount, listens for window `"xp-awarded"` event (same-page), and refetches on window `focus` (student navigating back from video page). Shows brief amber highlight when value updates.
+- `VideoPlayerWithXp` dispatches `window.CustomEvent("xp-awarded", { detail: { xpAwarded, newTotal } })` after every completion.
+- `clearDashboardCache(userId)` in `dashboardData.ts` — evicts the 60s in-memory cache entry; called by the video completion route after every XP award so the next `/dashboard` SSR render is always fresh.
+- Pre-play XP rules panel in `VideoPlayerWithXp`: shows 1st/2nd/3rd watch XP rates when `xpEnabled && xpStatus === "idle"`.
+- Post-completion banners: 1st="🎉 You earned N XP!", 2nd="✨ You earned N XP on your second completion", 3rd+="✓ Video completed — no XP for this attempt".
+
 #### Video Doubts
 Students can ask doubts while watching videos via the `DoubtModal` client component (rendered in `VideoPlayerWithXp`). Doubts are stored in the `Doubt` table with statuses: `OPEN → ADDRESSED → CLOSED`. Admin replies via `/admin/doubts` page. Students view their doubt history at `/doubts`. Dashboard shows a card for recently answered doubts. Sidebar includes a "My Doubts" nav link.
 

@@ -1,0 +1,143 @@
+The Video XP backend system is fully implemented and validated in the deployed Saphala student frontend. Now we need to ensure that the XP experience is fully aligned across the system, including real-time reflection in the XP dashboard card.
+
+IMPORTANT CONTEXT
+- XP system already exists:
+  - UserXpSourceProgress → completion tracking
+  - XpLedgerEntry → XP ledger
+  - UserXpWallet → total + lifetime XP
+- Video XP is working correctly via:
+  POST /api/student/videos/complete
+- XP card already exists in the UI (dashboard/header)
+- XP rules:
+  - 1st completion → 100%
+  - 2nd completion → 50%
+  - 3rd+ → 0%
+
+GOAL
+Ensure that Video XP (Pathshala XP) integrates seamlessly with the existing XP card system and updates immediately after each video completion.
+
+---
+
+A) AUDIT FIRST
+
+1. Identify how the XP card gets its data:
+   - API route used
+   - Source of total XP (UserXpWallet or derived)
+   - Any product/category breakdown logic (e.g., Pathshala vs TestHub vs Flashcards)
+
+2. Identify how XP updates are currently triggered:
+   - SSR fetch
+   - SWR / React Query
+   - static load only
+
+3. Confirm whether Video XP (refType = VIDEO or similar) is included in:
+   - total XP
+   - product-wise XP breakdown
+
+---
+
+B) ENSURE VIDEO XP IS INCLUDED IN XP CARD
+
+1. Confirm that Video XP entries (from XpLedgerEntry) are counted in:
+   - total XP
+   - lifetime XP
+   - product/category XP (if card shows breakdown)
+
+2. If product-based XP exists:
+   - Ensure VIDEO (Pathshala) is mapped correctly
+   - If naming differs (e.g., VIDEO vs PATHSHALA), normalize mapping
+
+3. Ensure no filtering excludes Video XP unintentionally
+
+---
+
+C) REAL-TIME XP UPDATE AFTER VIDEO COMPLETION
+
+1. After successful response from:
+   POST /api/student/videos/complete
+
+2. Trigger XP card refresh:
+   - If using SWR → mutate()
+   - If using React Query → invalidateQueries()
+   - If server component → trigger re-fetch via route refresh
+
+3. Ensure update happens ONLY when:
+   xpAwarded > 0 OR completion event fires
+
+4. Prevent duplicate refresh calls for same completion
+
+---
+
+D) ENHANCE XP FEEDBACK IN PLAYER
+
+1. Improve XP feedback UI:
+   - 1st watch: "🎉 You earned 80 XP!"
+   - 2nd watch: "✨ You earned 40 XP on your second completion"
+   - 3rd+: "✓ Video completed — no XP for this attempt"
+
+2. Add confetti ONLY when xpAwarded > 0
+
+3. Ensure message is visible and not subtle
+
+---
+
+E) PRE-PLAY XP INDICATION
+
+1. Before video starts, show:
+   - "Earn 80 XP on first completion"
+   - "Second watch gives 50%"
+   - "No XP after that"
+
+2. Show this only if xpEnabled = true
+
+---
+
+F) SAFETY
+
+1. Do NOT change backend XP rules or route
+2. Do NOT introduce new DB models
+3. Do NOT duplicate XP calculation logic on frontend
+4. Do NOT break admin preview behavior
+5. Ensure student-only XP trigger remains intact
+
+---
+
+G) VALIDATION
+
+Verify end-to-end:
+
+1. Watch video first time:
+   - XP awarded
+   - XP card updates immediately
+
+2. Watch second time:
+   - Half XP
+   - XP card updates correctly
+
+3. Watch third time:
+   - No XP
+   - XP card remains unchanged
+
+4. Confirm:
+   - Ledger entries correct
+   - Wallet correct
+   - XP card matches wallet
+   - Product-wise XP includes video XP
+
+---
+
+H) DELIVERABLE
+
+Return:
+
+1. How XP card fetches data
+2. Whether Video XP is included in total and breakdown
+3. What change was made for real-time refresh
+4. How XP card is triggered to update after completion
+5. Any mismatch found between Video XP and XP card
+6. Final confirmation that XP is consistent across:
+   - player
+   - API
+   - ledger
+   - wallet
+   - dashboard card

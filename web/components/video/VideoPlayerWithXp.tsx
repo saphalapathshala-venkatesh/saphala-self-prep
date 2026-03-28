@@ -46,6 +46,7 @@ export default function VideoPlayerWithXp({
   const [xpAwarded, setXpAwarded]           = useState(0);
   const [xpMultiplier, setXpMultiplier]     = useState(0);
   const [xpCompletionNumber, setXpNumber]   = useState(0);
+  const [newTotal, setNewTotal]             = useState(0);
   const [doubtOpen, setDoubtOpen]           = useState(false);
   const [doubtDone, setDoubtDone]           = useState(false);
   const completedRef                        = useRef(false);
@@ -69,12 +70,68 @@ export default function VideoPlayerWithXp({
       setXpAwarded(awarded);
       setXpMultiplier(multiplier);
       setXpNumber(completion);
+      setNewTotal(total);
       setXpStatus("done");
       if (awarded > 0) triggerXpCelebration();
+      // Notify any XP card listening on this page
+      window.dispatchEvent(
+        new CustomEvent("xp-awarded", { detail: { xpAwarded: awarded, newTotal: total } }),
+      );
       onXpAwarded?.({ xpAwarded: awarded, completionNumber: completion, xpMultiplier: multiplier, newTotal: total });
     } catch {
       setXpStatus("error");
     }
+  }
+
+  // ── XP result banner copy ─────────────────────────────────────────────────
+  function renderXpBanner() {
+    if (!xpEnabled) {
+      return (
+        <div className="mx-6 my-4 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+          <p className="text-sm font-semibold text-gray-700">Video Complete! ✓</p>
+          <p className="text-xs text-gray-500 mt-0.5">XP is not configured for this video.</p>
+        </div>
+      );
+    }
+
+    if (xpAwarded > 0) {
+      const headingEmoji = xpCompletionNumber === 1 ? "🎉" : "✨";
+      const headingText  = xpCompletionNumber === 1
+        ? `You earned ${xpAwarded} XP!`
+        : `You earned ${xpAwarded} XP on your second completion`;
+
+      return (
+        <div className="mx-6 my-4 space-y-2">
+          <div className="bg-gradient-to-r from-[#2D1B69] to-[#6D4BCB] rounded-xl px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-white font-bold text-sm">
+                {headingEmoji} {headingText}
+              </p>
+              <p className="text-white/70 text-xs mt-0.5">
+                Total XP: {newTotal} · Keep learning to level up!
+              </p>
+            </div>
+            <div className="text-right flex-shrink-0 ml-4">
+              <p className="text-2xl font-black text-white">+{xpAwarded}</p>
+              <p className="text-white/70 text-xs">Sadhana Points</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // xpAwarded === 0 but xpEnabled
+    const isThirdPlus = xpCompletionNumber >= 3;
+    return (
+      <div className="mx-6 my-4 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+        <p className="text-sm font-semibold text-gray-700">✓ Video completed — no XP for this attempt</p>
+        {isThirdPlus && (
+          <p className="text-xs text-gray-500 mt-0.5">
+            XP is only awarded on the 1st and 2nd completion. You&apos;ve already earned the maximum XP for this video.
+          </p>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -108,8 +165,34 @@ export default function VideoPlayerWithXp({
           </div>
         )}
 
-        {/* Video badges */}
-        <div className="px-6 pt-4 flex items-center gap-2 flex-wrap">
+        {/* ── Pre-play XP indication (idle state only) ── */}
+        {xpEnabled && xpValue > 0 && xpStatus === "idle" && (
+          <div className="px-6 pt-4">
+            <div className="bg-purple-50 rounded-xl px-4 py-3 border border-[#6D4BCB]/15">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[#6D4BCB]">⚡</span>
+                <p className="text-xs font-bold text-[#6D4BCB] uppercase tracking-wide">Sadhana Points</p>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-600">1st completion</span>
+                  <span className="text-xs font-bold text-[#6D4BCB]">+{xpValue} XP (100%)</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">2nd completion</span>
+                  <span className="text-xs font-semibold text-[#6D4BCB]/70">+{Math.round(xpValue * 0.5)} XP (50%)</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-400">3rd watch onwards</span>
+                  <span className="text-xs text-gray-400">No XP</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Access badges */}
+        <div className="px-6 pt-3 flex items-center gap-2 flex-wrap">
           {accessType === "FREE" && (
             <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-800">Free</span>
           )}
@@ -121,14 +204,9 @@ export default function VideoPlayerWithXp({
               Enrollment Required
             </span>
           )}
-          {xpEnabled && xpValue > 0 && xpStatus === "idle" && (
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-[#6D4BCB] ring-1 ring-[#6D4BCB]/20">
-              ⚡ {xpValue} XP on completion
-            </span>
-          )}
         </div>
 
-        {/* XP result banner */}
+        {/* XP loading spinner */}
         {xpStatus === "loading" && (
           <div className="mx-6 my-4 bg-purple-50 rounded-xl px-4 py-3 flex items-center gap-3">
             <svg className="w-5 h-5 text-[#6D4BCB] animate-spin" fill="none" viewBox="0 0 24 24">
@@ -139,36 +217,8 @@ export default function VideoPlayerWithXp({
           </div>
         )}
 
-        {xpStatus === "done" && xpEnabled && (
-          <div className="mx-6 my-4 space-y-2">
-            {xpAwarded > 0 ? (
-              <div className="bg-gradient-to-r from-[#2D1B69] to-[#6D4BCB] rounded-xl px-4 py-3 flex items-center justify-between">
-                <div>
-                  <p className="text-white font-bold text-sm">
-                    {xpCompletionNumber === 2 ? "Video Complete! (50% XP — 2nd watch)" : "Video Complete! XP Earned!"}
-                  </p>
-                  <p className="text-white/70 text-xs mt-0.5">Keep learning to level up!</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-black text-white">+{xpAwarded}</p>
-                  <p className="text-white/70 text-xs">Sadhana Points</p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-                <p className="text-sm font-semibold text-gray-700">Video Complete! ✓</p>
-                {xpCompletionNumber >= 3 && (
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    From the 3rd watch onwards, Sadhana Points (XP) will not be awarded for rewatching. You&apos;ve already earned the maximum XP.
-                  </p>
-                )}
-                {!xpEnabled && (
-                  <p className="text-xs text-gray-500 mt-0.5">XP is not configured for this video.</p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        {/* XP result banner */}
+        {xpStatus === "done" && renderXpBanner()}
 
         {/* Ask a Doubt button — show only when entitled */}
         {canWatch && (
