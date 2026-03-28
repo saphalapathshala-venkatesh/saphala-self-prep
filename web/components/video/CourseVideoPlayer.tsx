@@ -593,24 +593,31 @@ export default function CourseVideoPlayer({
   // bunnyCurrentTimeRef is already up-to-date (wall-clock timer), so the
   // value we pass is accurate, and the timer continues from there on reload.
 
+  // Build a Bunny embed URL for seeking: forces autoplay=true so the video
+  // resumes playing after the iframe reloads at the new position.
+  const buildBunnySeekUrl = useCallback((startTime: number): string => {
+    if (!effectiveEmbedUrl) return "";
+    // Replace autoplay=false with autoplay=true, then append startTime.
+    const base = effectiveEmbedUrl.replace(/autoplay=false/i, "autoplay=true");
+    return base + "&startTime=" + Math.floor(startTime);
+  }, [effectiveEmbedUrl]);
+
   const handleBunnySkipBackward = useCallback(() => {
     const ct      = bunnyCurrentTimeRef.current;
     const newTime = Math.max(0, ct - 10);
-    console.log("[BUNNY_SKIP] ← backward | ct=" + ct.toFixed(1) + "s → reload at startTime=" + Math.floor(newTime));
+    console.log("[BUNNY_SKIP] ← backward | ct=" + ct.toFixed(1) + "s → reload at startTime=" + Math.floor(newTime) + " (autoplay=true)");
     bunnyCurrentTimeRef.current = newTime;
-    if (!effectiveEmbedUrl) return;
-    setIframeSrc(effectiveEmbedUrl + "&startTime=" + Math.floor(newTime));
-  }, [effectiveEmbedUrl]);
+    setIframeSrc(buildBunnySeekUrl(newTime));
+  }, [buildBunnySeekUrl]);
 
   const handleBunnySkipForward = useCallback(() => {
     const ct      = bunnyCurrentTimeRef.current;
     const dur     = bunnyDurationRef.current;
     const newTime = dur > 0 ? Math.min(dur, ct + 10) : ct + 10;
-    console.log("[BUNNY_SKIP] → forward  | ct=" + ct.toFixed(1) + "s dur=" + dur.toFixed(1) + "s → reload at startTime=" + Math.floor(newTime));
+    console.log("[BUNNY_SKIP] → forward  | ct=" + ct.toFixed(1) + "s dur=" + dur.toFixed(1) + "s → reload at startTime=" + Math.floor(newTime) + " (autoplay=true)");
     bunnyCurrentTimeRef.current = newTime;
-    if (!effectiveEmbedUrl) return;
-    setIframeSrc(effectiveEmbedUrl + "&startTime=" + Math.floor(newTime));
-  }, [effectiveEmbedUrl]);
+    setIframeSrc(buildBunnySeekUrl(newTime));
+  }, [buildBunnySeekUrl]);
 
   // ── Retry ────────────────────────────────────────────────────────────────────
 
