@@ -1,0 +1,207 @@
+We have a critical issue in the video player:
+
+PROBLEM:
+- Video completion (especially fast-forward / seek / fullscreen) is NOT triggering:
+  - XP API call
+  - Confetti
+  - XP card update
+
+IMPORTANT:
+Do NOT assume the issue. First AUDIT, then FIX, then VALIDATE with logs.
+
+--------------------------------------------------
+PART 0 — FILES TO AUDIT FIRST (MANDATORY)
+--------------------------------------------------
+
+Read and trace flow across:
+
+- CourseVideoPlayer.tsx
+- VideoPlayerWithXp.tsx
+- XP completion API caller
+- XpMetricCard.tsx
+
+Map the exact flow:
+
+User action → completion detection → fireCompletion → XP handler → API → UI updates
+
+--------------------------------------------------
+PART 1 — IDENTIFY ROOT CAUSE (DO NOT SKIP)
+--------------------------------------------------
+
+Find EXACTLY where the chain is breaking:
+
+Check all of the following:
+
+1. Is fireCompletion() being called?
+2. Is completionSentRef blocking incorrectly?
+3. Is onEnded prop actually passed and executed?
+4. Is XP handler being invoked?
+5. Is API being called?
+6. Is API returning xpAwarded > 0?
+7. Is confetti function being called?
+8. Is XP update event dispatched?
+
+Add TEMPORARY logs at each step:
+
+[VIDEO_COMPLETION_TRIGGERED]
+[FIRE_COMPLETION_CALLED]
+[XP_HANDLER_CALLED]
+[XP_API_CALLED]
+[XP_RESPONSE]
+[CONFETTI_TRIGGERED]
+[XP_EVENT_DISPATCHED]
+
+We need to see EXACTLY where execution stops.
+
+--------------------------------------------------
+PART 2 — FIX COMPLETION DETECTION (IF BROKEN)
+--------------------------------------------------
+
+Ensure ALL cases trigger completion:
+
+For <video>:
+- timeupdate → near-end detection
+- seeked → near-end detection
+- ended → fallback
+
+For iframe:
+- postMessage listener for:
+  Bunny → "ended" / "videoEnded"
+  YouTube → playerState=0
+
+Ensure all paths call:
+fireCompletion(reason)
+
+--------------------------------------------------
+PART 3 — ENSURE COMPLETION IS NOT BLOCKED
+--------------------------------------------------
+
+Verify:
+
+completionSentRef:
+- resets on videoId / playbackApiUrl change
+- only blocks AFTER first valid completion
+
+Add log:
+
+console.log("completionSentRef state:", completionSentRef.current)
+
+--------------------------------------------------
+PART 4 — ENSURE XP HANDLER ALWAYS RUNS
+--------------------------------------------------
+
+Verify:
+
+<CourseVideoPlayer onEnded={handleCompletion} />
+
+Check:
+- handleCompletion is defined
+- it is actually being called
+
+Add log inside handler:
+[XP_HANDLER_CALLED]
+
+--------------------------------------------------
+PART 5 — ENSURE XP API CALL IS EXECUTED
+--------------------------------------------------
+
+Inside handler:
+
+- log before fetch
+- log response
+
+If API fails:
+- log error
+
+Ensure:
+NO silent failures
+
+--------------------------------------------------
+PART 6 — FORCE CONFETTI (CRITICAL)
+--------------------------------------------------
+
+After API response:
+
+IF xpAwarded > 0:
+- call triggerXpCelebration(xpAwarded) DIRECTLY
+
+Do NOT depend on React state.
+
+Add log:
+[CONFETTI_TRIGGERED]
+
+--------------------------------------------------
+PART 7 — FULLSCREEN SUPPORT (VERY IMPORTANT)
+--------------------------------------------------
+
+Ensure:
+
+Completion detection works in fullscreen mode.
+
+Check:
+- event listeners still attached
+- no DOM reference issues
+- video ref still valid
+
+Test:
+- enter fullscreen
+- fast-forward → completion must trigger
+
+--------------------------------------------------
+PART 8 — XP CARD UPDATE GUARANTEE
+--------------------------------------------------
+
+After API success:
+
+Dispatch BOTH:
+
+window.dispatchEvent(new CustomEvent("xp-awarded", {...}))
+localStorage.setItem("xp-last-update", Date.now().toString())
+
+Add log:
+[XP_EVENT_DISPATCHED]
+
+In XpMetricCard:
+- verify listeners for both "xp-awarded" and "storage"
+
+--------------------------------------------------
+PART 9 — ADD SKIP CONTROLS (SAFE)
+--------------------------------------------------
+
+Add:
+
+- +10s forward
+- -10s backward
+
+IMPORTANT:
+- only modify currentTime
+- DO NOT call completion manually
+
+Existing logic must detect completion.
+
+--------------------------------------------------
+PART 10 — FINAL VALIDATION (MANDATORY)
+--------------------------------------------------
+
+Run these tests and LOG results:
+
+1. Normal playback → XP + confetti
+2. Fast forward (drag) → XP + confetti
+3. Skip using +10s → XP + confetti
+4. Fullscreen completion → XP + confetti
+5. Second watch → 50% XP
+6. Third watch → 0 XP (no confetti)
+7. No duplicate API calls
+
+--------------------------------------------------
+DELIVERABLE (VERY IMPORTANT)
+--------------------------------------------------
+
+Return:
+
+1. Exact root cause (line/file level)
+2. Fix applied
+3. Console log proof for each step
+4. Confirmation fullscreen works
+5. Confirmation XP card updates instantly
+6. Files changed

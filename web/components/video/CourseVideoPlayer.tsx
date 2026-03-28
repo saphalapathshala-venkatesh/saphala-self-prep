@@ -13,16 +13,7 @@ export interface CourseVideoPlayerProps {
   initialPositionSeconds?: number;
 
   // ── Source (use exactly one) ───────────────────────────────────────────────
-  /**
-   * Direct HLS manifest URL (.m3u8). Use for non-Bunny sources or when the
-   * caller already holds a safe HLS URL.
-   */
   manifestUrl?: string;
-  /**
-   * API endpoint that returns { manifestUrl, embedUrl, provider, providerVideoId }.
-   * The player fetches this on mount so signed/raw URLs never appear in SSR HTML.
-   * Example: "/api/student/videos/abc123/playback"
-   */
   playbackApiUrl?: string;
 
   // ── Callbacks ─────────────────────────────────────────────────────────────
@@ -35,7 +26,6 @@ export interface CourseVideoPlayerProps {
 // ── Playback source resolved from API ─────────────────────────────────────────
 
 interface ResolvedSource {
-  /** HLS .m3u8 URL (Bunny signed or plain). Null when using embed path. */
   manifestUrl: string | null;
   embedUrl: string | null;
   provider: string;
@@ -46,8 +36,8 @@ interface ResolvedSource {
 // ── Quality level ─────────────────────────────────────────────────────────────
 
 interface QualityLevel {
-  index: number; // -1 = auto
-  label: string; // "Auto" | "1080p" | "720p" | etc.
+  index: number;
+  label: string;
   height: number;
 }
 
@@ -63,9 +53,8 @@ function savePreferredQuality(q: string): void {
 
 function pickLevelForHeight(levels: QualityLevel[], targetHeight: number): number {
   if (levels.length === 0) return -1;
-  // Prefer the highest level that is <= targetHeight; fall back to lowest available
   const candidates = levels.filter((l) => l.height > 0 && l.height <= targetHeight);
-  if (candidates.length === 0) return levels[0].index; // lowest available
+  if (candidates.length === 0) return levels[0].index;
   return candidates.reduce((best, l) => (l.height > best.height ? l : best)).index;
 }
 
@@ -116,11 +105,11 @@ export default function CourseVideoPlayer({
   const loadedUrlRef = useRef<string>("");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // One-shot guard: prevents CourseVideoPlayer from calling onEnded more than once
-  // per video session (covers both near-end detection AND the "ended" DOM event).
+  // One-shot guard: prevents calling onEnded more than once per video session.
+  // Covers timeupdate, seeked, and the ended DOM event.
   const completionSentRef = useRef(false);
 
-  // Keep a stable ref to onEnded so callbacks always call the latest version
+  // Stable ref to onEnded — always holds the latest prop value.
   const onEndedRef = useRef(onEnded);
   useEffect(() => { onEndedRef.current = onEnded; }, [onEnded]);
 
@@ -134,19 +123,28 @@ export default function CourseVideoPlayer({
   const [error,       setError]       = useState<string | null>(null);
   const [unsupported, setUnsupported] = useState(false);
 
-  // Quality selector state (HLS only)
+  // Quality selector state
   const [availableLevels, setAvailableLevels] = useState<QualityLevel[]>([]);
   const [currentQuality,  setCurrentQuality]  = useState<string>(getPreferredQuality());
   const [qualityMenuOpen, setQualityMenuOpen] = useState(false);
 
+  // Track whether video is ready to play (so skip buttons only show when useful)
+  const [videoReady, setVideoReady] = useState(false);
+
   const { handleTimeUpdate, handlePause } = useProgressTracker(videoRef, onProgress);
 
-  // ── Completion signal — single point of entry ────────────────────────────────
+  // ── Completion signal — single entry point ────────────────────────────────
 
   const fireCompletion = useCallback((reason: string) => {
-    if (completionSentRef.current) return;
+    console.log(
+      `[FIRE_COMPLETION_CALLED] reason=${reason} completionSentRef=${completionSentRef.current} onEndedRef=${onEndedRef.current ? "set" : "null"}`,
+    );
+    if (completionSentRef.current) {
+      console.log("[FIRE_COMPLETION_CALLED] blocked — already sent");
+      return;
+    }
     completionSentRef.current = true;
-    console.log(`[VIDEO_COMPLETION_TRIGGERED] reason=${reason}`);
+    console.log("[VIDEO_COMPLETION_TRIGGERED] firing onEnded callback");
     onEndedRef.current?.();
   }, []);
 
@@ -186,13 +184,11 @@ export default function CourseVideoPlayer({
   const effectivePoster      = posterUrlProp ?? resolved?.posterUrl ?? null;
   const useIframeEmbed       = Boolean(effectiveEmbedUrl);
 
-  // Reset completion guard when the video source changes.
-  // effectiveManifestUrl / effectiveEmbedUrl cover prop-based and API-resolved sources.
-  // playbackApiUrl is included so the reset fires the moment the prop changes —
-  // before the async fetchSource() resolves — guarding against edge cases where the
-  // component stays mounted while the video changes (e.g. a playlist-style parent).
+  // Reset completion guard as soon as ANY source identifier changes.
   useEffect(() => {
+    console.log("[COMPLETION_GUARD_RESET] completionSentRef → false");
     completionSentRef.current = false;
+    setVideoReady(false);
   }, [effectiveManifestUrl, effectiveEmbedUrl, playbackApiUrl]);
 
   // ── Step 2: no-source guard ──────────────────────────────────────────────────
@@ -205,15 +201,12 @@ export default function CourseVideoPlayer({
   }, [resolving, resolved, effectiveManifestUrl, effectiveEmbedUrl]);
 
   // ── Step 3: near-end detection for <video> element ──────────────────────────
-  // Two complementary events cover all cases:
   //
-  //   "timeupdate" — fires repeatedly (~4 Hz) during normal playback.
-  //                  Catches the user watching through to the end at normal speed.
-  //
-  //   "seeked"     — fires immediately after a seek operation completes.
-  //                  Catches the user dragging the scrubber directly to the last
-  //                  few seconds. This fires before the next "timeupdate" tick so
-  //                  completion is detected without any perceptible delay.
+  //   "timeupdate" — fires ~4 Hz during normal playback.
+  //   "seeked"     — fires immediately when the user finishes a scrub operation.
+  //                  This is the key event for fast-forward / seek-to-end scenarios:
+  //                  it fires before the next timeupdate tick, so completion is
+  //                  detected without any perceptible delay.
   //
   // Both paths go through fireCompletion() which is guarded by completionSentRef,
   // so the XP API is always called exactly once per video session.
@@ -223,9 +216,14 @@ export default function CourseVideoPlayer({
     if (!el || useIframeEmbed) return;
 
     function checkNearEnd(reason: string) {
-      if (!el || completionSentRef.current) return;
+      if (!el) return;
+      if (completionSentRef.current) return;
       if (isNaN(el.duration) || el.duration < 1) return;
-      if (el.duration - el.currentTime <= 2) {
+      const remaining = el.duration - el.currentTime;
+      if (remaining <= 2) {
+        console.log(
+          `[NEAR_END_CHECK] reason=${reason} duration=${el.duration.toFixed(2)} currentTime=${el.currentTime.toFixed(2)} remaining=${remaining.toFixed(2)}`,
+        );
         fireCompletion(reason);
       }
     }
@@ -244,7 +242,7 @@ export default function CourseVideoPlayer({
   // ── Step 4: ended DOM event handler ─────────────────────────────────────────
 
   const handleEnded = useCallback(() => {
-    // Report final position via progress tracker
+    console.log("[ENDED_EVENT] DOM ended event fired");
     const el = videoRef.current;
     if (el && !isNaN(el.duration)) {
       onProgress?.({ currentTime: el.currentTime, duration: el.duration });
@@ -263,19 +261,21 @@ export default function CourseVideoPlayer({
         const data = typeof raw === "string" ? JSON.parse(raw) : raw;
         if (!data || typeof data !== "object") return;
 
-        // Bunny player events: { event: "videoEnded" } or { event: "ended" }
+        // Bunny player: { event: "videoEnded" } or { event: "ended" }
         if (data.event === "videoEnded" || data.event === "ended") {
+          console.log("[IFRAME_MESSAGE] Bunny ended event received");
           fireCompletion("iframe-bunny-ended");
           return;
         }
 
-        // YouTube player events: { event: "infoDelivery", info: { playerState: 0 } }
+        // YouTube: { event: "infoDelivery", info: { playerState: 0 } }
         if (
           data.event === "infoDelivery" &&
           data.info &&
           typeof data.info === "object" &&
           data.info.playerState === 0
         ) {
+          console.log("[IFRAME_MESSAGE] YouTube playerState=0 received");
           fireCompletion("iframe-youtube-ended");
           return;
         }
@@ -301,13 +301,11 @@ export default function CourseVideoPlayer({
     setError(null);
     setUnsupported(false);
     setAvailableLevels([]);
+    setVideoReady(false);
 
     const { default: Hls } = await import("hls.js");
 
     if (Hls.isSupported()) {
-      // Pre-read preference so we can pass a constructor hint.
-      // For fixed-quality modes we start at level 0 (lowest) and lock after
-      // MANIFEST_PARSED. For Auto we leave startLevel=-1 (ABR default).
       const savedPreference = getPreferredQuality();
       const isAutoMode = savedPreference === "auto";
       console.log(`[VIDEO_QUALITY] saved preference="${savedPreference}" mode=${isAutoMode ? "Auto ABR" : "fixed"}`);
@@ -315,9 +313,6 @@ export default function CourseVideoPlayer({
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: false,
-        // Start at lowest quality for fixed modes so the first buffered segment
-        // is cheap. We'll lock the correct level in MANIFEST_PARSED.
-        // For auto mode, -1 lets ABR pick freely from the start.
         startLevel: isAutoMode ? -1 : 0,
       });
       hlsRef.current = hls;
@@ -326,33 +321,26 @@ export default function CourseVideoPlayer({
 
       hls.once(Hls.Events.MANIFEST_PARSED, () => {
         setLoading(false);
+        setVideoReady(true);
         if (initialPositionSeconds) el.currentTime = initialPositionSeconds;
 
-        // Build quality level list for the selector
         const levels: QualityLevel[] = hls.levels.map((l, i) => ({
           index: i,
           label: l.height > 0 ? `${l.height}p` : `Level ${i}`,
           height: l.height ?? 0,
         }));
-        if (levels.length > 1) {
-          setAvailableLevels(levels);
-        }
+        if (levels.length > 1) setAvailableLevels(levels);
 
         if (isAutoMode) {
-          // Auto ABR: let HLS.js manage quality freely
           hls.currentLevel = -1;
           setCurrentQuality("Auto");
           console.log("[VIDEO_QUALITY] Auto ABR active (currentLevel=-1)");
         } else {
-          // Fixed quality: LOCK via currentLevel (not just startLevel).
-          // hls.startLevel is only a hint for the first segment; ABR can
-          // override it immediately. hls.currentLevel = N disables ABR and
-          // holds the player at that level until changed by the user.
           const targetHeight = parseInt(savedPreference, 10);
           const idx = isNaN(targetHeight)
-            ? pickLevelForHeight(levels, 480)          // corrupt pref → fall back to 480p
+            ? pickLevelForHeight(levels, 480)
             : pickLevelForHeight(levels, targetHeight);
-          hls.currentLevel = idx;                      // ← THIS disables ABR and locks quality
+          hls.currentLevel = idx;
           const matchedLabel = levels.find((l) => l.index === idx)?.label ?? `${targetHeight}p`;
           setCurrentQuality(matchedLabel);
           console.log(
@@ -369,10 +357,10 @@ export default function CourseVideoPlayer({
         }
       });
     } else if (el.canPlayType("application/vnd.apple.mpegurl")) {
-      // Safari native HLS
       el.src = effectiveManifestUrl;
       el.addEventListener("loadedmetadata", () => {
         setLoading(false);
+        setVideoReady(true);
         if (initialPositionSeconds) el.currentTime = initialPositionSeconds;
       }, { once: true });
       el.addEventListener("error", (e) => {
@@ -416,6 +404,22 @@ export default function CourseVideoPlayer({
     setQualityMenuOpen(false);
   }, [availableLevels]);
 
+  // ── Skip controls ────────────────────────────────────────────────────────────
+
+  const handleSkipBackward = useCallback(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    el.currentTime = Math.max(0, el.currentTime - 10);
+  }, []);
+
+  const handleSkipForward = useCallback(() => {
+    const el = videoRef.current;
+    if (!el || isNaN(el.duration)) return;
+    // Do NOT clamp to duration - 2 here. We deliberately allow seeking to the
+    // last 2 seconds so the near-end detection (seeked event) can fire.
+    el.currentTime = Math.min(el.duration, el.currentTime + 10);
+  }, []);
+
   // ── Retry ────────────────────────────────────────────────────────────────────
 
   const handleRetry = useCallback(() => {
@@ -432,6 +436,7 @@ export default function CourseVideoPlayer({
   const showResolvingSpinner = resolving || (!!playbackApiUrl && !resolved && !resolveErr);
   const showHlsSpinner       = !showResolvingSpinner && !useIframeEmbed && loading && !error && !unsupported;
   const showError            = resolveErr ?? error ?? null;
+  const showSkipControls     = videoReady && !showError && !unsupported && !useIframeEmbed;
 
   // ── Iframe embed (YouTube or Bunny embed player) ──────────────────────────────
 
@@ -455,9 +460,10 @@ export default function CourseVideoPlayer({
 
   return (
     <div ref={containerRef} className="relative w-full bg-black select-none">
+      {/* 16:9 video container */}
       <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
 
-        {/* The video element — always rendered so ref is stable */}
+        {/* Video element — always rendered so ref is stable */}
         <video
           ref={videoRef}
           poster={effectivePoster ?? undefined}
@@ -470,7 +476,7 @@ export default function CourseVideoPlayer({
           aria-label={title}
         />
 
-        {/* Resolving API spinner */}
+        {/* Resolving spinner */}
         {showResolvingSpinner && (
           <Overlay poster={effectivePoster}>
             <SpinnerIcon />
@@ -518,8 +524,8 @@ export default function CourseVideoPlayer({
           </Overlay>
         )}
 
-        {/* Quality selector button — top-right, only when levels are available */}
-        {availableLevels.length > 1 && !showHlsSpinner && !showError && (
+        {/* Quality selector — top-right */}
+        {availableLevels.length > 1 && videoReady && !showError && (
           <div className="absolute top-2 right-2 z-20">
             <div className="relative">
               <button
@@ -557,6 +563,35 @@ export default function CourseVideoPlayer({
           </div>
         )}
       </div>
+
+      {/* ── Skip controls — shown below the video when ready ─────────────────── */}
+      {showSkipControls && (
+        <div className="flex items-center justify-center gap-4 py-2 bg-black/95">
+          {/* Back 10s */}
+          <button
+            onClick={handleSkipBackward}
+            className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            aria-label="Skip back 10 seconds"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0019 16V8a1 1 0 00-1.6-.8l-5.333 4zM4.066 11.2a1 1 0 000 1.6l5.334 4A1 1 0 0011 16V8a1 1 0 00-1.6-.8l-5.334 4z" />
+            </svg>
+            10s
+          </button>
+
+          {/* Forward 10s */}
+          <button
+            onClick={handleSkipForward}
+            className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            aria-label="Skip forward 10 seconds"
+          >
+            10s
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

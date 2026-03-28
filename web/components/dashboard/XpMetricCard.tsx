@@ -38,11 +38,13 @@ export default function XpMetricCard({ initialXpTotal, initialIsReal }: XpMetric
     setTimeout(() => setFlash(false), 1500);
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (trigger = "unknown") => {
+    console.log("[XP_CARD_REFRESH_TRIGGERED] trigger=" + trigger);
     try {
       const res = await fetch("/api/student/xp/summary", { cache: "no-store" });
       if (!res.ok) return;
       const data: XpSummary = await res.json();
+      console.log("[XP_CARD_REFRESH_TRIGGERED] fetched xpTotal=" + data.xpTotal + " current=" + xpTotalRef.current);
       if (data.xpTotal !== xpTotalRef.current) {
         applyFlash(data.xpTotal);
       }
@@ -51,7 +53,7 @@ export default function XpMetricCard({ initialXpTotal, initialIsReal }: XpMetric
 
   // ── 1. Fetch live value on mount to override any stale SSR data ──────────────
   useEffect(() => {
-    refresh();
+    refresh("mount");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -75,7 +77,7 @@ export default function XpMetricCard({ initialXpTotal, initialIsReal }: XpMetric
   useEffect(() => {
     function onStorage(e: StorageEvent) {
       if (e.key === XP_SIGNAL_KEY) {
-        refresh();
+        refresh("storage-cross-tab");
       }
     }
     window.addEventListener("storage", onStorage);
@@ -84,8 +86,9 @@ export default function XpMetricCard({ initialXpTotal, initialIsReal }: XpMetric
 
   // ── 4. Tab focus: re-fetch when the student navigates back from a video page ─
   useEffect(() => {
-    window.addEventListener("focus", refresh);
-    return () => window.removeEventListener("focus", refresh);
+    function onFocus() { refresh("window-focus"); }
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [refresh]);
 
   const displayValue = String(xpTotal);

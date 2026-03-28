@@ -58,6 +58,15 @@ export default function VideoPlayerWithXp({
   const xpCalledRef = useRef(false);
 
   async function handleVideoEnded() {
+    console.log("[XP_HANDLER_CALLED] videoId=" + videoId + " xpCalledRef=" + xpCalledRef.current);
+
+    // Exit fullscreen if active — canvas-confetti attaches to document.body which
+    // is NOT inside the fullscreen element, so confetti is invisible in fullscreen.
+    // Exiting first ensures the banner and confetti render in the normal viewport.
+    if (typeof document !== "undefined" && document.fullscreenElement) {
+      try { await document.exitFullscreen(); } catch { /* ignore — not all browsers support */ }
+    }
+
     if (xpCalledRef.current) {
       console.log("[XP_API_CALLED] skipped — already fired for this session");
       return;
@@ -94,6 +103,7 @@ export default function VideoPlayerWithXp({
       window.dispatchEvent(
         new CustomEvent("xp-awarded", { detail: { xpAwarded: awarded, newTotal: total } }),
       );
+      console.log("[XP_EVENT_DISPATCHED] xp-awarded dispatched", { xpAwarded: awarded, newTotal: total });
 
       // ── Signal other open tabs (e.g. dashboard tab) via localStorage
       try {
