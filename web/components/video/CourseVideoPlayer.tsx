@@ -266,8 +266,11 @@ export default function CourseVideoPlayer({
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
-    console.log("[BUNNY_IFRAME] iframe loaded — sending subscribe");
+    console.log("[BUNNY_IFRAME] iframe loaded — sending subscribe (enablePostMessage=true required in URL)");
     iframe.contentWindow.postMessage(JSON.stringify({ action: "subscribe" }), "*");
+    // Mark the player as ready immediately on iframe load so skip buttons
+    // appear even if Bunny's playerReady event is delayed.
+    setVideoReady(true);
   }, []);
 
   // ── Step 6: iframe postMessage listener (Bunny / YouTube) ───────────────────
@@ -294,6 +297,11 @@ export default function CourseVideoPlayer({
         if (!data || typeof data !== "object") return;
 
         const event = (data.event as string | undefined) ?? "";
+
+        // Log every Bunny event (except noisy timeupdate) for debugging
+        if (event && event !== "timeupdate") {
+          console.log("[BUNNY_EVENT]", event, data);
+        }
 
         // ── Bunny: playerReady ─────────────────────────────────────────────
         if (event === "playerReady") {

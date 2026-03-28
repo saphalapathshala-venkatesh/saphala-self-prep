@@ -105,8 +105,10 @@ export function resolveManifestUrl(opts: {
  */
 export function buildBunnyEmbedUrl(providerVideoId: string | null): string | null {
   if (!BUNNY_LIBRARY_ID || !providerVideoId) return null;
+  // enablePostMessage=true is REQUIRED — without it Bunny silently ignores
+  // all { action: 'subscribe' } messages and sends no events back.
   return (
     `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${providerVideoId}` +
-    `?autoplay=false&loop=false&muted=false&preload=true&responsive=true`
+    `?autoplay=false&loop=false&muted=false&preload=true&responsive=true&enablePostMessage=true`
   );
 }
