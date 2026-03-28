@@ -1,0 +1,130 @@
+We have completed major frontend changes (video XP, confetti, skip controls, quality logic), but NONE of these changes are visible in production.
+
+Conclusion:
+Vercel is NOT running the latest code.
+
+TASK:
+Audit and fix deployment pipeline from Replit → GitHub → Vercel.
+
+--------------------------------------------------
+PART 1 — VERIFY LOCAL STATE
+--------------------------------------------------
+
+Confirm:
+
+1. All latest changes exist in the working directory
+2. Git status is clean or shows pending changes
+
+Run:
+git status
+
+--------------------------------------------------
+PART 2 — COMMIT ALL CHANGES
+--------------------------------------------------
+
+If changes are not committed:
+
+git add .
+git commit -m "fix: video completion, XP trigger, confetti, skip controls, quality lock"
+
+--------------------------------------------------
+PART 3 — VERIFY REMOTE
+--------------------------------------------------
+
+Check:
+
+git remote -v
+
+Confirm correct GitHub repo is connected.
+
+--------------------------------------------------
+PART 4 — PUSH TO GITHUB
+--------------------------------------------------
+
+Push latest code:
+
+git push origin main
+
+(or correct branch if not main)
+
+--------------------------------------------------
+PART 5 — VERIFY GITHUB
+--------------------------------------------------
+
+Confirm:
+
+- Latest commit is visible on GitHub
+- Files updated:
+  - CourseVideoPlayer.tsx
+  - VideoPlayerWithXp.tsx
+  - XpMetricCard.tsx
+
+--------------------------------------------------
+PART 6 — VERIFY VERCEL CONNECTION
+--------------------------------------------------
+
+Check:
+
+- Vercel project is connected to same GitHub repo
+- Correct branch is deployed (main)
+
+--------------------------------------------------
+PART 7 — FORCE REDEPLOY
+--------------------------------------------------
+
+Trigger fresh deployment:
+
+Option A:
+- Push empty commit:
+  git commit --allow-empty -m "trigger redeploy"
+  git push
+
+Option B:
+- Redeploy manually from Vercel dashboard
+
+--------------------------------------------------
+PART 8 — CLEAR CACHE
+--------------------------------------------------
+
+After deployment:
+
+- Hard refresh browser (Ctrl + Shift + R)
+- OR open in incognito
+
+--------------------------------------------------
+PART 9 — ADD BUILD LOG MARKER (IMPORTANT)
+--------------------------------------------------
+
+Add temporary log in frontend:
+
+console.log("BUILD_VERSION: VIDEO_XP_FIX_DEPLOYED");
+
+Deploy again.
+
+Verify this log appears in browser console.
+
+--------------------------------------------------
+PART 10 — FINAL VALIDATION
+--------------------------------------------------
+
+After deployment:
+
+1. Skip buttons visible (+10s / -10s)
+2. Fast-forward completion triggers XP
+3. Confetti visible
+4. XP card updates instantly
+5. Console shows new logs:
+   - VIDEO_COMPLETION_TRIGGERED
+   - XP_API_CALLED
+   - CONFETTI_TRIGGERED
+
+--------------------------------------------------
+DELIVERABLE
+--------------------------------------------------
+
+Return:
+
+1. Git commit hash
+2. GitHub link confirmation
+3. Vercel deployment URL
+4. Proof new build is live (BUILD_VERSION log)
