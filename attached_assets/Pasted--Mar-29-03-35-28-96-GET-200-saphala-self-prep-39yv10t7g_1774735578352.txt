@@ -1,0 +1,554 @@
+
+Mar 29 03:35:28.96
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:25.46
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+2
+[db] Initialising PrismaClient (Neon HTTP adapter) — host: ep-divine-butterfly-a1q63q5z-pooler.ap-southeast-1.aws.neon.tech
+Mar 29 03:35:21.08
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:21.07
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.97
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.94
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.92
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/courses
+Mar 29 03:35:20.91
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/testhub
+Mar 29 03:35:20.83
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.77
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.77
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.73
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.73
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.71
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.70
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/courses
+Mar 29 03:35:20.68
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.66
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.66
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:20.66
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/quote-of-the-day
+Mar 29 03:35:20.64
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.64
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.63
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/categories
+Mar 29 03:35:20.63
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.63
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/testhub
+Mar 29 03:35:20.63
+GET
+307
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/learn/flashcards
+Mar 29 03:35:20.62
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/auth/status
+Mar 29 03:35:20.58
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.46
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.45
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.44
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.44
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:20.43
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/courses
+Mar 29 03:35:20.42
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:20.42
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.42
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/courses
+Mar 29 03:35:20.41
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/categories
+Mar 29 03:35:20.41
+GET
+307
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/learn/flashcards
+Mar 29 03:35:20.41
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/testhub
+Mar 29 03:35:20.41
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.40
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/quote-of-the-day
+Mar 29 03:35:20.40
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/auth/status
+Mar 29 03:35:20.34
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.34
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.34
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/testhub
+Mar 29 03:35:20.34
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.17
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.17
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.16
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/_next/image
+Mar 29 03:35:20.15
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:20.14
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:20.10
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:20.10
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/courses
+Mar 29 03:35:20.10
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/testhub
+Mar 29 03:35:20.10
+GET
+307
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/learn/flashcards
+Mar 29 03:35:20.08
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/categories
+Mar 29 03:35:20.08
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/quote-of-the-day
+Mar 29 03:35:20.08
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/auth/status
+Mar 29 03:35:19.65
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:19.65
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/testhub
+Mar 29 03:35:19.65
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:19.53
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:19.46
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:19.46
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/courses
+Mar 29 03:35:19.40
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:19.38
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/courses
+Mar 29 03:35:19.37
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:19.35
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:19.35
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:19.31
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:19.29
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:19.29
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/testhub
+Mar 29 03:35:19.25
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:19.21
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:19.20
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/categories
+Mar 29 03:35:19.19
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/courses
+Mar 29 03:35:19.17
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:19.17
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:19.17
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:19.17
+GET
+307
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/learn/flashcards
+Mar 29 03:35:19.17
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/quote-of-the-day
+Mar 29 03:35:19.17
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/testhub
+Mar 29 03:35:19.17
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:19.16
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/_next/image
+Mar 29 03:35:19.16
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/auth/status
+[db] Initialising PrismaClient (Neon HTTP adapter) — host: ep-divine-butterfly-a1q63q5z-pooler.ap-southeast-1.aws.neon.tech
+Mar 29 03:35:19.09
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:18.91
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:18.89
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:18.89
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:18.82
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:18.78
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:18.46
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/_next/image
+Mar 29 03:35:18.33
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/courses
+Mar 29 03:35:18.30
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/login
+Mar 29 03:35:18.13
+GET
+307
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/learn/flashcards
+Mar 29 03:35:18.13
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/testhub
+Mar 29 03:35:18.13
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/register
+Mar 29 03:35:18.05
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/quote-of-the-day
+Mar 29 03:35:18.05
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/public/categories
+Mar 29 03:35:18.05
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/api/auth/status
+[db] Initialising PrismaClient (Neon HTTP adapter) — host: ep-divine-butterfly-a1q63q5z-pooler.ap-southeast-1.aws.neon.tech
+Mar 29 03:35:16.75
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/_next/image
+Mar 29 03:35:15.84
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:15.80
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:15.61
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:14.70
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+Mar 29 03:35:12.32
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+2
+[db] Initialising PrismaClient (Neon HTTP adapter) — host: ep-divine-butterfly-a1q63q5z-pooler.ap-southeast-1.aws.neon.tech
+Mar 29 03:35:11.78
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+2
+[db] Initialising PrismaClient (Neon HTTP adapter) — host: ep-divine-butterfly-a1q63q5z-pooler.ap-southeast-1.aws.neon.tech
+Mar 29 03:35:11.75
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+2
+[db] Initialising PrismaClient (Neon HTTP adapter) — host: ep-divine-butterfly-a1q63q5z-pooler.ap-southeast-1.aws.neon.tech
+Mar 29 03:35:11.58
+GET
+200
+saphala-self-prep-39yv10t7g-venkateshs-projects-3b693aa9.vercel.app
+/
+2
+[db] Initialising PrismaClient (Neon HTTP adapter) — host: ep-divine-butterfly-a1q63q5z-pooler.ap-southeast-1.aws.neon.tech
+No more logs to show within selected timeline
