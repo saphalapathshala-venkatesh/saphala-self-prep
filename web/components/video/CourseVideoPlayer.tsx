@@ -303,9 +303,12 @@ export default function CourseVideoPlayer({
           console.log("[BUNNY_EVENT]", event, data);
         }
 
-        // ── Bunny: playerReady ─────────────────────────────────────────────
-        if (event === "playerReady") {
-          console.log("[BUNNY_IFRAME] playerReady — re-subscribing");
+        // ── Bunny: ready (Bunny sends "ready", not "playerReady") ─────────
+        // Must re-subscribe AFTER the ready event so Bunny begins sending
+        // timeupdate / ended events. Without this re-subscribe, no further
+        // events are delivered and currentTimeRef stays at 0 forever.
+        if (event === "ready" || event === "playerReady") {
+          console.log("[BUNNY_IFRAME] ready — re-subscribing so timeupdate events start");
           iframeRef.current?.contentWindow?.postMessage(
             JSON.stringify({ action: "subscribe" }), "*",
           );
@@ -315,11 +318,14 @@ export default function CourseVideoPlayer({
 
         // ── Bunny: timeupdate ──────────────────────────────────────────────
         if (event === "timeupdate") {
-          const ct = Number(data.currentTime ?? 0);
-          const dur = Number(data.duration   ?? 0);
+          const ct  = Number(data.currentTime ?? 0);
+          const dur = Number(data.duration    ?? 0);
+          // Log first 3 timeupdate events to confirm events are flowing
+          if (ct < 4) {
+            console.log("[BUNNY_TIMEUPDATE] ct=" + ct.toFixed(2) + " dur=" + dur.toFixed(2));
+          }
           bunnyCurrentTimeRef.current = ct;
           if (dur > 0) bunnyDurationRef.current = dur;
-          // Mark ready on first timeupdate (guards against missed playerReady)
           setVideoReady(true);
           return;
         }
@@ -488,22 +494,22 @@ export default function CourseVideoPlayer({
 
   const handleBunnySkipBackward = useCallback(() => {
     const iframe = iframeRef.current;
+    const ct     = bunnyCurrentTimeRef.current;
+    const newTime = Math.max(0, ct - 10);
+    console.log("[BUNNY_SKIP] ← backward | ct=" + ct.toFixed(2) + " → seek to " + newTime.toFixed(2) + " | iframeRef=" + (iframe ? "SET" : "NULL"));
     if (!iframe?.contentWindow) return;
-    const newTime = Math.max(0, bunnyCurrentTimeRef.current - 10);
-    console.log("[BUNNY_SKIP] backward → seek to", newTime);
     iframe.contentWindow.postMessage(
       JSON.stringify({ action: "seek", currentTime: newTime }), "*",
     );
   }, []);
 
   const handleBunnySkipForward = useCallback(() => {
-    const iframe = iframeRef.current;
-    if (!iframe?.contentWindow) return;
+    const iframe  = iframeRef.current;
+    const ct      = bunnyCurrentTimeRef.current;
     const dur     = bunnyDurationRef.current;
-    const newTime = dur > 0
-      ? Math.min(dur, bunnyCurrentTimeRef.current + 10)
-      : bunnyCurrentTimeRef.current + 10;
-    console.log("[BUNNY_SKIP] forward → seek to", newTime);
+    const newTime = dur > 0 ? Math.min(dur, ct + 10) : ct + 10;
+    console.log("[BUNNY_SKIP] → forward  | ct=" + ct.toFixed(2) + " dur=" + dur.toFixed(2) + " → seek to " + newTime.toFixed(2) + " | iframeRef=" + (iframe ? "SET" : "NULL"));
+    if (!iframe?.contentWindow) return;
     iframe.contentWindow.postMessage(
       JSON.stringify({ action: "seek", currentTime: newTime }), "*",
     );
