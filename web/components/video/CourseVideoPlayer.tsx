@@ -186,10 +186,14 @@ export default function CourseVideoPlayer({
   const effectivePoster      = posterUrlProp ?? resolved?.posterUrl ?? null;
   const useIframeEmbed       = Boolean(effectiveEmbedUrl);
 
-  // Reset completion guard when the video source changes
+  // Reset completion guard when the video source changes.
+  // effectiveManifestUrl / effectiveEmbedUrl cover prop-based and API-resolved sources.
+  // playbackApiUrl is included so the reset fires the moment the prop changes —
+  // before the async fetchSource() resolves — guarding against edge cases where the
+  // component stays mounted while the video changes (e.g. a playlist-style parent).
   useEffect(() => {
     completionSentRef.current = false;
-  }, [effectiveManifestUrl, effectiveEmbedUrl]);
+  }, [effectiveManifestUrl, effectiveEmbedUrl, playbackApiUrl]);
 
   // ── Step 2: no-source guard ──────────────────────────────────────────────────
 
@@ -201,23 +205,40 @@ export default function CourseVideoPlayer({
   }, [resolving, resolved, effectiveManifestUrl, effectiveEmbedUrl]);
 
   // ── Step 3: near-end detection for <video> element ──────────────────────────
-  // This fires onEnded when the user seeks near the end (within 2s), ensuring
-  // completion is captured even if the browser doesn't reliably fire "ended".
+  // Two complementary events cover all cases:
+  //
+  //   "timeupdate" — fires repeatedly (~4 Hz) during normal playback.
+  //                  Catches the user watching through to the end at normal speed.
+  //
+  //   "seeked"     — fires immediately after a seek operation completes.
+  //                  Catches the user dragging the scrubber directly to the last
+  //                  few seconds. This fires before the next "timeupdate" tick so
+  //                  completion is detected without any perceptible delay.
+  //
+  // Both paths go through fireCompletion() which is guarded by completionSentRef,
+  // so the XP API is always called exactly once per video session.
 
   useEffect(() => {
     const el = videoRef.current;
     if (!el || useIframeEmbed) return;
 
-    function checkNearEnd() {
+    function checkNearEnd(reason: string) {
       if (!el || completionSentRef.current) return;
       if (isNaN(el.duration) || el.duration < 1) return;
       if (el.duration - el.currentTime <= 2) {
-        fireCompletion("near-end-timeupdate");
+        fireCompletion(reason);
       }
     }
 
-    el.addEventListener("timeupdate", checkNearEnd);
-    return () => el.removeEventListener("timeupdate", checkNearEnd);
+    const onTimeUpdate = () => checkNearEnd("near-end-timeupdate");
+    const onSeeked     = () => checkNearEnd("near-end-seeked");
+
+    el.addEventListener("timeupdate", onTimeUpdate);
+    el.addEventListener("seeked",     onSeeked);
+    return () => {
+      el.removeEventListener("timeupdate", onTimeUpdate);
+      el.removeEventListener("seeked",     onSeeked);
+    };
   }, [useIframeEmbed, fireCompletion]);
 
   // ── Step 4: ended DOM event handler ─────────────────────────────────────────
