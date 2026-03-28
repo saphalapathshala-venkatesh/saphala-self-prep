@@ -54,7 +54,14 @@ A video library from the `Video` table, featuring entitlement-based access, YouT
 #### Video XP (Sadhana Points)
 Videos award XP on completion via `POST /api/student/videos/complete`. `Video` table has `xpEnabled` (bool) and `xpValue` (int) columns. XP follows the 1st=100% / 2nd=50% / 3rd+=0% pattern, stored as `XpLedgerEntry` rows with `refType="Video"`. The `VideoPlayerWithXp` client component handles the `onEnded` event, calls the complete API, shows confetti, and displays the XP banner. Admin controls XP settings at `/admin/videos` via `PATCH /api/admin/videos/[id]`.
 
-**VideoProgress model:** Tracks per-user per-video `attemptCount` and `lastCompletedAt`. The completion API uses an atomic SQL upsert (`INSERT ... ON CONFLICT DO UPDATE SET attemptCount+1`) so concurrent calls are safe. XP ledger entries are guarded against duplicates by checking for an existing entry with the same `completionNumber` in `meta`. The `VideoPlayerWithXp` component accepts an optional `onXpAwarded(result: XpResult)` callback for external consumers.
+**Final XP architecture (single source of truth):**
+- `UserXpSourceProgress` — tracks per-user per-source (VIDEO/TEST/etc.) `completionCount` and `totalXpAwarded`. Unique on `(userId, sourceType, sourceId)`. The completion API atomically upserts this via `INSERT ... ON CONFLICT DO UPDATE SET completionCount+1` so concurrent calls are safe.
+- `XpLedgerEntry` — immutable log of every XP award with `refType="Video"`, `refId=videoId`, and `meta.completionNumber` for idempotency checks.
+- `UserXpWallet` — live balance; upserted atomically on every XP award via `ON CONFLICT DO UPDATE SET currentXpBalance += xp`.
+- Non-student roles (ADMIN, SUPER_ADMIN) always get `xpAwarded=0` — admin preview never triggers XP.
+- Duplicate-award guard: before inserting a ledger entry, checks `meta->>'completionNumber' = N` for that user/video — idempotent on network retries.
+- `VideoPlayerWithXp` accepts `onXpAwarded?(result: XpResult)` callback for external consumers.
+- **Removed:** `VideoProgress` model/table (was a duplicate of `UserXpSourceProgress`).
 
 #### Video Doubts
 Students can ask doubts while watching videos via the `DoubtModal` client component (rendered in `VideoPlayerWithXp`). Doubts are stored in the `Doubt` table with statuses: `OPEN → ADDRESSED → CLOSED`. Admin replies via `/admin/doubts` page. Students view their doubt history at `/doubts`. Dashboard shows a card for recently answered doubts. Sidebar includes a "My Doubts" nav link.

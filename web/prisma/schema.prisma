@@ -156,9 +156,10 @@ model User {
   purchases      Purchase[]
   paymentOrders  PaymentOrder[]
   refundRequests RefundRequest[]
-  doubts         Doubt[]        @relation("StudentDoubts")
-  answeredDoubts Doubt[]        @relation("AnsweredDoubts")
-  videoProgress  VideoProgress[]
+  doubts           Doubt[]        @relation("StudentDoubts")
+  answeredDoubts   Doubt[]        @relation("AnsweredDoubts")
+  xpSourceProgress UserXpSourceProgress[]
+  xpWallet         UserXpWallet?
   @@index([role])
 }
 model Session {
@@ -646,17 +647,44 @@ model XpLedgerEntry {
   @@index([userId, createdAt])
 }
 
-model VideoProgress {
-  id              String   @id @default(cuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  videoId         String
-  attemptCount    Int      @default(0)
-  lastCompletedAt DateTime @default(now())
-  createdAt       DateTime @default(now())
+enum XpSourceType {
+  VIDEO
+  TEST
+  FLASHCARD
+  HTML
+  DAILY_LOGIN
+  STREAK_BONUS
+  REDEMPTION
+  ADMIN_ADJUSTMENT
+}
 
-  @@unique([userId, videoId])
+model UserXpSourceProgress {
+  id              String       @id @default(cuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceType      XpSourceType
+  sourceId        String
+  completionCount Int          @default(0)
+  totalXpAwarded  Int          @default(0)
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([userId, sourceType, sourceId])
   @@index([userId])
+}
+
+model UserXpWallet {
+  id                     String    @id @default(cuid())
+  userId                 String    @unique
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentXpBalance       Int       @default(0)
+  lifetimeXpEarned       Int       @default(0)
+  lifetimeXpRedeemed     Int       @default(0)
+  currentLevel           Int       @default(0)
+  currentStreakDays       Int       @default(0)
+  longestStreakDays       Int       @default(0)
+  lastLoginDate          DateTime?
+  xpRedemptionUnlockedAt DateTime?
+  updatedAt              DateTime  @updatedAt
 }
 
 // REVENUE + ANALYTICS

@@ -3,16 +3,22 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-function computeMultiplier(attemptCount: number): number {
-  if (attemptCount === 1) return 1.0;
-  if (attemptCount === 2) return 0.5;
+function computeMultiplier(completionCount: number): number {
+  if (completionCount === 1) return 1.0;
+  if (completionCount === 2) return 0.5;
   return 0;
 }
 
 export async function POST(request: Request) {
+  // ── 1. Auth ──────────────────────────────────────────────────────────────
   const user = await getCurrentUser();
   if (!user) {
     return Response.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // Only student sessions can earn XP — admin previews never trigger XP
+  if (user.role !== "STUDENT") {
+    return Response.json({ xpAwarded: 0, completionNumber: 0, xpMultiplier: 0, newTotal: 0 });
   }
 
   let body: { videoId?: string };
@@ -27,7 +33,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "videoId is required" }, { status: 400 });
   }
 
-  // 1. Verify video exists and is published
+  // ── 2. Verify video exists and is published ──────────────────────────────
   const rows = await prisma.$queryRawUnsafe<
     { id: string; title: string; xpEnabled: boolean; xpValue: number }[]
   >(
@@ -41,89 +47,120 @@ export async function POST(request: Request) {
 
   const video = rows[0];
 
-  // 2. Atomically upsert VideoProgress — increment attemptCount.
-  //    This is a single SQL statement so it's safe against concurrent calls.
-  const newId = crypto.randomUUID();
-  const progressRows = await prisma.$queryRawUnsafe<{ attemptCount: number }[]>(
-    `
-    INSERT INTO "VideoProgress" ("id", "userId", "videoId", "attemptCount", "lastCompletedAt", "createdAt")
-    VALUES ($1, $2, $3, 1, now(), now())
-    ON CONFLICT ("userId", "videoId")
-    DO UPDATE SET
-      "attemptCount"    = "VideoProgress"."attemptCount" + 1,
-      "lastCompletedAt" = now()
-    RETURNING "attemptCount"
-    `,
-    newId,
-    user.id,
-    videoId,
-  );
+  // ── 3. Atomically upsert UserXpSourceProgress ───────────────────────────
+  //   Prisma translates upsert to INSERT ... ON CONFLICT DO UPDATE,
+  //   so completionCount increment is a single atomic SQL statement.
+  const progress = await prisma.userXpSourceProgress.upsert({
+    where: {
+      userId_sourceType_sourceId: {
+        userId:     user.id,
+        sourceType: "VIDEO",
+        sourceId:   videoId,
+      },
+    },
+    create: {
+      userId:          user.id,
+      sourceType:      "VIDEO",
+      sourceId:        videoId,
+      completionCount: 1,
+      totalXpAwarded:  0,
+    },
+    update: {
+      completionCount: { increment: 1 },
+    },
+  });
 
-  const attemptCount: number = progressRows[0]?.attemptCount ?? 1;
-  const xpMultiplier = computeMultiplier(attemptCount);
+  const completionNumber = progress.completionCount;
+  const xpMultiplier     = computeMultiplier(completionNumber);
 
-  // 3. If XP is disabled on this video, return early
-  if (!video.xpEnabled || video.xpValue <= 0) {
-    const totalXpAgg = await prisma.xpLedgerEntry.aggregate({
-      where: { userId: user.id },
-      _sum: { delta: true },
-    });
+  // ── 4. XP disabled → return count only, no ledger entry ─────────────────
+  if (!video.xpEnabled || video.xpValue <= 0 || xpMultiplier === 0) {
+    const wallet = await prisma.userXpWallet.findUnique({ where: { userId: user.id } });
     return Response.json({
       xpAwarded:        0,
-      completionNumber: attemptCount,
-      xpMultiplier:     0,
-      newTotal:         totalXpAgg._sum.delta ?? 0,
+      completionNumber,
+      xpMultiplier,
+      newTotal:         wallet?.currentXpBalance ?? 0,
     });
   }
 
   const xpEarned = Math.round(video.xpValue * xpMultiplier);
 
-  // 4. Create ledger entry only when XP > 0.
-  //    Guard against duplicates: if a ledger entry already exists for this
-  //    (userId, videoId, completionNumber), skip insertion. This makes the
-  //    endpoint idempotent for repeated network retries.
-  if (xpEarned > 0) {
-    const existing = await prisma.$queryRawUnsafe<{ id: string }[]>(
-      `SELECT id FROM "XpLedgerEntry"
-       WHERE "userId" = $1
-         AND "refType" = 'Video'
-         AND "refId"   = $2
-         AND (meta->>'completionNumber')::int = $3
-       LIMIT 1`,
-      user.id,
-      videoId,
-      attemptCount,
-    );
+  // ── 5. Duplicate guard ───────────────────────────────────────────────────
+  //   Prevents double-award if the endpoint is retried (e.g. by middleware).
+  //   Uses JSON containment check on the meta column.
+  const existing = await prisma.$queryRawUnsafe<{ id: string }[]>(
+    `SELECT id FROM "XpLedgerEntry"
+     WHERE "userId"  = $1
+       AND "refType" = 'Video'
+       AND "refId"   = $2
+       AND (meta->>'completionNumber')::int = $3
+     LIMIT 1`,
+    user.id,
+    videoId,
+    completionNumber,
+  );
 
-    if (existing.length === 0) {
-      await prisma.xpLedgerEntry.create({
-        data: {
-          userId:  user.id,
-          delta:   xpEarned,
-          reason:  "Video completion",
-          refType: "Video",
-          refId:   videoId,
-          meta: {
-            videoTitle:       video.title,
-            baseXp:           video.xpValue,
-            xpMultiplier,
-            completionNumber: attemptCount,
-          },
-        },
-      });
-    }
+  if (existing.length > 0) {
+    // Already awarded for this completion — idempotent return
+    const wallet = await prisma.userXpWallet.findUnique({ where: { userId: user.id } });
+    return Response.json({
+      xpAwarded:        xpEarned,
+      completionNumber,
+      xpMultiplier,
+      newTotal:         wallet?.currentXpBalance ?? 0,
+    });
   }
 
-  // 5. Return updated XP total
-  const totalXpAgg = await prisma.xpLedgerEntry.aggregate({
-    where: { userId: user.id },
-    _sum: { delta: true },
+  // ── 6. Create ledger entry ───────────────────────────────────────────────
+  await prisma.xpLedgerEntry.create({
+    data: {
+      userId:  user.id,
+      delta:   xpEarned,
+      reason:  "Video completion",
+      refType: "Video",
+      refId:   videoId,
+      meta: {
+        videoTitle:       video.title,
+        baseXp:           video.xpValue,
+        xpMultiplier,
+        completionNumber,
+      },
+    },
+  });
+
+  // ── 7. Upsert wallet (atomic increment) ──────────────────────────────────
+  const updatedWallet = await prisma.userXpWallet.upsert({
+    where:  { userId: user.id },
+    create: {
+      userId:            user.id,
+      currentXpBalance:  xpEarned,
+      lifetimeXpEarned:  xpEarned,
+    },
+    update: {
+      currentXpBalance: { increment: xpEarned },
+      lifetimeXpEarned: { increment: xpEarned },
+    },
+  });
+
+  // ── 8. Update totalXpAwarded on source progress row ──────────────────────
+  await prisma.userXpSourceProgress.update({
+    where: {
+      userId_sourceType_sourceId: {
+        userId:     user.id,
+        sourceType: "VIDEO",
+        sourceId:   videoId,
+      },
+    },
+    data: {
+      totalXpAwarded: { increment: xpEarned },
+    },
   });
 
   return Response.json({
     xpAwarded:        xpEarned,
-    completionNumber: attemptCount,
+    completionNumber,
     xpMultiplier,
-    newTotal:         totalXpAgg._sum.delta ?? 0,
+    newTotal:         updatedWallet.currentXpBalance,
   });
 }
