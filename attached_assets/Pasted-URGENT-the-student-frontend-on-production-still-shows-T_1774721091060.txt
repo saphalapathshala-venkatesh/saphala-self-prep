@@ -1,0 +1,73 @@
+URGENT: the student frontend on production still shows:
+“This video is not available yet. Please check back later.”
+
+This must be debugged in PRODUCTION, not assumed fixed locally.
+
+Do NOT work on XP, doubts, admin UI, or any other feature.
+Fix only the production Bunny video playback issue.
+
+We need exact facts from the deployed environment.
+
+Investigate in this order:
+
+1) Production API response
+Call the production endpoint for the failing video:
+GET https://saphala.in/api/student/videos/[id]/playback
+
+Log and report the exact JSON response.
+We need to see whether production is returning:
+- embedUrl
+- manifestUrl
+- provider
+- providerVideoId
+- posterUrl
+
+2) Production environment variable
+Verify whether BUNNY_LIBRARY_ID is actually set in the deployed frontend project environment.
+Do not assume.
+Confirm:
+- exact env var name
+- whether it exists in production
+- whether a redeploy happened after setting it
+
+3) Production DB row
+Inspect the exact video row used by the failing page in production DB.
+Confirm:
+- id
+- provider
+- providerVideoId
+- hlsUrl
+- playbackUrl
+- status / isPublished equivalent
+- title
+
+4) Production route logic
+Check the deployed code path for:
+- web/lib/video/bunnyPlayback.ts
+- web/app/api/student/videos/[id]/playback/route.ts
+
+Confirm whether:
+- buildBunnyEmbedUrl() is being called
+- it is returning null
+- why it is returning null
+
+5) Add temporary logging if needed
+Add temporary server logs in the production playback route:
+- BUNNY_LIBRARY_ID present or not
+- provider
+- providerVideoId
+- final embedUrl
+- final manifestUrl
+
+6) Fix requirements
+- If BUNNY_LIBRARY_ID is missing in production, set it and redeploy
+- If provider/providerVideoId is wrong in production DB, fix the row
+- If route logic is wrong, patch it
+- Verify the production API returns a non-null embedUrl
+- Then verify the video page actually plays on saphala.in
+
+Deliver:
+- exact production API response before fix
+- exact root cause
+- exact fix applied
+- confirmation that production now returns embedUrl and video plays
