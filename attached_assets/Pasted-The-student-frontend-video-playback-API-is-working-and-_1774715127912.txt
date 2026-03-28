@@ -1,0 +1,55 @@
+The student frontend video playback API is working and the Bunny video is being fetched correctly from backend, but the student video page is crashing with a server-side exception when opening a video URL.
+
+Current symptom:
+- Clicking a video navigates to the student video page
+- The page throws “Application error: a server-side exception has occurred”
+- This means Bunny/backend playback is not the current blocker
+- The blocker is now the frontend page render path
+
+Task:
+Diagnose and fix the server-side crash on the student video page only.
+
+What to inspect:
+1) Read the full student video page implementation:
+- web/app/(student)/videos/[id]/page.tsx
+- any wrappers/layouts/loading/error boundaries used by this route
+- CourseVideoPlayer integration path
+- any lesson/course/item query-param handling
+
+2) Find the exact crash source
+Check for:
+- browser-only logic running in a server component
+- unsafe use of window/document/localStorage
+- iframe/player code rendered during SSR incorrectly
+- unguarded access to searchParams/courseId/lessonId/itemId
+- assumptions that fetched course/lesson/item/video data always exists
+- null/undefined access in page render
+- entitlement/course context fetches throwing before player mount
+
+3) Fix safely
+Requirements:
+- Keep Bunny playback API flow unchanged if it is already working
+- Move browser-only logic into client components if needed
+- Add proper null guards for courseId, lessonId, itemId
+- If context lookup fails, show clean user-facing fallback instead of crashing
+- Ensure the page can render even before the player source resolves
+- Keep TypeScript clean
+
+4) Add robust fallback states
+- invalid/missing video
+- missing lesson/item context
+- playback unavailable
+- unauthorized access
+- broken query params
+
+5) Verify
+- run TypeScript check
+- verify the student video page no longer throws server-side exception
+- confirm Bunny video opens successfully in frontend
+- confirm non-entitled users still get denied cleanly
+
+Deliverables:
+- exact root cause of the server-side crash
+- files changed
+- where the fix was applied
+- confirmation that frontend video playback now works

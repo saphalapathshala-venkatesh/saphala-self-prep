@@ -73,17 +73,19 @@ export const Header = () => {
           })}
         </nav>
 
-        <div className="flex items-center gap-3 md:gap-4 flex-shrink-0 relative z-20 pointer-events-auto">
+        <div className="flex items-center gap-2 md:gap-4 flex-shrink-0 relative z-20 pointer-events-auto">
+
+          {/* ── Desktop auth (md+) ──────────────────────────────────── */}
           {isAuthed === null ? (
-            <div className="hidden sm:flex items-center gap-3 md:gap-4">
+            <div className="hidden md:flex items-center gap-3 md:gap-4">
               <div className="w-[72px] h-[36px]" />
             </div>
           ) : isAuthed ? (
-            <div className="hidden sm:flex items-center gap-3 md:gap-4">
+            <div className="hidden md:flex items-center gap-3 md:gap-4">
               <LogoutHeaderButton />
             </div>
           ) : (
-            <div className="hidden sm:flex items-center gap-3 md:gap-4">
+            <div className="hidden md:flex items-center gap-3 md:gap-4">
               <Link
                 href="/login"
                 className="btn-glossy-secondary text-sm px-4 lg:px-6 py-2 whitespace-nowrap"
@@ -99,10 +101,42 @@ export const Header = () => {
             </div>
           )}
 
+          {/* ── Mobile auth (< md) — compact, shown next to hamburger ── */}
+          {isAuthed === true ? (
+            // Logged in: avatar icon links to dashboard
+            <Link
+              href="/dashboard"
+              aria-label="Go to Dashboard"
+              className="md:hidden w-8 h-8 rounded-full bg-[#6D4BCB] flex items-center justify-center flex-shrink-0 hover:bg-[#5C3DB5] transition-colors"
+            >
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+            </Link>
+          ) : isAuthed === false ? (
+            // Guest: compact Login + Sign Up
+            <div className="md:hidden flex items-center gap-1.5 flex-shrink-0">
+              <Link
+                href="/login"
+                className="text-sm font-semibold px-3 py-1 rounded-lg border border-[#6D4BCB] text-[#6D4BCB] hover:bg-purple-50 transition-colors whitespace-nowrap leading-tight"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                className="text-sm font-semibold px-3 py-1 rounded-lg bg-[#6D4BCB] text-white hover:bg-[#5C3DB5] transition-colors whitespace-nowrap leading-tight"
+              >
+                Sign Up
+              </Link>
+            </div>
+          ) : null /* isAuthed === null → loading, show nothing to avoid flash */}
+
+          {/* ── Hamburger ───────────────────────────────────────────── */}
           <button
             type="button"
-            className="md:hidden p-2 text-[#2D1B69]"
+            className="md:hidden p-2 text-[#2D1B69] flex-shrink-0"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
+            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
           >
             {isMenuOpen ? (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

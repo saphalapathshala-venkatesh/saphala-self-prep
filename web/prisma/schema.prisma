@@ -154,6 +154,8 @@ model User {
   coupons        Coupon[]
   xpRules        XpRule[]
   purchases      Purchase[]
+  paymentOrders  PaymentOrder[]
+  refundRequests RefundRequest[]
   @@index([role])
 }
 model Session {
@@ -583,6 +585,7 @@ model ProductPackage {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   purchases        Purchase[]
+  paymentOrders    PaymentOrder[]
 }
 // COUPONS
 model Coupon {
@@ -600,7 +603,8 @@ model Coupon {
   createdBy    User    @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  purchases    Purchase[]
+  purchases      Purchase[]
+  paymentOrders  PaymentOrder[]
 }
 // XP RULE ENGINE + LEDGER
 model XpRule {
@@ -674,4 +678,93 @@ model AuditLog {
   createdAt  DateTime @default(now())
   @@index([actorId, createdAt])
   @@index([entityType, entityId])
+}
+
+// ── PAYMENT ORDERS ────────────────────────────────────────────────────────────
+
+enum PaymentOrderStatus {
+  CREATED
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+model PaymentOrder {
+  id                String             @id @default(cuid())
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId         String
+  package           ProductPackage     @relation(fields: [packageId], references: [id], onDelete: Restrict)
+  couponId          String?
+  coupon            Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  paymentConfigId   String?
+  grossPaise        Int
+  discountPaise     Int                @default(0)
+  finalAmountPaise  Int
+  currency          String             @default("INR")
+  status            PaymentOrderStatus @default(CREATED)
+  provider          String             @default("CASHFREE")
+  providerOrderId   String?
+  providerPaymentId String?
+  paymentSessionId  String?
+  legalAcceptedAt   DateTime?
+  legalVersion      String?
+  purchaseId        String?
+  metadata          Json?
+  paidAt            DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  refundRequests    RefundRequest[]
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+// ── REFUND REQUESTS ───────────────────────────────────────────────────────────
+
+enum RefundReasonCategory {
+  CHANGED_MIND
+  TECHNICAL_ISSUE
+  CONTENT_NOT_AS_DESCRIBED
+  DUPLICATE_PURCHASE
+  COURSE_NOT_STARTED
+  OTHER
+}
+
+enum RefundRequestStatus {
+  REQUESTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PROCESSED
+  FAILED
+  CANCELLED
+}
+
+model RefundRequest {
+  id               String               @id @default(cuid())
+  paymentOrderId   String
+  paymentOrder     PaymentOrder         @relation(fields: [paymentOrderId], references: [id], onDelete: Restrict)
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageId        String?
+  packageName      String?
+  packageCode      String?
+  paidPaise        Int
+  requestedPaise   Int?
+  approvedPaise    Int?
+  reasonCategory   RefundReasonCategory
+  reasonText       String
+  status           RefundRequestStatus  @default(REQUESTED)
+  adminNote        String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  processedById    String?
+  processedAt      DateTime?
+  gatewayRefundRef String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  @@index([userId, createdAt])
+  @@index([paymentOrderId])
+  @@index([status])
 }
