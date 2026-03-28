@@ -5,6 +5,11 @@ import CourseVideoPlayer from "./CourseVideoPlayer";
 import DoubtModal from "./DoubtModal";
 import { triggerXpCelebration } from "@/lib/xpCelebration";
 
+// Build marker — confirms latest deployment is live. Remove after verification.
+if (typeof window !== "undefined") {
+  console.log("BUILD_VERSION: VIDEO_XP_FIX_DEPLOYED");
+}
+
 export interface XpResult {
   xpAwarded:        number;
   completionNumber: number;
