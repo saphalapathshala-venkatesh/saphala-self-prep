@@ -106,10 +106,17 @@ export default function CourseVideoPlayer({
   const loadedUrlRef = useRef<string>("");
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Bunny iframe time tracking — updated via timeupdate postMessage events.
-  // Used by skip controls to compute seek targets without querying the DOM.
+  // Bunny iframe time tracking.
+  // bunnyCurrentTimeRef: primary elapsed-time source for skip controls.
+  //   Incremented every second by a wall-clock setInterval that starts
+  //   on iframe load (handleIframeLoad).  If Bunny DOES send timeupdate
+  //   events, those overwrite the value with the accurate server position.
+  //   Either way the value accumulates correctly for multiple skips.
+  // bunnyDurationRef: set from timeupdate.duration or ready payload.
+  // bunnyTimerRef: the setInterval handle — cleared on source change/unmount.
   const bunnyCurrentTimeRef = useRef<number>(0);
   const bunnyDurationRef    = useRef<number>(0);
+  const bunnyTimerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // One-shot guard: prevents calling onEnded more than once per video session.
   // Covers timeupdate, seeked, and the ended DOM event.
@@ -136,6 +143,10 @@ export default function CourseVideoPlayer({
 
   // Track whether video is ready to play (so skip buttons only show when useful)
   const [videoReady, setVideoReady] = useState(false);
+
+  // Bunny iframe: tracks whether manual completion was already triggered
+  // (hides the "Mark as Watched" button after it is clicked)
+  const [bunnyManualDone, setBunnyManualDone] = useState(false);
 
   const { handleTimeUpdate, handlePause } = useProgressTracker(videoRef, onProgress);
 
@@ -190,12 +201,27 @@ export default function CourseVideoPlayer({
   const effectivePoster      = posterUrlProp ?? resolved?.posterUrl ?? null;
   const useIframeEmbed       = Boolean(effectiveEmbedUrl);
 
-  // Reset completion guard as soon as ANY source identifier changes.
+  // Reset completion guard + Bunny timer as soon as ANY source changes.
   useEffect(() => {
     console.log("[COMPLETION_GUARD_RESET] completionSentRef → false");
     completionSentRef.current = false;
     setVideoReady(false);
+    // Clear wall-clock timer so it restarts fresh for the new source
+    if (bunnyTimerRef.current) {
+      clearInterval(bunnyTimerRef.current);
+      bunnyTimerRef.current = null;
+    }
+    bunnyCurrentTimeRef.current = 0;
+    bunnyDurationRef.current    = 0;
+    setBunnyManualDone(false);
   }, [effectiveManifestUrl, effectiveEmbedUrl, playbackApiUrl]);
+
+  // Bunny timer cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (bunnyTimerRef.current) clearInterval(bunnyTimerRef.current);
+    };
+  }, []);
 
   // ── Step 2: no-source guard ──────────────────────────────────────────────────
 
@@ -266,11 +292,27 @@ export default function CourseVideoPlayer({
   const handleIframeLoad = useCallback(() => {
     const iframe = iframeRef.current;
     if (!iframe?.contentWindow) return;
-    console.log("[BUNNY_IFRAME] iframe loaded — sending subscribe (enablePostMessage=true required in URL)");
+
+    // ── Start wall-clock elapsed-time tracker ────────────────────────────
+    // Increments bunnyCurrentTimeRef every second. This is the PRIMARY
+    // time source for skip controls and works even if Bunny never sends
+    // timeupdate events. If timeupdate events DO come, they overwrite
+    // the local value with the accurate player position.
+    if (bunnyTimerRef.current) clearInterval(bunnyTimerRef.current);
+    bunnyTimerRef.current = setInterval(() => {
+      bunnyCurrentTimeRef.current += 1;
+    }, 1000);
+
+    // ── Subscribe using BOTH known formats ───────────────────────────────
+    // Bunny docs are inconsistent: some examples use { action: "subscribe" },
+    // others use { event: "subscribe" }. We send both to maximise the chance
+    // that timeupdate and ended events are enabled.
     iframe.contentWindow.postMessage(JSON.stringify({ action: "subscribe" }), "*");
-    // Mark the player as ready immediately on iframe load so skip buttons
-    // appear even if Bunny's playerReady event is delayed.
+    iframe.contentWindow.postMessage(JSON.stringify({ event:  "subscribe" }), "*");
+
+    // Mark ready immediately so skip buttons appear without waiting for events.
     setVideoReady(true);
+    console.log("[BUNNY_IFRAME] loaded — wall-clock timer started, both subscribe formats sent");
   }, []);
 
   // ── Step 6: iframe postMessage listener (Bunny / YouTube) ───────────────────
@@ -303,15 +345,25 @@ export default function CourseVideoPlayer({
           console.log("[BUNNY_EVENT]", event, data);
         }
 
-        // ── Bunny: ready (Bunny sends "ready", not "playerReady") ─────────
-        // Must re-subscribe AFTER the ready event so Bunny begins sending
-        // timeupdate / ended events. Without this re-subscribe, no further
-        // events are delivered and currentTimeRef stays at 0 forever.
+        // ── Bunny: ready / playerReady ────────────────────────────────────
+        // Bunny sends { event: "ready" } (not "playerReady") after the
+        // player initialises. Re-subscribe with BOTH known formats after
+        // ready to unlock ongoing timeupdate / ended event delivery.
+        // Also extract duration from the payload if present.
         if (event === "ready" || event === "playerReady") {
-          console.log("[BUNNY_IFRAME] ready — re-subscribing so timeupdate events start");
-          iframeRef.current?.contentWindow?.postMessage(
-            JSON.stringify({ action: "subscribe" }), "*",
-          );
+          console.log("[BUNNY_READY] payload:", JSON.stringify(data));
+          // Extract duration if Bunny includes it in the ready payload
+          const readyDur = Number((data as Record<string, unknown>).duration ?? 0);
+          if (readyDur > 0) {
+            bunnyDurationRef.current = readyDur;
+            console.log("[BUNNY_READY] duration extracted:", readyDur);
+          }
+          // Re-subscribe with both formats
+          const win = iframeRef.current?.contentWindow;
+          if (win) {
+            win.postMessage(JSON.stringify({ action: "subscribe" }), "*");
+            win.postMessage(JSON.stringify({ event:  "subscribe" }), "*");
+          }
           setVideoReady(true);
           return;
         }
@@ -562,7 +614,7 @@ export default function CourseVideoPlayer({
           />
         </div>
 
-        {/* Skip controls — Bunny embed only, visible after first timeupdate */}
+        {/* Skip controls — Bunny embed only, visible after iframe load */}
         {isBunnyEmbed && videoReady && (
           <div className="flex items-center justify-center gap-4 py-2 bg-black/95">
             <button
@@ -584,6 +636,29 @@ export default function CourseVideoPlayer({
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11.933 12.8a1 1 0 000-1.6L6.6 7.2A1 1 0 005 8v8a1 1 0 001.6.8l5.333-4zM19.933 12.8a1 1 0 000-1.6l-5.333-4A1 1 0 0013 8v8a1 1 0 001.6.8l5.333-4z" />
               </svg>
+            </button>
+          </div>
+        )}
+
+        {/* ── Mark as Watched button ─────────────────────────────────────────
+            Guaranteed XP trigger for Bunny iframe videos.
+            Bunny's "ended" postMessage event is unreliable, so we provide
+            an explicit button the student can press when done watching.
+            fireCompletion is already guarded (completionSentRef), so
+            clicking after automatic detection is a safe no-op. */}
+        {isBunnyEmbed && !bunnyManualDone && (
+          <div className="px-4 pb-3 pt-1 bg-black/95">
+            <button
+              onClick={() => {
+                setBunnyManualDone(true);
+                fireCompletion("manual-mark-watched");
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-[#2D1B69] hover:bg-[#6D4BCB] text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              Mark as Watched &amp; Earn XP
             </button>
           </div>
         )}
