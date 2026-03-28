@@ -69,11 +69,14 @@ export async function GET(
       ? `https://www.youtube.com/embed/${video.providerVideoId}?rel=0&modestbranding=1&enablejsapi=1`
       : null;
   } else {
-    // Bunny or generic HLS — try HLS manifest first
+    // Bunny or generic HLS — try HLS manifest first.
+    // providerVideoId is passed so resolveManifestUrl can auto-construct
+    // a Bunny HLS URL from BUNNY_CDN_HOSTNAME when hlsUrl is not stored.
     manifestUrl = resolveManifestUrl({
-      provider:    video.provider,
-      hlsUrl:      video.hlsUrl,
-      playbackUrl: video.playbackUrl,
+      provider:        video.provider,
+      hlsUrl:          video.hlsUrl,
+      playbackUrl:     video.playbackUrl,
+      providerVideoId: video.providerVideoId ?? null,
     });
 
     // If no HLS URL and this is a Bunny video with a providerVideoId,
