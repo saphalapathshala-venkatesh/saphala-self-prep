@@ -426,6 +426,13 @@ export default function CourseVideoPlayer({
           return;
         }
 
+        // ── Bunny: seeked — confirms seek command was honoured ────────────
+        if (event === "seeked") {
+          const seekedTo = Number((data as Record<string, unknown>).currentTime ?? -1);
+          console.log("[BUNNY_SEEKED] ✓ seek confirmed by player at ct=" + seekedTo.toFixed(1) + "s");
+          return;
+        }
+
         // ── Bunny: ended ───────────────────────────────────────────────────
         if (event === "ended" || event === "videoEnded") {
           console.log("[BUNNY_IFRAME] ended event — firing completion");
@@ -590,48 +597,74 @@ export default function CourseVideoPlayer({
 
   // ── Bunny skip: reload the iframe with &startTime=N ──────────────────────────
   // postMessage seek does NOT move the Bunny player reliably.
-  // Changing the iframe src to include &startTime=N is guaranteed to seek.
-  // bunnyCurrentTimeRef is already up-to-date (wall-clock timer), so the
-  // value we pass is accurate, and the timer continues from there on reload.
+  // bunnyCurrentTimeRef is updated before every seek so the wall-clock timer
+  // continues accumulating from the new position after any iframe reload.
 
-  // ── Bunny skip via postMessage setCurrentTime ────────────────────────────────
-  // The Bunny READY payload lists "setCurrentTime" and "play" in its supported
-  // methods. The correct command format is:
-  //   { event: "command", func: "setCurrentTime", args: [seconds] }
-  //   { event: "command", func: "play",           args: [] }
+  // ── Bunny skip — dual approach ────────────────────────────────────────────────
   //
-  // We do NOT reload the iframe — startTime URL param is silently ignored by
-  // Bunny's player (video always restarts from 0). postMessage is the only
-  // reliable way to seek without reloading.
+  // APPROACH 1 — iframe src reload with Bunny's documented "t" parameter:
+  //   Bunny embed URL uses &t=N (NOT &startTime=N) as the start-time param.
+  //   &startTime=N is silently ignored (causing video to start at 0).
+  //   &t=N is the correct parameter per Bunny's embedding documentation.
+  //   We also flip autoplay=false→true so the video plays after the reload.
+  //   The wall-clock timer continues from newTime because bunnyCurrentTimeRef
+  //   is updated before setIframeSrc, and handleIframeLoad does not reset it.
   //
-  // After setCurrentTime the player may pause; we fire play() 80ms later to
-  // resume. bunnyCurrentTimeRef is updated immediately so the next skip
-  // accumulates from the new position.
+  // APPROACH 2 — postMessage commands (belt-and-suspenders):
+  //   Bunny's READY payload explicitly lists setCurrentTime and play in
+  //   its supported methods. We send these right after the reload command
+  //   using the { event:"command", func, args } format documented by Bunny.
+  //   If the iframe reload already worked, these are a no-op (player ignores
+  //   them if already at correct position). If reload is buggy, postMessage
+  //   provides a fallback.
 
-  const sendBunnyCommand = useCallback((func: string, args: unknown[] = []) => {
+  const buildBunnySeekUrl = useCallback((startSec: number): string => {
+    if (!effectiveEmbedUrl) return "";
+    // 1. Replace autoplay=false → autoplay=true so video resumes after reload.
+    // 2. Replace t=<anything> if already present (consecutive skips), otherwise append.
+    // 3. Append &t=N using Bunny's documented start-time parameter name.
+    const base = effectiveEmbedUrl
+      .replace(/autoplay=false/i, "autoplay=true")
+      .replace(/[&?]t=\d+/g, "");  // strip any previous &t= param
+    const sep  = base.includes("?") ? "&" : "?";
+    return base + sep + "t=" + Math.floor(startSec);
+  }, [effectiveEmbedUrl]);
+
+  const sendBunnyPostMessage = useCallback((func: string, args: unknown[] = []) => {
     const win = iframeRef.current?.contentWindow;
-    if (!win) return;
-    win.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+    if (!win) {
+      console.log("[BUNNY_PM] iframeRef is null — skipping postMessage for " + func);
+      return;
+    }
+    const payload = JSON.stringify({ event: "command", func, args });
+    console.log("[BUNNY_PM] →", payload);
+    win.postMessage(payload, "*");
   }, []);
 
   const handleBunnySkipBackward = useCallback(() => {
     const ct      = bunnyCurrentTimeRef.current;
     const newTime = Math.max(0, ct - 10);
-    console.log("[BUNNY_SKIP] ← backward | ct=" + ct.toFixed(1) + "s → setCurrentTime(" + Math.floor(newTime) + ")");
+    console.log("[BUNNY_SKIP] ← backward | ct=" + ct.toFixed(1) + "s → t=" + Math.floor(newTime) + " (dual approach)");
     bunnyCurrentTimeRef.current = newTime;
-    sendBunnyCommand("setCurrentTime", [Math.floor(newTime)]);
-    setTimeout(() => sendBunnyCommand("play"), 80);
-  }, [sendBunnyCommand]);
+    // Approach 1: reload iframe at new position
+    setIframeSrc(buildBunnySeekUrl(newTime));
+    // Approach 2: postMessage commands (fires against old iframe while React re-renders)
+    sendBunnyPostMessage("setCurrentTime", [Math.floor(newTime)]);
+    setTimeout(() => sendBunnyPostMessage("play"), 100);
+  }, [buildBunnySeekUrl, sendBunnyPostMessage]);
 
   const handleBunnySkipForward = useCallback(() => {
     const ct      = bunnyCurrentTimeRef.current;
     const dur     = bunnyDurationRef.current;
     const newTime = dur > 0 ? Math.min(dur, ct + 10) : ct + 10;
-    console.log("[BUNNY_SKIP] → forward  | ct=" + ct.toFixed(1) + "s dur=" + dur.toFixed(1) + "s → setCurrentTime(" + Math.floor(newTime) + ")");
+    console.log("[BUNNY_SKIP] → forward  | ct=" + ct.toFixed(1) + "s dur=" + dur.toFixed(1) + "s → t=" + Math.floor(newTime) + " (dual approach)");
     bunnyCurrentTimeRef.current = newTime;
-    sendBunnyCommand("setCurrentTime", [Math.floor(newTime)]);
-    setTimeout(() => sendBunnyCommand("play"), 80);
-  }, [sendBunnyCommand]);
+    // Approach 1: reload iframe at new position
+    setIframeSrc(buildBunnySeekUrl(newTime));
+    // Approach 2: postMessage commands
+    sendBunnyPostMessage("setCurrentTime", [Math.floor(newTime)]);
+    setTimeout(() => sendBunnyPostMessage("play"), 100);
+  }, [buildBunnySeekUrl, sendBunnyPostMessage]);
 
   // ── Retry ────────────────────────────────────────────────────────────────────
 
