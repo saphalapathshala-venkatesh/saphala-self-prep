@@ -367,8 +367,9 @@ export default function CourseVideoPlayer({
   //   play/pause   — (unused, ignored)
   //
   // Bunny embed player commands (sent TO the iframe):
-  //   { action: 'subscribe' }            — start receiving events
-  //   { action: 'seek', currentTime: N } — jump to position N seconds
+  //   { action: 'subscribe' } or { event: 'subscribe' } — start receiving events
+  //   { event: 'command', func: 'setCurrentTime', args: [N] } — seek to N seconds
+  //   { event: 'command', func: 'play', args: [] }            — resume playback
   //
   // YouTube events are handled separately via infoDelivery / playerState.
 
@@ -593,31 +594,44 @@ export default function CourseVideoPlayer({
   // bunnyCurrentTimeRef is already up-to-date (wall-clock timer), so the
   // value we pass is accurate, and the timer continues from there on reload.
 
-  // Build a Bunny embed URL for seeking: forces autoplay=true so the video
-  // resumes playing after the iframe reloads at the new position.
-  const buildBunnySeekUrl = useCallback((startTime: number): string => {
-    if (!effectiveEmbedUrl) return "";
-    // Replace autoplay=false with autoplay=true, then append startTime.
-    const base = effectiveEmbedUrl.replace(/autoplay=false/i, "autoplay=true");
-    return base + "&startTime=" + Math.floor(startTime);
-  }, [effectiveEmbedUrl]);
+  // ── Bunny skip via postMessage setCurrentTime ────────────────────────────────
+  // The Bunny READY payload lists "setCurrentTime" and "play" in its supported
+  // methods. The correct command format is:
+  //   { event: "command", func: "setCurrentTime", args: [seconds] }
+  //   { event: "command", func: "play",           args: [] }
+  //
+  // We do NOT reload the iframe — startTime URL param is silently ignored by
+  // Bunny's player (video always restarts from 0). postMessage is the only
+  // reliable way to seek without reloading.
+  //
+  // After setCurrentTime the player may pause; we fire play() 80ms later to
+  // resume. bunnyCurrentTimeRef is updated immediately so the next skip
+  // accumulates from the new position.
+
+  const sendBunnyCommand = useCallback((func: string, args: unknown[] = []) => {
+    const win = iframeRef.current?.contentWindow;
+    if (!win) return;
+    win.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+  }, []);
 
   const handleBunnySkipBackward = useCallback(() => {
     const ct      = bunnyCurrentTimeRef.current;
     const newTime = Math.max(0, ct - 10);
-    console.log("[BUNNY_SKIP] ← backward | ct=" + ct.toFixed(1) + "s → reload at startTime=" + Math.floor(newTime) + " (autoplay=true)");
+    console.log("[BUNNY_SKIP] ← backward | ct=" + ct.toFixed(1) + "s → setCurrentTime(" + Math.floor(newTime) + ")");
     bunnyCurrentTimeRef.current = newTime;
-    setIframeSrc(buildBunnySeekUrl(newTime));
-  }, [buildBunnySeekUrl]);
+    sendBunnyCommand("setCurrentTime", [Math.floor(newTime)]);
+    setTimeout(() => sendBunnyCommand("play"), 80);
+  }, [sendBunnyCommand]);
 
   const handleBunnySkipForward = useCallback(() => {
     const ct      = bunnyCurrentTimeRef.current;
     const dur     = bunnyDurationRef.current;
     const newTime = dur > 0 ? Math.min(dur, ct + 10) : ct + 10;
-    console.log("[BUNNY_SKIP] → forward  | ct=" + ct.toFixed(1) + "s dur=" + dur.toFixed(1) + "s → reload at startTime=" + Math.floor(newTime) + " (autoplay=true)");
+    console.log("[BUNNY_SKIP] → forward  | ct=" + ct.toFixed(1) + "s dur=" + dur.toFixed(1) + "s → setCurrentTime(" + Math.floor(newTime) + ")");
     bunnyCurrentTimeRef.current = newTime;
-    setIframeSrc(buildBunnySeekUrl(newTime));
-  }, [buildBunnySeekUrl]);
+    sendBunnyCommand("setCurrentTime", [Math.floor(newTime)]);
+    setTimeout(() => sendBunnyCommand("play"), 80);
+  }, [sendBunnyCommand]);
 
   // ── Retry ────────────────────────────────────────────────────────────────────
 
