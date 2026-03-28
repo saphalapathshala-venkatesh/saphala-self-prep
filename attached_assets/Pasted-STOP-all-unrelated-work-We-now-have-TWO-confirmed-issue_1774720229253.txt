@@ -1,0 +1,120 @@
+STOP all unrelated work.
+
+We now have TWO confirmed issues in student frontend:
+
+--------------------------------------------------
+BUG 1: Video shows "This video is not available yet"
+--------------------------------------------------
+
+Meaning:
+- Player is working
+- Loading state is fixed
+- BUT playback API is returning NO usable source
+
+Likely cause:
+- Bunny embed URL is not being constructed
+- OR BUNNY_LIBRARY_ID is missing/incorrect
+- OR providerVideoId not used properly
+
+--------------------------------------------------
+BUG 2: Doubt submission fails
+--------------------------------------------------
+
+- Modal opens
+- Submit → "Failed to submit doubt"
+
+Likely cause:
+- frontend payload ≠ backend expected schema
+- OR API validation failing
+- OR DB insert failing
+
+--------------------------------------------------
+
+DO NOT work on:
+- XP logic
+- Admin UI
+- Payments
+- Schema redesign
+
+Fix ONLY these two issues.
+
+==================================================
+PART 1 — VIDEO FIX (BUNNY PLAYBACK)
+==================================================
+
+Check:
+
+1) Does BUNNY_LIBRARY_ID exist in env?
+2) Is buildBunnyEmbedUrl() being called?
+3) What does playback API return?
+
+Log the API response:
+GET /api/student/videos/[id]/playback
+
+Expected:
+{
+  embedUrl: "https://iframe.mediadelivery.net/embed/{libraryId}/{videoId}"
+}
+
+Check:
+- provider === 'BUNNY'
+- providerVideoId exists
+- embedUrl is not null
+
+Fix:
+
+- If embedUrl is null → fix builder or env
+- Ensure correct URL format:
+  https://iframe.mediadelivery.net/embed/{libraryId}/{videoId}
+
+- Ensure CourseVideoPlayer:
+  - renders iframe when embedUrl exists
+  - does NOT fallback to "not available" incorrectly
+
+==================================================
+PART 2 — DOUBT SUBMISSION FIX
+==================================================
+
+Check:
+
+1) Frontend request payload (console.log it)
+2) Backend POST /api/student/doubts expected schema
+3) Prisma create() call
+
+Verify:
+
+- Required fields:
+  title
+  body
+  videoId
+  courseId (if required)
+
+- Auth session present?
+- Any validation failing?
+
+Fix:
+
+- Align payload exactly
+- Return proper error message (not generic)
+- Show actual error in UI
+
+==================================================
+DELIVERABLES
+==================================================
+
+Return:
+
+VIDEO:
+- API response before fix
+- root cause (missing embedUrl OR wrong env)
+- fix applied
+- confirmation video plays
+
+DOUBT:
+- request payload vs expected mismatch
+- fix applied
+- confirmation submission works
+
+TEST FLOW:
+1) open video → plays
+2) submit doubt → success message
