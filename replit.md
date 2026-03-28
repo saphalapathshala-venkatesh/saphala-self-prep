@@ -46,6 +46,11 @@ Provides listings of live classes (LIVE NOW, Upcoming, Past). Access is controll
 #### Recorded Videos (`/videos`, `/videos/[id]`)
 A video library from the `Video` table, featuring entitlement-based access, YouTube embeds, and HLS streaming for other providers. XP is awarded on first watch. The video player uses HLS.js for robust playback and progress tracking.
 
+**Video Playback Pipeline:**
+- `app/api/student/videos/[id]/playback`: Protected endpoint — validates session + entitlement, signs Bunny URLs server-side, returns `{ manifestUrl, posterUrl, provider, providerVideoId }`. Signed URL never appears in SSR HTML.
+- `lib/video/bunnyPlayback.ts`: `signBunnyUrl()` applies HMAC-SHA256 Bunny token auth when `BUNNY_SECURITY_KEY` is set; passes URL through otherwise. `resolveManifestUrl()` picks best playable URL from a video row.
+- `components/video/CourseVideoPlayer.tsx`: Client component. Accepts `playbackApiUrl` (fetches on mount) or direct `manifestUrl`. Handles HLS.js, native Safari HLS, YouTube iframe, loading/error/unsupported states, and 15-second progress tracking.
+
 #### Course Pricing & Checkout
 Course pricing is managed by `Course.sellingPrice` and `Course.mrp` (for strikethrough). The checkout flow integrates with Cashfree for payments, supports coupons, and manages `ProductPackage` for entitlement mapping. The system ensures robust security for payment credentials.
 

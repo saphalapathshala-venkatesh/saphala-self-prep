@@ -3,7 +3,6 @@ import { redirect, notFound } from "next/navigation";
 import { getVideoById, formatDuration } from "@/lib/videoDb";
 import Link from "next/link";
 import { parseCourseContext, courseReturnUrl } from "@/lib/courseNav";
-import { getMockPlaybackSource } from "@/lib/video/getMockPlaybackSource";
 import CourseVideoPlayer from "@/components/video/CourseVideoPlayer";
 
 export const dynamic = "force-dynamic";
@@ -22,25 +21,17 @@ export default async function VideoDetailPage({
   const video = await getVideoById(id, user.id);
   if (!video) notFound();
 
-  const ctx      = parseCourseContext(sp);
+  const ctx       = parseCourseContext(sp);
   const backHref  = ctx ? courseReturnUrl(ctx) : "/videos";
   const backLabel = ctx ? "← Back to Course" : "← Recorded Videos";
 
-  const isLocked  = !video.isEntitled && !video.allowPreview;
-  const canWatch  = video.isEntitled || video.allowPreview;
-  const isYoutube = video.provider === "YOUTUBE" && video.providerVideoId;
-  const duration  = formatDuration(video.durationSeconds);
+  const isLocked = !video.isEntitled && !video.allowPreview;
+  const canWatch = video.isEntitled || video.allowPreview;
+  const duration = formatDuration(video.durationSeconds);
 
-  // ── Resolve the HLS manifest URL ──────────────────────────────────────────
-  // Priority: real hlsUrl from DB → mock source (dev-only, swapped with
-  // GET /api/videos/:id/playback once Bunny backend is integrated).
-  const manifestUrl: string | null = (() => {
-    if (!canWatch) return null;
-    if (isYoutube) return null;
-    if (video.hlsUrl) return video.hlsUrl;
-    // Mock: isolates the temporary source in one helper — easy to replace.
-    return getMockPlaybackSource(video.id).manifestUrl;
-  })();
+  // The playback API endpoint — CourseVideoPlayer fetches this client-side.
+  // This keeps any signed/raw Bunny URL out of the SSR HTML.
+  const playbackApiUrl = `/api/student/videos/${id}/playback`;
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
@@ -57,30 +48,22 @@ export default async function VideoDetailPage({
       {/* Player area */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
-        {/* ── YouTube iframe ────────────────────────────────────────── */}
-        {canWatch && isYoutube ? (
-          <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
-            <iframe
-              src={`https://www.youtube.com/embed/${video.providerVideoId}?rel=0&modestbranding=1`}
-              title={video.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="absolute inset-0 w-full h-full"
-            />
-          </div>
-
-        /* ── HLS / native video via CourseVideoPlayer ──────────────── */
-        ) : canWatch && manifestUrl ? (
+        {canWatch ? (
+          /*
+           * CourseVideoPlayer fetches from playbackApiUrl on mount.
+           * The API checks session + entitlement before returning the URL.
+           * Handles YouTube (iframe), Bunny/HLS (hls.js), and error states.
+           */
           <CourseVideoPlayer
             title={video.title}
-            manifestUrl={manifestUrl}
             posterUrl={video.thumbnailUrl}
+            playbackApiUrl={playbackApiUrl}
             lessonId={undefined}
             courseId={video.courseId ?? undefined}
           />
 
-        /* ── Locked ────────────────────────────────────────────────── */
         ) : isLocked ? (
+          /* ── Locked placeholder ──────────────────────────────────── */
           <div className="h-64 bg-gradient-to-br from-gray-100 to-gray-200 flex flex-col items-center justify-center gap-3">
             <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
               <svg className="w-8 h-8 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -90,8 +73,8 @@ export default async function VideoDetailPage({
             <p className="text-sm font-semibold text-gray-600">Enroll to watch this video</p>
           </div>
 
-        /* ── No source yet ─────────────────────────────────────────── */
         ) : (
+          /* ── No source yet ───────────────────────────────────────── */
           <div className="h-64 bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex flex-col items-center justify-center gap-3">
             <svg className="w-12 h-12 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
@@ -104,7 +87,6 @@ export default async function VideoDetailPage({
         {/* Video metadata */}
         <div className="p-6 space-y-3">
 
-          {/* Badges */}
           <div className="flex items-center gap-2 flex-wrap">
             {video.accessType === "FREE" && (
               <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-800">

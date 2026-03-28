@@ -1,0 +1,57 @@
+Admin-side Bunny playback is now working correctly in course preview.
+
+Next task:
+Implement the same Bunny playback experience in the student frontend app, reusing the existing Bunny playback foundation instead of rebuilding it.
+
+Goal:
+Student course/video lessons should play Bunny videos exactly like admin preview, but with student access control instead of admin session protection.
+
+Requirements:
+
+1) Reuse existing playback foundation
+- Reuse the Bunny playback helper pattern already built
+- Reuse the player component pattern where appropriate
+- Do not rebuild Bunny integration from scratch
+- Keep URL generation centralized
+
+2) Build student-facing playback API flow
+Create or adapt a student-facing playback route that:
+- checks current logged-in student session
+- fetches the internal video record
+- allows playback only if:
+  - video is published/ready
+  - and either preview is allowed
+  - or the student has valid entitlement/enrollment/access
+- denies unauthorized users cleanly
+- returns the same structured response shape used by the player
+
+3) Student frontend integration
+Find the actual student course learning page / lesson page / video lesson flow and wire Bunny playback there.
+Requirements:
+- clicking a video lesson loads the player
+- keep UX clean and mobile-friendly
+- loading, retry, and error states should be student-friendly
+- do not cause unnecessary reloads
+- preserve current lesson navigation patterns
+
+4) Access logic
+Implement student-safe logic for:
+- published-only videos
+- preview/free-access videos
+- purchased/enrolled access
+- expired/ineligible users denied
+- blocked/unavailable content denied
+
+5) Performance and architecture
+- keep playback helper centralized
+- avoid duplicate DB queries
+- do not hardcode Bunny URLs in frontend
+- keep TypeScript clean
+- do not redesign unrelated video/admin flows
+
+6) Deliverables
+At the end provide:
+- files created/updated
+- exact student access rules implemented
+- where to test in the student frontend
+- whether the student frontend now matches admin playback behavior
