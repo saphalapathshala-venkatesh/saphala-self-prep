@@ -1,0 +1,193 @@
+We need to convert the current Cashfree integration from SANDBOX to LIVE (production-ready) and safely test a real ₹10 transaction.
+
+IMPORTANT:
+Do NOT break existing flow. First audit, then fix.
+
+==================================================
+STEP 1 — AUDIT CURRENT IMPLEMENTATION
+==================================================
+
+Scan entire codebase and list:
+
+1. All files using Cashfree:
+   - create order API
+   - payment session API
+   - webhook handler
+   - frontend checkout
+   - success/callback page
+
+2. Identify:
+   - where sandbox URL is used
+   - where environment mode is decided
+   - whether production URL exists
+   - whether webhook signature is verified properly
+   - whether frontend redirect is wrongly marking success
+
+Output findings BEFORE making changes.
+
+==================================================
+STEP 2 — ENVIRONMENT CONFIG (PRODUCTION SAFE)
+==================================================
+
+Support these env vars:
+
+CASHFREE_APP_ID=
+CASHFREE_SECRET_KEY=
+CASHFREE_ENV=production
+NEXT_PUBLIC_SITE_URL=https://www.saphala.in
+
+Rules:
+- If CASHFREE_ENV=production → use LIVE API
+- If sandbox → use sandbox API
+- No fallback to sandbox in production
+- Log mode clearly:
+  [CASHFREE_MODE] production / sandbox
+
+==================================================
+STEP 3 — API BASE URL FIX
+==================================================
+
+Ensure:
+
+Production:
+https://api.cashfree.com/pg
+
+Sandbox:
+https://sandbox.cashfree.com/pg
+
+Create ONE helper:
+
+getCashfreeBaseUrl()
+
+and use everywhere.
+
+==================================================
+STEP 4 — ORDER CREATION (CRITICAL)
+==================================================
+
+Fix create-order API:
+
+1. Amount must come from backend (NOT frontend)
+2. Use sellingPrice from DB
+3. Currency = INR
+4. return_url must use NEXT_PUBLIC_SITE_URL
+5. Add logs:
+   [ORDER_CREATE] start
+   [ORDER_CREATE] amount=...
+   [ORDER_CREATE] response=...
+
+6. Ensure proper error handling
+
+==================================================
+STEP 5 — WEBHOOK SECURITY (MOST IMPORTANT)
+==================================================
+
+Implement proper verification:
+
+1. Read RAW request body (no parsing before verification)
+2. Extract headers:
+   x-webhook-signature
+   x-webhook-timestamp
+
+3. Compute:
+   signedPayload = timestamp + rawBody
+   expectedSignature = Base64(HMAC_SHA256(signedPayload, CASHFREE_SECRET_KEY))
+
+4. Compare securely
+
+5. If invalid → reject request
+
+6. If valid:
+   - process event
+   - update order status
+   - create entitlements
+
+Add logs:
+[WEBHOOK_RECEIVED]
+[WEBHOOK_VALID]
+[WEBHOOK_INVALID]
+[PAYMENT_SUCCESS]
+
+==================================================
+STEP 6 — PAYMENT SUCCESS LOGIC FIX
+==================================================
+
+Fix this strictly:
+
+❌ DO NOT trust frontend redirect
+✅ ONLY trust:
+   - webhook
+   OR
+   - backend verification call
+
+Ensure:
+- No access is given on redirect alone
+- Order must be verified before unlocking content
+
+==================================================
+STEP 7 — IDEMPOTENCY (CRITICAL)
+==================================================
+
+Webhook may fire multiple times.
+
+Ensure:
+- Same order is not processed twice
+- Use:
+   orderId / paymentId uniqueness
+- If already processed → ignore safely
+
+==================================================
+STEP 8 — SUCCESS PAGE FIX
+==================================================
+
+Update success page:
+
+Instead of:
+"Payment successful"
+
+Use:
+"Payment received, verifying..."
+
+Then:
+- call backend API
+- show final status:
+   success / pending / failed
+
+==================================================
+STEP 9 — ADMIN / DEBUG
+==================================================
+
+If admin payment config exists:
+
+- Show:
+   Mode: LIVE / SANDBOX
+- Do NOT show secrets
+- Add:
+   last payment status logs
+
+==================================================
+STEP 10 — VALIDATION
+==================================================
+
+Test and confirm:
+
+1. Production URL is used
+2. Order creation works
+3. Webhook signature passes
+4. Invalid webhook is rejected
+5. Duplicate webhook is ignored
+6. ₹10 real payment can complete
+7. Access given ONLY after verification
+
+==================================================
+DELIVERABLE
+==================================================
+
+Return:
+
+1. Files modified
+2. Issues found
+3. Fixes applied
+4. Required Vercel ENV variables
+5. Webhook URL to configure in Cashfree
+6. Exact steps for ₹10 real payment test

@@ -42,41 +42,80 @@ async function grantEntitlements(
 
 // POST /api/student/orders/webhook — Cashfree notifies this URL on payment events
 export async function POST(req: NextRequest) {
+  // 1. Read RAW body BEFORE any parsing (required for signature verification)
   let rawBody: string;
   try {
     rawBody = await req.text();
   } catch {
-    return NextResponse.json({ received: true }, { status: 200 });
+    console.error("[WEBHOOK_RECEIVED] Failed to read request body");
+    return NextResponse.json({ received: false }, { status: 400 });
   }
 
   const timestamp = req.headers.get("x-webhook-timestamp") ?? "";
   const signature = req.headers.get("x-webhook-signature") ?? "";
 
-  // If verification fails, still return 200 so Cashfree does not retry;
-  // log it for manual investigation.
+  console.log(
+    `[WEBHOOK_RECEIVED] ts=${timestamp} sig=${signature.slice(0, 12)}... bodyLen=${rawBody.length}`
+  );
+
+  // 2. Verify HMAC-SHA256 signature
+  //    Invalid → reject with 400 so Cashfree knows we did not accept this event.
   if (!verifyCashfreeWebhook(rawBody, timestamp, signature)) {
-    console.warn("[webhook] Signature mismatch — ts:", timestamp);
-    return NextResponse.json({ received: true }, { status: 200 });
+    console.warn(
+      `[WEBHOOK_INVALID] Signature verification failed — rejecting event | ts=${timestamp}`
+    );
+    return NextResponse.json(
+      { received: false, error: "Invalid signature" },
+      { status: 400 }
+    );
   }
 
+  console.log("[WEBHOOK_VALID] Signature verified successfully");
+
+  // 3. Parse JSON body
   let event: CashfreeWebhookEvent;
   try {
     event = JSON.parse(rawBody);
   } catch {
-    console.warn("[webhook] Non-JSON body received");
+    console.warn("[WEBHOOK_RECEIVED] Non-JSON body after signature passed — ignoring");
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
-  const orderId = event?.data?.order?.order_id;
+  const orderId    = event?.data?.order?.order_id;
   const cfPaymentId = event?.data?.payment?.cf_payment_id;
-  const eventType = event?.type;
+  const eventType  = event?.type;
+
+  console.log(
+    `[WEBHOOK_RECEIVED] eventType=${eventType ?? "unknown"} orderId=${orderId ?? "none"} cfPaymentId=${cfPaymentId ?? "none"}`
+  );
 
   if (!orderId) {
+    console.warn("[WEBHOOK_RECEIVED] No orderId in payload — ignoring");
     return NextResponse.json({ received: true }, { status: 200 });
   }
 
   if (eventType === "PAYMENT_SUCCESS_WEBHOOK") {
-    // 1. Update order to PAID
+    const cfPaymentIdStr = cfPaymentId != null ? String(cfPaymentId) : null;
+
+    // 4. Idempotency guard — if this providerPaymentId was already processed, skip
+    if (cfPaymentIdStr) {
+      const existing = await prisma
+        .$queryRawUnsafe<Array<{ id: string }>>(
+          `SELECT id FROM "PaymentOrder"
+           WHERE "providerPaymentId" = $1 AND status = 'PAID' LIMIT 1`,
+          cfPaymentIdStr
+        )
+        .catch(() => [] as Array<{ id: string }>);
+
+      if (existing.length > 0) {
+        console.log(
+          `[PAYMENT_SUCCESS] Duplicate webhook for cfPaymentId=${cfPaymentIdStr} (orderId=${orderId}) — already processed, skipping safely`
+        );
+        return NextResponse.json({ received: true }, { status: 200 });
+      }
+    }
+
+    // 5. Mark order PAID (conditional update — idempotent, only if not already PAID)
     await prisma
       .$queryRawUnsafe(
         `UPDATE "PaymentOrder"
@@ -86,11 +125,11 @@ export async function POST(req: NextRequest) {
              "updatedAt" = NOW()
          WHERE id = $1 AND status NOT IN ('PAID')`,
         orderId,
-        cfPaymentId != null ? String(cfPaymentId) : null
+        cfPaymentIdStr
       )
-      .catch((err) => console.error("[webhook] PAID update error:", err));
+      .catch((err) => console.error("[PAYMENT_SUCCESS] PAID update error:", err));
 
-    // 2. Fetch userId + entitlementCodes to grant access
+    // 6. Fetch userId + entitlementCodes then grant access
     type OrderEntRow = { userId: string; entitlementCodes: string[] };
     const rows = await prisma
       .$queryRawUnsafe<OrderEntRow[]>(
@@ -105,9 +144,20 @@ export async function POST(req: NextRequest) {
     if (rows[0]) {
       const { userId, entitlementCodes } = rows[0];
       const codes = Array.isArray(entitlementCodes) ? entitlementCodes : [];
+      console.log(
+        `[PAYMENT_SUCCESS] orderId=${orderId} userId=${userId} cfPaymentId=${cfPaymentIdStr ?? "n/a"} codes=${codes.join(",")}`
+      );
       await grantEntitlements(userId, codes, orderId);
+      console.log(
+        `[PAYMENT_SUCCESS] Entitlements granted for userId=${userId} | codes=${codes.join(",")}`
+      );
+    } else {
+      console.error(
+        `[PAYMENT_SUCCESS] Order not found in DB after marking PAID — orderId=${orderId}`
+      );
     }
   } else if (eventType === "PAYMENT_FAILED_WEBHOOK") {
+    console.log(`[WEBHOOK_RECEIVED] PAYMENT_FAILED for orderId=${orderId}`);
     await prisma
       .$queryRawUnsafe(
         `UPDATE "PaymentOrder"
@@ -118,7 +168,9 @@ export async function POST(req: NextRequest) {
       .catch(() => {});
   } else if (eventType === "PAYMENT_USER_DROPPED_WEBHOOK") {
     // User closed the payment modal — do not change status (they may retry)
-    console.log("[webhook] User dropped payment for order:", orderId);
+    console.log(`[WEBHOOK_RECEIVED] User dropped payment for orderId=${orderId}`);
+  } else {
+    console.log(`[WEBHOOK_RECEIVED] Unhandled event type=${eventType ?? "unknown"} for orderId=${orderId}`);
   }
 
   return NextResponse.json({ received: true }, { status: 200 });

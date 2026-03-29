@@ -196,11 +196,18 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // 6. Build absolute URLs from the incoming request
-  const proto = req.headers.get("x-forwarded-proto") ?? "https";
-  const host =
-    req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
-  const siteUrl = `${proto}://${host}`;
+  // 6. Build absolute site URL — prefer NEXT_PUBLIC_SITE_URL (Vercel env var),
+  //    fall back to request headers (useful in local dev / preview deployments).
+  const envSiteUrl = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "");
+  const siteUrl = envSiteUrl ?? (() => {
+    const proto = req.headers.get("x-forwarded-proto") ?? "https";
+    const host  = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
+    return `${proto}://${host}`;
+  })();
+
+  if (!envSiteUrl) {
+    console.warn("[ORDER_CREATE] NEXT_PUBLIC_SITE_URL not set — falling back to request headers. Set this for production.");
+  }
 
   const orderId = `ORD-${randomUUID()}`;
 
@@ -229,7 +236,7 @@ export async function POST(req: NextRequest) {
         { status: 503 }
       );
     }
-    console.error("[orders] Cashfree error:", msg);
+    console.error("[ORDER_CREATE] Cashfree API error:", msg);
     return NextResponse.json(
       { error: "Could not initialise payment. Please try again." },
       { status: 502 }
