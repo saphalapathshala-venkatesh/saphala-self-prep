@@ -81,7 +81,7 @@ async function _fetchFeaturedCards(): Promise<FeaturedCard[]> {
       ) pkg ON true
       WHERE c.featured = true AND c."isActive" = true
       ORDER BY c."createdAt" DESC
-      LIMIT 4
+      LIMIT 8
     `,
   ]);
 
@@ -122,7 +122,7 @@ async function _fetchFeaturedCards(): Promise<FeaturedCard[]> {
     });
   }
 
-  const remaining = 4 - cards.length;
+  const remaining = 8 - cards.length;
   if (remaining > 0) {
     const series = await prisma.testSeries.findMany({
       where: { isPublished: true },
