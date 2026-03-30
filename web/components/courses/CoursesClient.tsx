@@ -36,6 +36,30 @@ function formatRupeesINR(rupees: number): string {
   return `₹${rupees.toLocaleString("en-IN")}`;
 }
 
+function formatValidity(
+  type: string | null,
+  days: number | null,
+  months: number | null,
+): string | null {
+  if (!type) return null;
+  if (type === "lifetime") return "Lifetime access";
+  if (type === "days" && days) {
+    if (days % 365 === 0) {
+      const y = days / 365;
+      return `${y} Year${y > 1 ? "s" : ""} access`;
+    }
+    if (days % 30 === 0) {
+      const m = days / 30;
+      return `${m} Month${m > 1 ? "s" : ""} access`;
+    }
+    return `${days} Days access`;
+  }
+  if (type === "months" && months) {
+    return `${months} Month${months > 1 ? "s" : ""} access`;
+  }
+  return null;
+}
+
 // ── Props ──────────────────────────────────────────────────────────────────────
 
 export interface CategoryMeta {
@@ -453,7 +477,7 @@ export default function CoursesClient({
                       )}
 
                       {hasPricing && (
-                        <div className="mt-1 space-y-0.5">
+                        <div className="mt-1">
                           <div className="flex items-baseline gap-2 flex-wrap">
                             <span className="text-base font-bold text-[#2D1B69]">
                               {formatRupeesINR(course.sellingPrice!)}
@@ -469,19 +493,25 @@ export default function CoursesClient({
                               </span>
                             )}
                           </div>
-                          {course.validityType && (
-                            <p className="text-[10px] text-gray-400">
-                              {course.validityType === "lifetime"
-                                ? "Lifetime access"
-                                : course.validityType === "days" && course.validityDays
-                                ? `${course.validityDays % 365 === 0 ? `${course.validityDays / 365}yr` : course.validityDays % 30 === 0 ? `${course.validityDays / 30}mo` : `${course.validityDays}d`} access`
-                                : course.validityType === "months" && course.validityMonths
-                                ? `${course.validityMonths}mo access`
-                                : null}
-                            </p>
-                          )}
                         </div>
                       )}
+
+                      {/* Validity badge — shown for all premium (non-free) courses */}
+                      {!isFreeCourse && (() => {
+                        const validityLabel = formatValidity(
+                          course.validityType,
+                          course.validityDays,
+                          course.validityMonths,
+                        );
+                        return validityLabel ? (
+                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 w-fit">
+                            <svg className="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-[11px] font-semibold text-amber-700">{validityLabel}</span>
+                          </div>
+                        ) : null;
+                      })()}
 
                       <div className="flex gap-2 flex-wrap mt-1">
                         {course.hasVideoCourse    && <span className="text-[10px] text-gray-400">🎬 Videos</span>}

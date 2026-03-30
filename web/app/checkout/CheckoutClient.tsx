@@ -22,6 +22,8 @@ interface Props {
   courseId: string | null;
   /** Cashfree mode derived server-side — never exposed via NEXT_PUBLIC_. */
   cashfreeMode: "sandbox" | "production";
+  /** Human-readable validity string, e.g. "1 Year access" or "Lifetime access". Null when not set on the course. */
+  validityLabel?: string | null;
 }
 
 type CouponState = "idle" | "checking" | "applied" | "error";
@@ -57,6 +59,7 @@ export default function CheckoutClient({
   userEmail,
   courseId,
   cashfreeMode,
+  validityLabel,
 }: Props) {
   const router = useRouter();
   const [couponInput, setCouponInput] = useState("");
@@ -249,6 +252,16 @@ export default function CheckoutClient({
                     {code.replace(/_/g, " ")}
                   </span>
                 ))}
+              </div>
+            )}
+
+            {/* Validity badge */}
+            {validityLabel && (
+              <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 w-fit">
+                <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-xs font-semibold text-amber-700">{validityLabel}</span>
               </div>
             )}
           </div>
