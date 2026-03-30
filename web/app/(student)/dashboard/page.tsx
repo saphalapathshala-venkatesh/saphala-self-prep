@@ -84,19 +84,22 @@ export default async function DashboardPage() {
           </p>
           <div className="flex flex-wrap gap-3">
             <Link
-              href={ROUTES.testHub}
+              href="/courses"
               className="inline-flex items-center gap-2 bg-white text-[#2D1B69] font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-purple-50 transition-colors shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
               </svg>
-              Continue to TestHub
+              Browse Premium Courses
             </Link>
             <Link
-              href={ROUTES.testHub}
+              href="/courses?productCategory=FREE_DEMO"
               className="inline-flex items-center gap-2 border border-purple-400 text-purple-100 hover:border-purple-200 hover:text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
             >
-              Browse Free Tests
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
+              Explore Free Courses
             </Link>
           </div>
         </div>
@@ -538,10 +541,10 @@ async function DashboardDataSections({
                 : "The first step is always the hardest. Take your first practice test today — it is the foundation of all future success."}
             </p>
             <Link
-              href={ROUTES.testHub}
+              href="/courses"
               className="inline-flex items-center gap-1.5 text-xs font-semibold bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
             >
-              {hasAttempts ? "Continue Practice" : "Take First Test"}
+              {hasAttempts ? "Continue Learning" : "Browse Courses"}
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
