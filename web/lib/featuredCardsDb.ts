@@ -81,7 +81,6 @@ async function _fetchFeaturedCards(): Promise<FeaturedCard[]> {
       ) pkg ON true
       WHERE c.featured = true AND c."isActive" = true
       ORDER BY c."createdAt" DESC
-      LIMIT 8
     `,
   ]);
 
@@ -122,49 +121,11 @@ async function _fetchFeaturedCards(): Promise<FeaturedCard[]> {
     });
   }
 
-  const remaining = 8 - cards.length;
-  if (remaining > 0) {
-    const series = await prisma.testSeries.findMany({
-      where: { isPublished: true },
-      orderBy: { createdAt: "desc" },
-      take: remaining,
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        pricePaise: true,
-        discountPaise: true,
-        categoryId: true,
-      },
-    });
-    for (const s of series) {
-      const isFree = s.pricePaise === 0;
-      cards.push({
-        id: `series-${s.id}`,
-        title: s.title,
-        description: s.description,
-        categoryName: s.categoryId ? (catMap.get(s.categoryId) ?? null) : null,
-        isFree,
-        price: s.pricePaise,
-        originalPrice: s.discountPaise > 0 ? s.pricePaise + s.discountPaise : null,
-        discountPercent:
-          s.discountPaise > 0
-            ? Math.round((s.discountPaise / (s.pricePaise + s.discountPaise)) * 100)
-            : null,
-        badge: null,
-        href: "/testhub",
-        ctaHref: "/testhub",
-        cta: isFree ? "Start Free" : "View Tests",
-        thumbnailUrl: null,
-      });
-    }
-  }
-
   return cards;
 }
 
 /**
- * Fetches featured cards with a 60-second in-memory TTL cache.
+ * Fetches ALL active featured courses with a 60-second in-memory TTL cache.
  * Returns [] on DB error and caches that empty state for the TTL so Neon is
  * not re-queried on every request when the quota is exceeded.
  */
