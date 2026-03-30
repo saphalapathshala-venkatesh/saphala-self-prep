@@ -18,7 +18,7 @@ function CourseCard({ card }: { card: FeaturedCard }) {
   return (
     <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col h-full">
       {card.thumbnailUrl ? (
-        <div className="relative h-36 overflow-hidden flex-shrink-0">
+        <div className="relative aspect-video overflow-hidden flex-shrink-0">
           <Image
             src={card.thumbnailUrl}
             alt={card.title}
@@ -39,7 +39,7 @@ function CourseCard({ card }: { card: FeaturedCard }) {
           </div>
         </div>
       ) : (
-        <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] h-36 flex-shrink-0 flex flex-col items-center justify-center px-5 gap-2">
+        <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] aspect-video flex-shrink-0 flex flex-col items-center justify-center px-5 gap-2">
           {card.badge && (
             <span className="text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white px-2.5 py-0.5 rounded-full">
               {card.badge}
