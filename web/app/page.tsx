@@ -28,11 +28,11 @@ export default function Home() {
       {/* 4. Exam Categories — DB-driven via /api/public/categories */}
       <ExamCategoriesSection />
 
-      {/* 5. Product Types / Learning Approaches */}
-      <ProductTypesSection />
-
-      {/* 6. Featured Courses — DB-driven via Prisma */}
+      {/* 5. Featured Courses — DB-driven via Prisma */}
       <FeaturedCoursesSection />
+
+      {/* 6. Product Types / Learning Approaches */}
+      <ProductTypesSection />
 
       {/* 7. Platform Features */}
       <FeaturesSection />
