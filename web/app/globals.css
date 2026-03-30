@@ -45,6 +45,19 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* ── Mobile (iOS Safari) input text visibility fix ──────────────────────────
+   iOS Safari overrides the CSS `color` property on inputs with its own grey
+   tint via -webkit-text-fill-color and also applies a reduced opacity.
+   `currentColor` tells it to respect whatever `color` is set (Tailwind or
+   custom), and `opacity: 1` prevents the browser opacity reduction.
+   This has no effect on desktop Chrome/Firefox. ── */
+input,
+textarea,
+select {
+  -webkit-text-fill-color: currentColor;
+  opacity: 1;
+}
+
 /* ── Exam category horizontal scroll container ──
    Native scrollbar is hidden; a custom always-visible
    JS-driven indicator renders below the cards instead. ── */
