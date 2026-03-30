@@ -53,7 +53,7 @@ function CourseCard({ card }: { card: FeaturedCard }) {
 
       <div className="p-4 flex flex-col flex-1">
         {card.categoryName && (
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[#2D1B69] mb-1">
             {card.categoryName}
           </span>
         )}
