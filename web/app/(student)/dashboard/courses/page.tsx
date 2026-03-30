@@ -1,5 +1,6 @@
-import { getActiveCourses, getCachedCategories, getEnrolledCourses } from "@/lib/courseDb";
+import { getActiveCourses, getCachedCategories, getEnrolledCourses, getEnrolledValidityMap } from "@/lib/courseDb";
 import { getCurrentUser } from "@/lib/auth";
+import { formatExpiryDate } from "@/lib/validityUtils";
 import Link from "next/link";
 import Image from "next/image";
 import { CoursesFilterBar } from "@/components/courses/CoursesFilterBar";
@@ -35,7 +36,7 @@ export default async function DashboardCoursesPage({
 
   const user = await getCurrentUser();
 
-  const [courses, categories, enrolled] = await Promise.all([
+  const [courses, categories, enrolled, enrolledExpiry] = await Promise.all([
     getActiveCourses({
       categoryId:      activeCategory  ?? undefined,
       productCategory: activeProduct   ?? undefined,
@@ -43,6 +44,7 @@ export default async function DashboardCoursesPage({
     }),
     getCachedCategories(),
     user ? getEnrolledCourses(user.id).catch(() => []) : Promise.resolve([]),
+    user ? getEnrolledValidityMap(user.id).catch(() => ({} as Record<string, string | null>)) : Promise.resolve({} as Record<string, string | null>),
   ]);
 
   const enrolledIds = new Set(enrolled.map((c) => c.id));
@@ -234,9 +236,9 @@ export default async function DashboardCoursesPage({
                     <p className="text-xs text-gray-500 line-clamp-2 flex-1">{course.description}</p>
                   )}
 
-                  {/* Price block — paid courses only */}
-                  {hasPricing && (
-                    <div className="mt-1 space-y-0.5">
+                  {/* Price block — paid non-enrolled courses only */}
+                  {hasPricing && !isEnrolled && (
+                    <div className="mt-1">
                       <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-base font-bold text-[#2D1B69]">
                           {formatRupeesINR(course.sellingPrice!)}
@@ -252,17 +254,6 @@ export default async function DashboardCoursesPage({
                           </span>
                         )}
                       </div>
-                      {course.validityType && (
-                        <p className="text-[10px] text-gray-400">
-                          {course.validityType === "lifetime"
-                            ? "Lifetime access"
-                            : course.validityType === "days" && course.validityDays
-                            ? `${course.validityDays % 365 === 0 ? `${course.validityDays / 365}yr` : course.validityDays % 30 === 0 ? `${course.validityDays / 30}mo` : `${course.validityDays}d`} access`
-                            : course.validityType === "months" && course.validityMonths
-                            ? `${course.validityMonths}mo access`
-                            : null}
-                        </p>
-                      )}
                     </div>
                   )}
 
@@ -275,20 +266,64 @@ export default async function DashboardCoursesPage({
                     {course.hasFlashcardDecks && <span className="text-[10px] text-gray-400">🃏 Flashcards</span>}
                   </div>
 
-                  {/* CTA */}
-                  <span className={`mt-2 block w-full text-center text-xs font-bold py-2 rounded-xl transition-colors ${
-                    isFreeCourse
-                      ? "bg-green-600 text-white group-hover:bg-green-700"
-                      : "bg-[#6D4BCB] text-white group-hover:bg-[#5C3DB5]"
-                  }`}>
-                    {isFreeCourse
-                      ? "Start Free →"
-                      : isEnrolled
-                      ? "View Course →"
-                      : hasPricing
-                      ? "Buy Now →"
-                      : "View Course →"}
-                  </span>
+                  {/* Valid until badge — enrolled paid courses only */}
+                  {isEnrolled && !isFreeCourse && (() => {
+                    const rawExpiry = enrolledExpiry[course.id];
+                    if (rawExpiry === undefined) return null;
+                    return (
+                      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                        <svg className="w-3 h-3 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-[10px] font-semibold text-emerald-700 leading-tight">
+                          {rawExpiry
+                            ? <>Valid until <span className="font-bold">{formatExpiryDate(rawExpiry)}</span></>
+                            : "Lifetime access"}
+                        </span>
+                      </div>
+                    );
+                  })()}
+
+                  {/* CTA — non-enrolled premium: [validity pill | Buy Now], others: full-width */}
+                  {!isEnrolled && !isFreeCourse ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      {(() => {
+                        const vt = course.validityType;
+                        const vd = course.validityDays ? Number(course.validityDays) : null;
+                        const vm = course.validityMonths ? Number(course.validityMonths) : null;
+                        if (!vt || vt === "lifetime") return null;
+                        let label: string | null = null;
+                        if (vt === "days" && vd) {
+                          if (vd % 365 === 0) label = `${vd / 365} Year${vd / 365 > 1 ? "s" : ""} access`;
+                          else if (vd % 30 === 0) label = `${vd / 30} Month${vd / 30 > 1 ? "s" : ""} access`;
+                          else label = `${vd} days access`;
+                        } else if (vt === "months" && vm) {
+                          label = `${vm} Month${vm > 1 ? "s" : ""} access`;
+                        }
+                        return label ? (
+                          <div className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-amber-50 border border-amber-200 shrink-0">
+                            <svg className="w-3 h-3 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span className="text-[10px] font-semibold text-amber-700 whitespace-nowrap">{label}</span>
+                          </div>
+                        ) : null;
+                      })()}
+                      <span className="flex-1 text-center text-xs font-bold py-2 rounded-xl transition-colors bg-[#6D4BCB] text-white group-hover:bg-[#5C3DB5]">
+                        {hasPricing ? "Buy Now →" : "View Course →"}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className={`mt-2 block w-full text-center text-xs font-bold py-2 rounded-xl transition-colors ${
+                      isFreeCourse
+                        ? "bg-green-600 text-white group-hover:bg-green-700"
+                        : isEnrolled
+                        ? "bg-emerald-600 text-white group-hover:bg-emerald-700"
+                        : "bg-[#6D4BCB] text-white group-hover:bg-[#5C3DB5]"
+                    }`}>
+                      {isFreeCourse ? "Start Free →" : "Continue Learning →"}
+                    </span>
+                  )}
                 </div>
               </Link>
             );

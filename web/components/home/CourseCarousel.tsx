@@ -14,6 +14,23 @@ function formatPrice(paise: number): string {
   return `₹${(paise / 100).toLocaleString("en-IN")}`;
 }
 
+function formatValidity(
+  type: string | null,
+  days: number | null,
+  months: number | null,
+): string | null {
+  if (!type || type === "lifetime") return type === "lifetime" ? "Lifetime access" : null;
+  if (type === "days" && days) {
+    if (days % 365 === 0) return `${days / 365} Year${days / 365 > 1 ? "s" : ""} access`;
+    if (days % 30 === 0)  return `${days / 30} Month${days / 30 > 1 ? "s" : ""} access`;
+    return `${days} days access`;
+  }
+  if (type === "months" && months) {
+    return `${months} Month${months > 1 ? "s" : ""} access`;
+  }
+  return null;
+}
+
 function CourseCard({ card }: { card: FeaturedCard }) {
   return (
     <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col h-full">
@@ -62,7 +79,8 @@ function CourseCard({ card }: { card: FeaturedCard }) {
             {card.description}
           </p>
         )}
-        <div className="flex items-center justify-between mt-auto gap-3">
+        <div className="mt-auto space-y-2">
+          {/* Price row */}
           <div className="min-w-0">
             {card.isFree ? (
               <span className="text-base font-bold text-[#2D1B69]">Free</span>
@@ -84,12 +102,27 @@ function CourseCard({ card }: { card: FeaturedCard }) {
               </div>
             ) : null}
           </div>
-          <Link
-            href={card.ctaHref}
-            className="text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors shrink-0"
-          >
-            {card.cta}
-          </Link>
+
+          {/* Action row: validity pill LEFT + button RIGHT (paid) | button only (free) */}
+          <div className="flex items-center gap-2">
+            {!card.isFree && (() => {
+              const label = formatValidity(card.validityType, card.validityDays, card.validityMonths);
+              return label ? (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-50 border border-amber-200 shrink-0">
+                  <svg className="w-3 h-3 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-[10px] font-semibold text-amber-700 whitespace-nowrap">{label}</span>
+                </div>
+              ) : null;
+            })()}
+            <Link
+              href={card.ctaHref}
+              className="flex-1 text-center text-xs font-semibold bg-[#6D4BCB] text-white px-3 py-1.5 rounded-full hover:bg-[#5E3FB8] transition-colors"
+            >
+              {card.cta}
+            </Link>
+          </div>
         </div>
       </div>
     </div>

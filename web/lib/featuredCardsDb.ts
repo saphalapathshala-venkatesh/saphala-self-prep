@@ -39,6 +39,9 @@ export type FeaturedCard = {
   ctaHref: string;
   cta: string;
   thumbnailUrl: string | null;
+  validityType: string | null;
+  validityDays: number | null;
+  validityMonths: number | null;
 };
 
 type RawCourse = {
@@ -52,6 +55,9 @@ type RawCourse = {
   sellingPrice: number | null;
   packageId: string | null;
   thumbnailUrl: string | null;
+  validityType: string | null;
+  validityDays: number | null;
+  validityMonths: number | null;
 };
 
 // Module-level in-memory cache — persists across requests in the same process.
@@ -70,6 +76,9 @@ async function _fetchFeaturedCards(): Promise<FeaturedCard[]> {
         c.mrp,
         c."sellingPrice",
         c."thumbnailUrl",
+        c."validityType",
+        c."validityDays",
+        c."validityMonths",
         pkg.id AS "packageId"
       FROM "Course" c
       LEFT JOIN LATERAL (
@@ -118,6 +127,9 @@ async function _fetchFeaturedCards(): Promise<FeaturedCard[]> {
       ctaHref,
       cta: isFreeCourse ? "Start Free" : hasPricing ? "Buy Now" : "View Course",
       thumbnailUrl: c.thumbnailUrl ?? null,
+      validityType:   c.validityType   ?? null,
+      validityDays:   c.validityDays   != null ? Number(c.validityDays)   : null,
+      validityMonths: c.validityMonths != null ? Number(c.validityMonths) : null,
     });
   }
 
