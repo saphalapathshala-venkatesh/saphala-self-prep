@@ -129,11 +129,11 @@ export async function POST(req: NextRequest) {
       )
       .catch((err) => console.error("[PAYMENT_SUCCESS] PAID update error:", err));
 
-    // 6. Fetch userId + entitlementCodes then grant access
-    type OrderEntRow = { userId: string; entitlementCodes: string[] };
+    // 6. Fetch userId + courseId + entitlementCodes then grant access
+    type OrderEntRow = { userId: string; courseId: string | null; entitlementCodes: string[] };
     const rows = await prisma
       .$queryRawUnsafe<OrderEntRow[]>(
-        `SELECT po."userId", pp."entitlementCodes"
+        `SELECT po."userId", po."courseId", pp."entitlementCodes"
          FROM "PaymentOrder" po
          JOIN "ProductPackage" pp ON pp.id = po."packageId"
          WHERE po.id = $1 LIMIT 1`,
@@ -142,10 +142,14 @@ export async function POST(req: NextRequest) {
       .catch(() => [] as OrderEntRow[]);
 
     if (rows[0]) {
-      const { userId, entitlementCodes } = rows[0];
-      const codes = Array.isArray(entitlementCodes) ? entitlementCodes : [];
+      const { userId, courseId, entitlementCodes } = rows[0];
+      // Individual course purchase → entitle the specific course only.
+      // Bundle purchase (no courseId) → grant all category entitlementCodes.
+      const codes = courseId
+        ? [courseId]
+        : Array.isArray(entitlementCodes) ? entitlementCodes : [];
       console.log(
-        `[PAYMENT_SUCCESS] orderId=${orderId} userId=${userId} cfPaymentId=${cfPaymentIdStr ?? "n/a"} codes=${codes.join(",")}`
+        `[PAYMENT_SUCCESS] orderId=${orderId} userId=${userId} cfPaymentId=${cfPaymentIdStr ?? "n/a"} courseId=${courseId ?? "none"} codes=${codes.join(",")}`
       );
       await grantEntitlements(userId, codes, orderId);
       console.log(

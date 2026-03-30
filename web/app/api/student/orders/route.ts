@@ -41,6 +41,7 @@ async function insertOrderRecord(p: {
   orderId: string;
   userId: string;
   packageId: string;
+  courseId: string | null;
   couponId: string | null;
   grossPaise: number;
   discountPaise: number;
@@ -52,16 +53,17 @@ async function insertOrderRecord(p: {
 }) {
   await prisma.$queryRawUnsafe(
     `INSERT INTO "PaymentOrder"
-       (id, "userId", "packageId", "couponId",
+       (id, "userId", "packageId", "courseId", "couponId",
         "grossPaise", "discountPaise", "finalAmountPaise",
         currency, status, provider,
         "providerOrderId", "paymentSessionId",
         "legalVersion", "legalAcceptedAt",
         "createdAt", "updatedAt")
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),NOW(),NOW())`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),NOW(),NOW())`,
     p.orderId,
     p.userId,
     p.packageId,
+    p.courseId,
     p.couponId,
     p.grossPaise,
     p.discountPaise,
@@ -174,6 +176,7 @@ export async function POST(req: NextRequest) {
       orderId,
       userId: user.id,
       packageId: pkg.id,
+      courseId: courseId ?? null,
       couponId,
       grossPaise,
       discountPaise,
@@ -183,7 +186,10 @@ export async function POST(req: NextRequest) {
       providerOrderId: null,
       paymentSessionId: null,
     });
-    await grantEntitlements(user.id, pkg.entitlementCodes, orderId);
+    // Individual course purchase → entitle the specific course only.
+    // Bundle purchase (no courseId) → grant all category entitlementCodes.
+    const entitleCodes = courseId ? [courseId] : pkg.entitlementCodes;
+    await grantEntitlements(user.id, entitleCodes, orderId);
     return NextResponse.json({ orderId, status: "PAID" });
   }
 
@@ -248,6 +254,7 @@ export async function POST(req: NextRequest) {
     orderId,
     userId: user.id,
     packageId: pkg.id,
+    courseId: courseId ?? null,
     couponId,
     grossPaise,
     discountPaise,
@@ -282,6 +289,8 @@ export async function GET() {
   const orders = rawOrders.map((o) => ({
     id: o.id,
     status: o.status,
+    courseId: o.courseId ?? null,
+    courseName: o.courseName ?? null,
     packageName: o.packageName,
     packageCode: o.packageCode,
     packageDescription: o.packageDescription,

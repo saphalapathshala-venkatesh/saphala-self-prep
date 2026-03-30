@@ -9,6 +9,8 @@ type OrderStatus = "CREATED" | "PENDING" | "PAID" | "FAILED" | "CANCELLED";
 interface OrderRow {
   id: string;
   status: OrderStatus;
+  courseId: string | null;
+  courseName: string | null;
   packageName?: string;
   packageCode?: string;
   packageDescription?: string;
@@ -244,9 +246,9 @@ export default function OrdersPage() {
                           )}
                         </div>
                         <h3 className="font-semibold text-[#2D1B69] leading-tight">
-                          {order.packageName ?? "Package"}
+                          {order.courseName ?? order.packageName ?? "Package"}
                         </h3>
-                        {order.packageDescription && (
+                        {!order.courseName && order.packageDescription && (
                           <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
                             {order.packageDescription}
                           </p>
@@ -274,13 +276,13 @@ export default function OrdersPage() {
                     <div className="flex items-center gap-3 pt-1">
                       {order.status === "PAID" && (
                         <Link
-                          href="/dashboard"
+                          href={order.courseId ? `/courses/${order.courseId}` : "/purchases"}
                           className="flex items-center gap-1.5 text-sm font-semibold text-[#6D4BCB] hover:text-[#5C3DB5] transition-colors"
                         >
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
-                          Access Content
+                          {order.courseId ? "Go to Course" : "View Purchases"}
                         </Link>
                       )}
                       {(order.status === "PENDING" || order.status === "CREATED") && (

@@ -536,7 +536,7 @@ export async function getEnrolledCourses(userId: string): Promise<CourseListItem
       LEFT JOIN "Exam"     e   ON e.id   = c."examId"
       INNER JOIN "UserEntitlement" ue ON (
         ue."productCode" = c.id
-        OR ue."productCode" = c."productCategory"
+        OR ue."productCode" = c."productCategory"::text
       )
       WHERE c."isActive" = true
         AND ue."userId" = '${safeUserId}'

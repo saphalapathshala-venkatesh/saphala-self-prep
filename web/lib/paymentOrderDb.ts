@@ -8,6 +8,7 @@ export interface PaymentOrderRow {
   id: string;
   userId: string;
   packageId: string;
+  courseId: string | null;
   couponId: string | null;
   grossPaise: number;
   discountPaise: number;
@@ -29,6 +30,7 @@ export interface PaymentOrderRow {
   packageName?: string;
   packageCode?: string;
   packageDescription?: string | null;
+  courseName?: string | null;
 }
 
 export interface RefundRequestRow {
@@ -191,9 +193,11 @@ export async function getOrderById(
 export async function listOrdersForUser(userId: string): Promise<PaymentOrderRow[]> {
   return prisma.$queryRawUnsafe<PaymentOrderRow[]>(
     `SELECT po.*, pp.name AS "packageName", pp.code AS "packageCode",
-            pp.description AS "packageDescription"
+            pp.description AS "packageDescription",
+            c.name AS "courseName"
      FROM "PaymentOrder" po
      JOIN "ProductPackage" pp ON pp.id = po."packageId"
+     LEFT JOIN "Course" c ON c.id = po."courseId"
      WHERE po."userId" = $1
      ORDER BY po."createdAt" DESC`,
     userId
