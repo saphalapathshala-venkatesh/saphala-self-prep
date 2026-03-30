@@ -4,6 +4,7 @@ import { getActiveCourses, getExamsForCategory, getCachedCategories } from "@/li
 import Link from "next/link";
 import Image from "next/image";
 import { getCategoryImage } from "@/config/categoryImages";
+import ProductCategoryDropdown from "@/components/courses/ProductCategoryDropdown";
 
 export const dynamic = "force-dynamic";
 
@@ -147,26 +148,6 @@ export default async function CoursesPage({
         </div>
       </div>
 
-      {/* ── Active product-category filter pill ── */}
-      {activeProductCategory && productMeta && (
-        <div className="border-b border-gray-200 bg-white">
-          <div className="max-w-5xl mx-auto px-4 py-2.5 flex flex-wrap items-center gap-3">
-            <span className="text-xs text-gray-500">Type:</span>
-            <span className={`text-xs font-bold px-3 py-1 rounded-full ${productMeta.badgeColor}`}>
-              {productMeta.label}
-            </span>
-            <Link
-              href={buildUrl({ category: activeCategory, exam: activeExam })}
-              className="text-xs text-gray-400 hover:text-[#6D4BCB] transition-colors flex items-center gap-1"
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-              Clear
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* ── Category tabs ── */}
       <div className="border-b border-gray-200 bg-white sticky top-0 z-10 shadow-sm">
@@ -198,6 +179,33 @@ export default async function CoursesPage({
               </Link>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* ── Product category dropdown ── */}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="max-w-5xl mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+          <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide shrink-0">
+            Course Type
+          </label>
+          <div className="w-full sm:max-w-xs">
+            <ProductCategoryDropdown
+              activeProductCategory={activeProductCategory}
+              activeCategory={activeCategory}
+              activeExam={activeExam}
+            />
+          </div>
+          {activeProductCategory && productMeta && (
+            <Link
+              href={buildUrl({ category: activeCategory, exam: activeExam })}
+              className="text-xs text-gray-400 hover:text-[#6D4BCB] transition-colors flex items-center gap-1 shrink-0"
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Clear filter
+            </Link>
+          )}
         </div>
       </div>
 
@@ -290,7 +298,11 @@ export default async function CoursesPage({
                   <Link
                     key={course.id}
                     href={`/courses/${course.id}`}
-                    className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
+                    className={`group bg-white rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden ${
+                      isFreeCourse
+                        ? "border-green-200 border-l-4 border-l-green-400"
+                        : "border-gray-100 border-l-4 border-l-[#6D4BCB]"
+                    }`}
                   >
                     {/* Thumbnail — aspect-video keeps full 16:9 YouTube thumbnail visible */}
                     {course.thumbnailUrl ? (
@@ -303,7 +315,11 @@ export default async function CoursesPage({
                         />
                       </div>
                     ) : (
-                      <div className="aspect-video bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center px-4">
+                      <div className={`aspect-video flex items-center justify-center px-4 ${
+                        isFreeCourse
+                          ? "bg-gradient-to-br from-green-700 to-green-500"
+                          : "bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB]"
+                      }`}>
                         <span className="text-white font-bold text-sm text-center line-clamp-3">
                           {course.name}
                         </span>
@@ -313,9 +329,19 @@ export default async function CoursesPage({
                     <div className="p-4 flex flex-col flex-1 gap-2">
                       {/* Badges */}
                       <div className="flex flex-wrap gap-1.5">
-                        {isFreeCourse && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800">
-                            Free
+                        {isFreeCourse ? (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-800 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                            </svg>
+                            FREE
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                            Premium
                           </span>
                         )}
                         {meta && (

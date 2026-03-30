@@ -96,53 +96,47 @@ function CourseCard({ card }: { card: FeaturedCard }) {
 }
 
 export default function CourseCarousel({ cards }: { cards: FeaturedCard[] }) {
-  // ALL hooks declared unconditionally at the top (Rules of Hooks)
   const [index, setIndex] = useState(0);
   const [animated, setAnimated] = useState(true);
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const resetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const needsCarousel = cards.length > VISIBLE;
 
-  // Extended array for seamless infinite loop:
-  // append first VISIBLE cards as clones at the end of the track.
-  const extended = needsCarousel
-    ? [...cards, ...cards.slice(0, VISIBLE)]
-    : cards;
+  // Extended array: original cards + first VISIBLE clones for seamless infinite loop
+  const extended = needsCarousel ? [...cards, ...cards.slice(0, VISIBLE)] : cards;
   const totalSlots = extended.length;
 
-  // Track width as % of container:  totalSlots × (100/VISIBLE)%
-  // translateX is % of the TRACK, so 1 card shift = (100/totalSlots)%
+  // Track width = totalSlots × (100/VISIBLE)% of container
+  // 1 step shift = (100/totalSlots)% of track = (100/VISIBLE)% of container
   const trackWidthPct = (totalSlots / VISIBLE) * 100;
   const perStepPct = 100 / totalSlots;
 
+  // advance: purely increments index — NO side effects inside setState
   const advance = useCallback(() => {
-    if (!needsCarousel) return;
     setAnimated(true);
-    setIndex((prev) => {
-      const next = prev + 1;
-      // Once we've slid into the cloned zone, snap back to 0 after transition
-      if (next >= cards.length) {
-        if (resetRef.current) clearTimeout(resetRef.current);
-        resetRef.current = setTimeout(() => {
-          setAnimated(false);
-          setIndex(0);
-          requestAnimationFrame(() =>
-            requestAnimationFrame(() => setAnimated(true))
-          );
-        }, TRANSITION_MS + 30);
-      }
-      return next;
-    });
-  }, [cards.length, needsCarousel]);
+    setIndex((prev) => prev + 1);
+  }, []);
 
+  // Auto-slide interval
   useEffect(() => {
     if (!needsCarousel) return;
-    timerRef.current = setInterval(advance, SLIDE_INTERVAL);
+    intervalRef.current = setInterval(advance, SLIDE_INTERVAL);
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (resetRef.current) clearTimeout(resetRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [advance, needsCarousel]);
+
+  // Seamless loop reset: when index enters the clone zone, snap back after transition
+  useEffect(() => {
+    if (!needsCarousel || index < cards.length) return;
+    const t = setTimeout(() => {
+      setAnimated(false);
+      setIndex(0);
+      // Re-enable animation after two frames (after the instant reset renders)
+      requestAnimationFrame(() => requestAnimationFrame(() => setAnimated(true)));
+    }, TRANSITION_MS + 30);
+    return () => clearTimeout(t);
+  }, [index, cards.length, needsCarousel]);
 
   // Static grid for 4 or fewer cards
   if (!needsCarousel) {
@@ -157,16 +151,14 @@ export default function CourseCarousel({ cards }: { cards: FeaturedCard[] }) {
 
   return (
     <div>
-      {/* Carousel track */}
+      {/* Overflow clip window */}
       <div className="overflow-hidden">
         <div
           className="flex items-stretch"
           style={{
             width: `${trackWidthPct}%`,
             transform: `translateX(${-(index * perStepPct)}%)`,
-            transition: animated
-              ? `transform ${TRANSITION_MS}ms ease-in-out`
-              : "none",
+            transition: animated ? `transform ${TRANSITION_MS}ms ease-in-out` : "none",
             willChange: "transform",
           }}
         >
@@ -182,7 +174,7 @@ export default function CourseCarousel({ cards }: { cards: FeaturedCard[] }) {
         </div>
       </div>
 
-      {/* Dot indicators — one dot per real card */}
+      {/* Dot indicators */}
       <div className="flex justify-center gap-1.5 mt-4">
         {cards.map((_, i) => (
           <span
