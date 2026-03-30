@@ -32,29 +32,35 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Dark mode intentionally NOT supported — site uses hardcoded light theme.
+   The default Next.js dark-mode block has been removed to prevent Android
+   Chrome / dark-mode devices from inheriting a near-white foreground colour
+   into inputs, making typed text invisible. */
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: #ffffff;
+  color: #171717;
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ── Mobile (iOS Safari) input text visibility fix ──────────────────────────
-   iOS Safari overrides the CSS `color` property on inputs with its own grey
-   tint via -webkit-text-fill-color and also applies a reduced opacity.
-   `currentColor` tells it to respect whatever `color` is set (Tailwind or
-   custom), and `opacity: 1` prevents the browser opacity reduction.
-   This has no effect on desktop Chrome/Firefox. ── */
+/* ── Input text visibility fix (mobile Chrome + iOS Safari) ─────────────────
+   1. Explicit dark colour + -webkit-text-fill-color: both properties are
+      needed — iOS Safari reads -webkit-text-fill-color, Android Chrome reads
+      color. Neither inherits reliably from body on all mobile browsers.
+   2. opacity: 1 — prevents iOS from applying its default opacity reduction.
+   Placeholder colour is kept at the standard grey. ── */
 input,
 textarea,
 select {
-  -webkit-text-fill-color: currentColor;
+  color: #111827;
+  -webkit-text-fill-color: #111827;
+  opacity: 1;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+  -webkit-text-fill-color: #9ca3af;
   opacity: 1;
 }
 
