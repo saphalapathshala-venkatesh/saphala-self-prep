@@ -543,23 +543,6 @@ export default function CoursesClient({
                         );
                       })()}
 
-                      {/* For non-enrolled premium courses → show generic validity duration */}
-                      {!isFreeCourse && !isEnrolled && (() => {
-                        const validityLabel = formatValidity(
-                          course.validityType,
-                          course.validityDays,
-                          course.validityMonths,
-                        );
-                        return validityLabel ? (
-                          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-50 border border-amber-200 w-fit">
-                            <svg className="w-3.5 h-3.5 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <span className="text-[11px] font-semibold text-amber-700">{validityLabel}</span>
-                          </div>
-                        ) : null;
-                      })()}
-
                       <div className="flex gap-2 flex-wrap mt-1">
                         {course.hasVideoCourse    && <span className="text-[10px] text-gray-400">🎬 Videos</span>}
                         {course.hasHtmlCourse     && <span className="text-[10px] text-gray-400">📖 Ebooks</span>}
@@ -568,23 +551,45 @@ export default function CoursesClient({
                         {course.hasFlashcardDecks && <span className="text-[10px] text-gray-400">🃏 Flashcards</span>}
                       </div>
 
-                      <span
-                        className={`mt-2 block w-full text-center text-xs font-bold py-2 rounded-xl transition-colors ${
-                          isEnrolled
-                            ? "bg-emerald-600 text-white group-hover:bg-emerald-700"
-                            : isFreeCourse
-                            ? "bg-green-600 text-white group-hover:bg-green-700"
-                            : "bg-[#6D4BCB] text-white group-hover:bg-[#5C3DB5]"
-                        }`}
-                      >
-                        {isEnrolled
-                          ? "Continue Learning →"
-                          : isFreeCourse
-                          ? "Start Free →"
-                          : hasPricing
-                          ? "Buy Now →"
-                          : "View Course →"}
-                      </span>
+                      {/* ── Bottom action row ───────────────────────────── */}
+
+                      {/* Non-enrolled premium: validity pill LEFT + Buy Now RIGHT */}
+                      {!isEnrolled && !isFreeCourse && (() => {
+                        const validityLabel = formatValidity(
+                          course.validityType,
+                          course.validityDays,
+                          course.validityMonths,
+                        );
+                        return (
+                          <div className="mt-2 flex items-center gap-2">
+                            {validityLabel && (
+                              <div className="flex items-center gap-1 px-2 py-1.5 rounded-xl bg-amber-50 border border-amber-200 shrink-0">
+                                <svg className="w-3 h-3 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span className="text-[10px] font-semibold text-amber-700 whitespace-nowrap">{validityLabel}</span>
+                              </div>
+                            )}
+                            <span className="flex-1 text-center text-xs font-bold py-2 rounded-xl transition-colors bg-[#6D4BCB] text-white group-hover:bg-[#5C3DB5]">
+                              {hasPricing ? "Buy Now →" : "View Course →"}
+                            </span>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Free course: full-width Start Free button */}
+                      {isFreeCourse && !isEnrolled && (
+                        <span className="mt-2 block w-full text-center text-xs font-bold py-2 rounded-xl transition-colors bg-green-600 text-white group-hover:bg-green-700">
+                          Start Free →
+                        </span>
+                      )}
+
+                      {/* Enrolled: full-width Continue Learning button (Valid until shown above) */}
+                      {isEnrolled && (
+                        <span className="mt-2 block w-full text-center text-xs font-bold py-2 rounded-xl transition-colors bg-emerald-600 text-white group-hover:bg-emerald-700">
+                          Continue Learning →
+                        </span>
+                      )}
                     </div>
                   </Link>
                 );
