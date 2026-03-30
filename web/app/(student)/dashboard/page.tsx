@@ -194,6 +194,51 @@ async function DashboardDataSections({
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
 
+      {/* ── Profile card — always at the top ─────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+            <span className="text-base font-bold text-[#6D4BCB]">
+              {displayName.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-[#2D1B69] truncate">{displayName}</p>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
+              {user.email && (
+                <span className="text-xs text-gray-400 truncate flex items-center gap-1">
+                  <svg className="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  {user.email}
+                </span>
+              )}
+              {user.state && (
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <svg className="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {user.state}
+                </span>
+              )}
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                <svg className="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Joined {formatMemberSince(user.createdAt)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <Link
+          href={ROUTES.profile}
+          className="self-start sm:self-center flex-shrink-0 text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
+        >
+          View Full Profile
+        </Link>
+      </div>
+
       {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <MetricCard
@@ -538,53 +583,8 @@ async function DashboardDataSections({
           )}
         </div>
 
-        {/* Right: Profile card + XP + Products */}
+        {/* Right: XP + Products */}
         <div className="space-y-4">
-          {/* Profile card */}
-          <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-bold text-[#6D4BCB]">
-                  {displayName.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-[#2D1B69] truncate">{displayName}</p>
-                <p className="text-xs text-gray-400">Student</p>
-              </div>
-            </div>
-            <div className="space-y-2 text-xs text-gray-500">
-              {user.email && (
-                <div className="flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <span className="truncate">{user.email}</span>
-                </div>
-              )}
-              {user.state && (
-                <div className="flex items-center gap-2">
-                  <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span>{user.state}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2">
-                <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span>Joined {formatMemberSince(user.createdAt)}</span>
-              </div>
-            </div>
-            <Link
-              href={ROUTES.profile}
-              className="mt-4 block text-center text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              View Full Profile
-            </Link>
-          </div>
 
           {/* XP Breakdown — redesigned */}
           <div className="rounded-2xl overflow-hidden border border-purple-200 shadow-sm">
