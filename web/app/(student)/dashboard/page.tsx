@@ -3,7 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import LoginSuccessToast from "@/components/dashboard/LoginSuccessToast";
 import { getDashboardData } from "@/lib/dashboardData";
-import { getActiveCourses, getEnrolledCourses } from "@/lib/courseDb";
+import { getActiveCourses, getEnrolledCourses, getEnrolledValidityMap } from "@/lib/courseDb";
+import { formatExpiryDate } from "@/lib/validityUtils";
 import { prisma } from "@/lib/db";
 import { getDailyPractice, type PracticeSuggestion } from "@/lib/practiceDb";
 import { getUserStreak, type UserStreak } from "@/lib/streakDb";
@@ -142,7 +143,7 @@ async function DashboardDataSections({
   user: DashboardUser;
   displayName: string;
 }) {
-  const [data, freeCourses, practiceSuggestions, streak, dashboardClass, enrolledCourses, addressedDoubts] =
+  const [data, freeCourses, practiceSuggestions, streak, dashboardClass, enrolledCourses, addressedDoubts, enrolledExpiry] =
     await Promise.all([
       getDashboardData(user.id),
       getActiveCourses({ productCategory: "FREE_DEMO", limit: 4 }).catch(() => []),
@@ -156,6 +157,7 @@ async function DashboardDataSections({
         take: 3,
         select: { id: true, title: true, answer: true, status: true },
       }).catch(() => []),
+      getEnrolledValidityMap(user.id).catch(() => ({} as Record<string, string | null>)),
     ]);
 
   const accuracyDisplay = data.accuracyPct !== null ? `${data.accuracyPct}%` : "—";
@@ -387,6 +389,23 @@ async function DashboardDataSections({
                     {course.hasVideoCourse && <span>🎬 Video</span>}
                     {course.hasTestSeries && <span>✏️ Tests</span>}
                   </div>
+                  {/* Valid until badge — only for paid enrolled courses */}
+                  {course.productCategory !== "FREE_DEMO" && !course.isFree && (() => {
+                    const rawExpiry = enrolledExpiry[course.id];
+                    if (rawExpiry === undefined) return null;
+                    return (
+                      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200">
+                        <svg className="w-3 h-3 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-[10px] font-semibold text-emerald-700 leading-tight">
+                          {rawExpiry
+                            ? <>Valid until <span className="font-bold">{formatExpiryDate(rawExpiry)}</span></>
+                            : "Lifetime access"}
+                        </span>
+                      </div>
+                    );
+                  })()}
                   <span className="mt-auto block text-center text-[11px] font-bold py-1.5 rounded-lg bg-[#6D4BCB] text-white group-hover:bg-[#5C3DB5] transition-colors">
                     Continue Learning →
                   </span>

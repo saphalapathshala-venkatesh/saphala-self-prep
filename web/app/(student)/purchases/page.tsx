@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { getEnrolledCourses, type CourseListItem } from "@/lib/courseDb";
+import { getEnrolledCourses, getEnrolledValidityMap, type CourseListItem } from "@/lib/courseDb";
+import { formatExpiryDate } from "@/lib/validityUtils";
 
 const PRODUCT_LABEL: Record<string, string> = {
   COMPLETE_PREP_PACK: "Complete Prep Pack",
@@ -21,7 +22,14 @@ const CAPABILITY_PILLS = [
   { key: "hasFlashcardDecks", label: "🃏 Flashcards" },
 ] as const;
 
-function CourseCard({ course }: { course: CourseListItem }) {
+function CourseCard({
+  course,
+  validUntil,
+}: {
+  course: CourseListItem;
+  /** ISO string = timed expiry, null = lifetime, undefined = not set */
+  validUntil?: string | null;
+}) {
   const label = PRODUCT_LABEL[course.productCategory] ?? course.productCategory;
 
   return (
@@ -90,6 +98,20 @@ function CourseCard({ course }: { course: CourseListItem }) {
           )}
         </div>
 
+        {/* Valid until badge */}
+        {validUntil !== undefined && (
+          <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200">
+            <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-[11px] font-semibold text-emerald-700 leading-tight">
+              {validUntil
+                ? <>Valid until <span className="font-bold">{formatExpiryDate(validUntil)}</span></>
+                : "Lifetime access"}
+            </span>
+          </div>
+        )}
+
         {/* CTA */}
         <Link
           href={`/courses/${course.id}`}
@@ -106,7 +128,10 @@ export default async function MyPurchasesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?from=/purchases");
 
-  const enrolled = await getEnrolledCourses(user.id).catch(() => []);
+  const [enrolled, expiryMap] = await Promise.all([
+    getEnrolledCourses(user.id).catch(() => []),
+    getEnrolledValidityMap(user.id).catch(() => ({} as Record<string, string | null>)),
+  ]);
 
   const purchases = enrolled.filter(
     (c) => !c.isFree && c.productCategory !== "FREE_DEMO"
@@ -170,7 +195,11 @@ export default async function MyPurchasesPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {purchases.map((course) => (
-            <CourseCard key={course.id} course={course} />
+            <CourseCard
+              key={course.id}
+              course={course}
+              validUntil={expiryMap[course.id]}
+            />
           ))}
         </div>
       )}

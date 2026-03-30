@@ -81,6 +81,26 @@ export function computeValidUntil(purchaseDate: Date, cfg: ValidityConfig): Date
 }
 
 /**
+ * Formats a validUntil ISO string into "1 Jan 2026, 11:59 PM" (IST).
+ * Returns empty string on any parse error.
+ * Works in both server and client environments.
+ */
+export function formatExpiryDate(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    const datePart = new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+    return `${datePart}, 11:59 PM`;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * Human-readable description of a validity config (for logging / debugging).
  */
 export function describeValidity(cfg: ValidityConfig): string {
