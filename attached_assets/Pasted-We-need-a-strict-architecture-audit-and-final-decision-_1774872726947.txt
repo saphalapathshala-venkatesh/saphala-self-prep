@@ -1,0 +1,99 @@
+We need a strict architecture audit and final decision for Cashfree production setup across our two separate apps:
+
+1) admin-saphalaselfprep
+2) saphala-self-prep
+
+Important current context:
+- Cashfree integration was originally implemented in the backend/admin-side app.
+- Backend/admin currently handles order creation/storage, order IDs, payment records, refunds, webhook processing or related logic, and admin KPI dashboards.
+- Student frontend is a separate Vercel project.
+- We want real payment testing now, but we need absolute clarity on which app should own which responsibility and exactly where each environment variable must live.
+- Do NOT make assumptions. Read the actual code paths first.
+
+Your task:
+Perform a complete payment architecture audit and give a final implementation recommendation with file-level clarity.
+
+Audit these points carefully:
+1. Which app currently creates Cashfree orders?
+2. Which app currently calls Cashfree APIs?
+3. Which app currently receives or should receive the webhook?
+4. Which app currently verifies payment success?
+5. Which app currently writes Order / PaymentOrder / Refund / RefundRequest / entitlement-related DB records?
+6. Which app powers the student checkout flow?
+7. Which app powers admin payment dashboards / refund dashboards / KPI reports?
+8. Whether current architecture is coherent or split incorrectly across both apps.
+9. Whether payment env vars are duplicated unnecessarily across both Vercel projects.
+10. Whether NEXT_PUBLIC vars are truly required anywhere.
+
+Then produce the answer in this exact structure:
+
+A. Current Reality
+- List the exact files/routes in admin app involved in Cashfree/payment/order/refund/webhook handling
+- List the exact files/routes in frontend app involved in checkout/payment/result polling/redirect handling
+- For each file, explain its responsibility in 1–2 lines
+
+B. Final Ownership Decision
+Decide clearly which app should own:
+- Cashfree order creation
+- Cashfree secret credentials
+- Webhook endpoint
+- Payment verification
+- Refund logic
+- Student checkout UI
+- Admin dashboards/KPIs
+- DB writes for payments and refunds
+
+Important:
+- Prefer one clean production-safe architecture
+- Avoid duplicate ownership
+- Avoid exposing secrets publicly
+- Do not suggest a vague “both apps can keep them” answer
+
+C. Environment Variable Matrix
+Make a table with:
+- Variable name
+- Needed in admin app? (Yes/No)
+- Needed in frontend app? (Yes/No)
+- Public or private?
+- Reason
+
+Specifically evaluate at least these vars:
+- CASHFREE_APP_ID
+- CASHFREE_SECRET_KEY
+- CASHFREE_WEBHOOK_SECRET
+- CASHFREE_ENV
+- NEXT_PUBLIC_CASHFREE_ENV
+- NEXT_PUBLIC_SITE_URL
+- NEXT_PUBLIC_APP_URL
+- any other payment-related vars actually found in code
+
+D. Delete / Keep Action List
+Give a precise action list:
+- Variables that must remain in admin app
+- Variables that must remain in frontend app
+- Variables that must be deleted from admin app
+- Variables that must be deleted from frontend app
+- Variables that should be renamed if inconsistent
+
+E. Real Payment Testing Readiness
+State exactly what must be true before real payment testing:
+- which Vercel project must hold production Cashfree credentials
+- what webhook URL must be registered
+- whether frontend should call admin APIs for order creation or create orders locally
+- whether student-facing app needs any NEXT_PUBLIC Cashfree env at all
+- whether current setup is production-safe
+
+F. Final Recommended Architecture
+Give one final recommended architecture only, in a clean bullet list, such as:
+- Student frontend renders checkout UI only
+- Admin/backend app owns Cashfree secrets, order creation, webhook, refunds, DB writes
+- Frontend calls backend endpoints for create-order/status
+- etc.
+
+Very important constraints:
+- No guesswork
+- No generic explanation
+- Read code first
+- If architecture is currently messy, say so directly
+- If any payment env var is in the wrong project, explicitly say “move this” or “delete this”
+- We want one final answer that removes confusion permanently before real production testing
