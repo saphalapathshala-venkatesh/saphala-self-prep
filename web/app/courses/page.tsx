@@ -1,8 +1,9 @@
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
-import { getActiveCourses, getExamsForCategory, getCachedCategories } from "@/lib/courseDb";
+import { getActiveCourses, getExamsForCategory, getCachedCategories, getEnrolledCourses } from "@/lib/courseDb";
 import CoursesClient from "@/components/courses/CoursesClient";
 import type { CategoryExams } from "@/components/courses/CoursesClient";
+import { getCurrentUser } from "@/lib/auth";
 
 // force-dynamic is required because we read searchParams for initial filter state
 // (pre-applies the filter from the URL on first load / deep links).
@@ -20,11 +21,18 @@ export default async function CoursesPage({
   const initialExam            = sp.exam            ?? null;
   const initialProductCategory = sp.productCategory ?? null;
 
+  // Check session so we can highlight courses the user has already purchased.
+  const user = await getCurrentUser();
+
   // Fetch ALL courses + ALL categories in parallel (no filters — client handles them).
-  const [allCourses, categories] = await Promise.all([
+  // If user is logged in, also fetch their enrolled course IDs in the same round-trip.
+  const [allCourses, categories, enrolledCourses] = await Promise.all([
     getActiveCourses({ limit: 200 }),
     getCachedCategories(),
+    user ? getEnrolledCourses(user.id) : Promise.resolve([]),
   ]);
+
+  const enrolledCourseIds = new Set(enrolledCourses.map((c) => c.id));
 
   // Fetch exams for every category in parallel so the client can show exam pills
   // instantly when the user switches categories.
@@ -46,6 +54,7 @@ export default async function CoursesPage({
         initialCategory={initialCategory}
         initialExam={initialExam}
         initialProductCategory={initialProductCategory}
+        enrolledCourseIds={[...enrolledCourseIds]}
       />
 
       <Footer />

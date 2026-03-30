@@ -55,6 +55,7 @@ interface Props {
   initialCategory: string | null;
   initialExam: string | null;
   initialProductCategory: string | null;
+  enrolledCourseIds?: string[];
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -66,7 +67,9 @@ export default function CoursesClient({
   initialCategory,
   initialExam,
   initialProductCategory,
+  enrolledCourseIds = [],
 }: Props) {
+  const enrolledSet = useMemo(() => new Set(enrolledCourseIds), [enrolledCourseIds]);
   const router = useRouter();
 
   const [activeCategory,        setActiveCategory]        = useState<string | null>(initialCategory);
@@ -361,13 +364,16 @@ export default function CoursesClient({
                 const meta         = PRODUCT_META[course.productCategory];
                 const isFreeCourse = course.isFree || course.productCategory === "FREE_DEMO";
                 const hasPricing   = !isFreeCourse && course.sellingPrice != null && course.sellingPrice > 0;
+                const isEnrolled   = enrolledSet.has(course.id);
 
                 return (
                   <Link
                     key={course.id}
                     href={`/courses/${course.id}`}
                     className={`group bg-white rounded-2xl border shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden ${
-                      isFreeCourse
+                      isEnrolled
+                        ? "border-emerald-200 border-l-4 border-l-emerald-500"
+                        : isFreeCourse
                         ? "border-green-200 border-l-4 border-l-green-400"
                         : "border-gray-100 border-l-4 border-l-[#6D4BCB]"
                     }`}
@@ -396,6 +402,14 @@ export default function CoursesClient({
 
                     <div className="p-4 flex flex-col flex-1 gap-2">
                       <div className="flex flex-wrap gap-1.5">
+                        {isEnrolled && (
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Enrolled
+                          </span>
+                        )}
                         {isFreeCourse ? (
                           <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-green-100 text-green-800 flex items-center gap-1">
                             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -479,12 +493,20 @@ export default function CoursesClient({
 
                       <span
                         className={`mt-2 block w-full text-center text-xs font-bold py-2 rounded-xl transition-colors ${
-                          isFreeCourse
+                          isEnrolled
+                            ? "bg-emerald-600 text-white group-hover:bg-emerald-700"
+                            : isFreeCourse
                             ? "bg-green-600 text-white group-hover:bg-green-700"
                             : "bg-[#6D4BCB] text-white group-hover:bg-[#5C3DB5]"
                         }`}
                       >
-                        {isFreeCourse ? "Start Free →" : hasPricing ? "Buy Now →" : "View Course →"}
+                        {isEnrolled
+                          ? "Continue Learning →"
+                          : isFreeCourse
+                          ? "Start Free →"
+                          : hasPricing
+                          ? "Buy Now →"
+                          : "View Course →"}
                       </span>
                     </div>
                   </Link>
