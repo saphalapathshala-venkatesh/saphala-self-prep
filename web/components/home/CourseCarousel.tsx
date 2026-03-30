@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { FeaturedCard } from "@/lib/featuredCardsDb";
 
-const VISIBLE = 4;
+const VISIBLE = 3;
 const SLIDE_INTERVAL = 5000;
 const TRANSITION_MS = 600;
 
@@ -138,10 +138,10 @@ export default function CourseCarousel({ cards }: { cards: FeaturedCard[] }) {
     return () => clearTimeout(t);
   }, [index, cards.length, needsCarousel]);
 
-  // Static grid for 4 or fewer cards
+  // Static grid for 3 or fewer cards
   if (!needsCarousel) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {cards.map((card) => (
           <CourseCard key={card.id} card={card} />
         ))}
