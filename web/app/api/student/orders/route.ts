@@ -13,6 +13,7 @@ import {
   sanitizePhone,
 } from "@/lib/cashfreeClient";
 import { LEGAL_VERSION } from "@/config/legal";
+import { computeValidUntil, describeValidity, type ValidityConfig } from "@/lib/validityUtils";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -77,12 +78,46 @@ async function insertOrderRecord(p: {
   );
 }
 
+type CourseValidityRow = ValidityConfig & { id: string };
+
+/**
+ * Fetches validity config for every courseId in `codes` in one SQL round-trip,
+ * then upserts a UserEntitlement with the computed validUntil for each code.
+ *
+ * validUntil is calculated from NOW() in IST calendar days.
+ * Lifetime / unconfigured courses get validUntil = null (never expires).
+ */
 async function grantEntitlements(
   userId: string,
   codes: string[],
   purchaseId: string
 ) {
+  if (!codes.length) return;
+
+  // Batch-fetch validity config for all course codes in one query
+  const safeCodes = codes.map((c) => `'${c.replace(/'/g, "''")}'`).join(",");
+  const validityRows = await prisma
+    .$queryRawUnsafe<CourseValidityRow[]>(
+      `SELECT id, "validityType", "validityDays", "validityMonths"
+       FROM "Course" WHERE id IN (${safeCodes})`
+    )
+    .catch(() => [] as CourseValidityRow[]);
+
+  const validityMap = new Map(validityRows.map((r) => [r.id, r]));
+  const purchaseDate = new Date();
+
   for (const productCode of codes) {
+    const cfg: ValidityConfig = validityMap.get(productCode) ?? {
+      validityType: null,
+      validityDays: null,
+      validityMonths: null,
+    };
+    const validUntil = computeValidUntil(purchaseDate, cfg);
+
+    console.log(
+      `[orders] granting entitlement productCode=${productCode} validity=${describeValidity(cfg)} validUntil=${validUntil?.toISOString() ?? "none"}`
+    );
+
     await prisma.userEntitlement
       .upsert({
         where: {
@@ -98,8 +133,9 @@ async function grantEntitlements(
           status: "ACTIVE",
           purchaseId,
           tenantId: "default",
+          validUntil,
         },
-        update: { status: "ACTIVE", purchaseId },
+        update: { status: "ACTIVE", purchaseId, validUntil },
       })
       .catch((err) =>
         console.error("[orders] entitlement grant error:", productCode, err)
