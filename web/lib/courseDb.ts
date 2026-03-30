@@ -185,12 +185,15 @@ function computeDiscount(mrp: number | null, selling: number | null): number | n
 }
 
 function mapCourse(r: RawCourse): CourseListItem {
-  // Admin-set Course.sellingPrice is the authoritative base price.
-  // ProductPackage is used for entitlement linkage only, not pricing.
+  // Neon HTTP adapter returns NUMERIC columns as strings — coerce to number.
+  const mrp          = r.mrp          != null ? Number(r.mrp)          : null;
+  const sellingPrice = r.sellingPrice  != null ? Number(r.sellingPrice)  : null;
   return {
     ...r,
+    mrp,
+    sellingPrice,
     productCategoryLabel: PRODUCT_CATEGORY_LABEL[r.productCategory] ?? r.productCategory,
-    discountPercent: computeDiscount(r.mrp, r.sellingPrice),
+    discountPercent: computeDiscount(mrp, sellingPrice),
   };
 }
 
