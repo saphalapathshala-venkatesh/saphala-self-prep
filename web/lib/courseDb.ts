@@ -266,7 +266,9 @@ async function _getActiveCourses(opts?: {
       c.id,
       c.name,
       c.description,
-      c."thumbnailUrl",
+      -- Strip base64-encoded thumbnails from list queries (too large to cache/transfer).
+      -- The detail page fetches the full record separately and can show them.
+      CASE WHEN c."thumbnailUrl" LIKE 'data:%' THEN NULL ELSE c."thumbnailUrl" END AS "thumbnailUrl",
       c."categoryId",
       cat.name AS "categoryName",
       c."examId",
