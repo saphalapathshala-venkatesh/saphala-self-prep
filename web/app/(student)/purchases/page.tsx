@@ -1,34 +1,115 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { listOrdersForUser } from "@/lib/paymentOrderDb";
+import { getEnrolledCourses, type CourseListItem } from "@/lib/courseDb";
 
-function formatDate(d: Date | string | null) {
-  if (!d) return "—";
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "Asia/Kolkata",
-  }).format(new Date(d));
-}
+const PRODUCT_LABEL: Record<string, string> = {
+  COMPLETE_PREP_PACK: "Complete Prep Pack",
+  VIDEO_ONLY:         "Video Course",
+  SELF_PREP:          "Self Prep",
+  PDF_ONLY:           "PDF Notes",
+  TEST_SERIES:        "Test Series",
+  FLASHCARDS_ONLY:    "Flashcard Decks",
+  CURRENT_AFFAIRS:    "Current Affairs",
+};
 
-function paise(amount: number, currency = "INR") {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 0,
-  }).format(amount / 100);
+const CAPABILITY_PILLS = [
+  { key: "hasVideoCourse",    label: "🎬 Videos"     },
+  { key: "hasHtmlCourse",     label: "📖 E-Books"    },
+  { key: "hasPdfCourse",      label: "📄 PDFs"       },
+  { key: "hasTestSeries",     label: "✏️ Tests"     },
+  { key: "hasFlashcardDecks", label: "🃏 Flashcards" },
+] as const;
+
+function CourseCard({ course }: { course: CourseListItem }) {
+  const label = PRODUCT_LABEL[course.productCategory] ?? course.productCategory;
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-purple-200 hover:shadow-sm transition-all">
+      {/* Thumbnail */}
+      {course.thumbnailUrl ? (
+        <div className="aspect-video overflow-hidden bg-gray-100">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={course.thumbnailUrl}
+            alt={course.name}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      ) : (
+        <div className="aspect-video bg-gradient-to-br from-[#2D1B69] via-[#4A2E9E] to-[#6D4BCB] flex flex-col items-center justify-center px-6 text-center">
+          <span className="text-4xl mb-2">📚</span>
+          <p className="text-white font-semibold text-sm leading-snug line-clamp-2">
+            {course.name}
+          </p>
+        </div>
+      )}
+
+      <div className="p-4 space-y-3">
+        {/* Badges */}
+        <div className="flex flex-wrap gap-1.5">
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+            Purchased
+          </span>
+          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800">
+            {label}
+          </span>
+          {course.categoryName && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+              {course.categoryName}
+            </span>
+          )}
+        </div>
+
+        {/* Course name */}
+        <h3 className="font-bold text-[#2D1B69] text-sm leading-snug line-clamp-2">
+          {course.name}
+        </h3>
+
+        {/* Description */}
+        {course.description && (
+          <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+            {course.description}
+          </p>
+        )}
+
+        {/* Capability pills */}
+        <div className="flex flex-wrap gap-1">
+          {CAPABILITY_PILLS.map(({ key, label: pillLabel }) =>
+            course[key] ? (
+              <span
+                key={key}
+                className="text-[10px] px-2 py-0.5 rounded-md bg-gray-50 border border-gray-100 text-gray-500"
+              >
+                {pillLabel}
+              </span>
+            ) : null
+          )}
+        </div>
+
+        {/* CTA */}
+        <Link
+          href={`/courses/${course.id}`}
+          className="block w-full text-center py-2.5 rounded-xl bg-[#6D4BCB] hover:bg-[#5C3DB5] text-white font-bold text-sm transition-colors"
+        >
+          View Course →
+        </Link>
+      </div>
+    </div>
+  );
 }
 
 export default async function MyPurchasesPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?from=/purchases");
 
-  const allOrders = await listOrdersForUser(user.id).catch(() => []);
+  const enrolled = await getEnrolledCourses(user.id).catch(() => []);
 
-  const purchases = allOrders.filter(
-    (o) => o.status === "PAID" && o.finalAmountPaise > 0
+  const purchases = enrolled.filter(
+    (c) => !c.isFree && c.productCategory !== "FREE_DEMO"
   );
 
   return (
@@ -36,7 +117,9 @@ export default async function MyPurchasesPage() {
       <div>
         <h1 className="text-2xl font-bold text-[#2D1B69]">My Purchases</h1>
         <p className="text-sm text-gray-500 mt-1">
-          All courses and packages you have purchased
+          {purchases.length > 0
+            ? `${purchases.length} purchased course${purchases.length > 1 ? "s" : ""}`
+            : "All courses you have purchased appear here"}
         </p>
       </div>
 
@@ -58,11 +141,11 @@ export default async function MyPurchasesPage() {
             </svg>
           </div>
           <h3 className="font-semibold text-[#2D1B69] text-lg mb-2">
-            No purchases yet
+            No purchased courses yet
           </h3>
           <p className="text-sm text-gray-500 mb-6 max-w-xs mx-auto">
-            Browse our course catalogue and unlock premium content to accelerate
-            your exam preparation.
+            Browse our courses and unlock premium content to accelerate your
+            exam preparation.
           </p>
           <Link
             href="/courses"
@@ -85,97 +168,9 @@ export default async function MyPurchasesPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {purchases.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-purple-200 transition-colors"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                      <svg
-                        className="w-3 h-3"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      Purchased
-                    </span>
-                  </div>
-
-                  <h3 className="font-bold text-[#2D1B69] text-base leading-snug">
-                    {order.packageName ?? "Course Package"}
-                  </h3>
-
-                  {order.packageDescription && (
-                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                      {order.packageDescription}
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-4 mt-3 text-xs text-gray-400">
-                    <span>Purchased on {formatDate(order.paidAt)}</span>
-                    <span className="hidden sm:inline">
-                      Order ID: {order.id.slice(-8).toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xl font-bold text-[#2D1B69]">
-                    {paise(order.finalAmountPaise, order.currency)}
-                  </p>
-                  {order.discountPaise > 0 && (
-                    <p className="text-xs text-green-600 mt-0.5">
-                      saved {paise(order.discountPaise, order.currency)}
-                    </p>
-                  )}
-                  {order.grossPaise !== order.finalAmountPaise && order.discountPaise === 0 && (
-                    <p className="text-xs text-gray-400 mt-0.5 line-through">
-                      {paise(order.grossPaise, order.currency)}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-gray-50 flex items-center justify-between">
-                <Link
-                  href="/dashboard/courses"
-                  className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#6D4BCB] hover:text-[#5C3DB5] transition-colors"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                    />
-                  </svg>
-                  Access Content
-                </Link>
-
-                <Link
-                  href={`/orders`}
-                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  View order details →
-                </Link>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {purchases.map((course) => (
+            <CourseCard key={course.id} course={course} />
           ))}
         </div>
       )}

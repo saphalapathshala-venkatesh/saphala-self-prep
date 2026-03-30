@@ -1,4 +1,5 @@
-import { getActiveCourses, getCachedCategories } from "@/lib/courseDb";
+import { getActiveCourses, getCachedCategories, getEnrolledCourses } from "@/lib/courseDb";
+import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import Image from "next/image";
 import { CoursesFilterBar } from "@/components/courses/CoursesFilterBar";
@@ -32,14 +33,19 @@ export default async function DashboardCoursesPage({
   const activeProduct  = sp.productCategory ?? null;
   const hasFilters     = !!(activeCategory || activeProduct);
 
-  const [courses, categories] = await Promise.all([
+  const user = await getCurrentUser();
+
+  const [courses, categories, enrolled] = await Promise.all([
     getActiveCourses({
       categoryId:      activeCategory  ?? undefined,
       productCategory: activeProduct   ?? undefined,
       limit: hasFilters ? 60 : 6,
     }),
     getCachedCategories(),
+    user ? getEnrolledCourses(user.id).catch(() => []) : Promise.resolve([]),
   ]);
+
+  const enrolledIds = new Set(enrolled.map((c) => c.id));
 
   const activeCatName      = categories.find((c) => c.id === activeCategory)?.name ?? null;
   const activeProductMeta  = activeProduct ? PRODUCT_META[activeProduct] : null;
@@ -164,6 +170,7 @@ export default async function DashboardCoursesPage({
           {courses.map((course) => {
             const meta = PRODUCT_META[course.productCategory];
             const isFreeCourse = course.isFree || course.productCategory === "FREE_DEMO";
+            const isEnrolled   = enrolledIds.has(course.id);
             // Admin-set Course.sellingPrice is the authoritative base price
             const hasPricing = !isFreeCourse && course.sellingPrice != null && course.sellingPrice > 0;
 
@@ -192,6 +199,11 @@ export default async function DashboardCoursesPage({
                 <div className="p-4 flex flex-col flex-1 gap-2">
                   {/* Badges */}
                   <div className="flex flex-wrap gap-1.5">
+                    {isEnrolled && !isFreeCourse && (
+                      <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                        ✓ Enrolled
+                      </span>
+                    )}
                     {isFreeCourse && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-800">Free</span>
                     )}
@@ -269,7 +281,13 @@ export default async function DashboardCoursesPage({
                       ? "bg-green-600 text-white group-hover:bg-green-700"
                       : "bg-[#6D4BCB] text-white group-hover:bg-[#5C3DB5]"
                   }`}>
-                    {isFreeCourse ? "Start Free →" : hasPricing ? "Buy Now →" : "View Course →"}
+                    {isFreeCourse
+                      ? "Start Free →"
+                      : isEnrolled
+                      ? "View Course →"
+                      : hasPricing
+                      ? "Buy Now →"
+                      : "View Course →"}
                   </span>
                 </div>
               </Link>

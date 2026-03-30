@@ -126,19 +126,19 @@ function Icon({ name, className }: { name: string; className?: string }) {
 // ── Nav config ───────────────────────────────────────────────────────────────
 
 const PRIMARY_NAV = [
-  { key: "dashboard",  label: "Dashboard",   href: "/dashboard",          icon: "home"      },
-  { key: "courses",    label: "Courses",      href: "/dashboard/courses",  icon: "courses"   },
-  { key: "testhub",    label: "TestHub",      href: "/testhub",            icon: "clipboard" },
-  { key: "attempts",   label: "My Attempts",  href: "/dashboard/attempts", icon: "history"   },
-  { key: "ebooks",     label: "Ebooks",       href: "/learn/lessons",      icon: "brain"     },
-  { key: "flashcards", label: "Flashcards",   href: "/learn/flashcards",   icon: "cards"     },
-  { key: "pdfs",        label: "PDFs",          href: "/learn/pdfs",        icon: "book"      },
-  { key: "live",        label: "Live Classes",      href: "/live-classes",      icon: "live"  },
-  { key: "videos",      label: "Recorded Videos",  href: "/videos",            icon: "video"   },
-  { key: "purchases",   label: "My Purchases",     href: "/purchases",          icon: "purchases" },
-  { key: "orders",      label: "My Orders",        href: "/orders",             icon: "orders"  },
-  { key: "doubts",      label: "My Doubts",        href: "/doubts",             icon: "doubts"  },
-  { key: "profile",     label: "Profile",           href: "/dashboard/profile", icon: "user"   },
+  { key: "dashboard",  label: "Dashboard",        href: "/dashboard",          icon: "home"      },
+  { key: "purchases",  label: "My Purchases",     href: "/purchases",          icon: "purchases" },
+  { key: "courses",    label: "Courses",          href: "/dashboard/courses",  icon: "courses"   },
+  { key: "testhub",    label: "TestHub",          href: "/testhub",            icon: "clipboard" },
+  { key: "attempts",   label: "My Attempts",      href: "/dashboard/attempts", icon: "history"   },
+  { key: "ebooks",     label: "Ebooks",           href: "/learn/lessons",      icon: "brain"     },
+  { key: "flashcards", label: "Flashcards",       href: "/learn/flashcards",   icon: "cards"     },
+  { key: "pdfs",       label: "PDFs",             href: "/learn/pdfs",         icon: "book"      },
+  { key: "live",       label: "Live Classes",     href: "/live-classes",       icon: "live"      },
+  { key: "videos",     label: "Recorded Videos",  href: "/videos",             icon: "video"     },
+  { key: "orders",     label: "My Orders",        href: "/orders",             icon: "orders"    },
+  { key: "doubts",     label: "My Doubts",        href: "/doubts",             icon: "doubts"    },
+  { key: "profile",    label: "Profile",          href: "/dashboard/profile",  icon: "user"      },
 ] as const;
 
 const UPCOMING_NAV = [
