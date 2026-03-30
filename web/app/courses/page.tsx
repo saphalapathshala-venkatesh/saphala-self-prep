@@ -6,11 +6,10 @@ import Image from "next/image";
 import { getCategoryImage } from "@/config/categoryImages";
 import ProductCategoryDropdown from "@/components/courses/ProductCategoryDropdown";
 
-// Courses catalog reads searchParams (dynamic) but all DB calls go through
-// unstable_cache (60 s TTL). force-dynamic is still required because of
-// searchParams, but query results are served from cache on every hit.
+// Courses catalog reads searchParams so must stay force-dynamic.
+// All DB calls go through unstable_cache (60 s TTL), so data is cached
+// even though the page itself is rendered on every request.
 export const dynamic = "force-dynamic";
-export const revalidate = 0; // searchParams requires dynamic; caching is at the data layer
 
 function formatRupeesINR(rupees: number): string {
   return `₹${rupees.toLocaleString("en-IN")}`;
