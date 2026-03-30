@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { FeaturedCard } from "@/lib/featuredCardsDb";
 
+// Desktop carousel constants
 const VISIBLE = 3;
 const SLIDE_INTERVAL = 5000;
 const TRANSITION_MS = 600;
@@ -17,13 +18,13 @@ function CourseCard({ card }: { card: FeaturedCard }) {
   return (
     <div className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col h-full">
       {card.thumbnailUrl ? (
-        <div className="relative h-32 overflow-hidden flex-shrink-0">
+        <div className="relative h-36 overflow-hidden flex-shrink-0">
           <Image
             src={card.thumbnailUrl}
             alt={card.title}
             fill
             className="object-cover"
-            sizes="25vw"
+            sizes="(max-width: 1024px) 85vw, 33vw"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
           <div className="absolute bottom-0 inset-x-0 px-3 pb-2 flex flex-col items-start gap-1">
@@ -38,7 +39,7 @@ function CourseCard({ card }: { card: FeaturedCard }) {
           </div>
         </div>
       ) : (
-        <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] h-32 flex-shrink-0 flex flex-col items-center justify-center px-5 gap-2">
+        <div className="bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] h-36 flex-shrink-0 flex flex-col items-center justify-center px-5 gap-2">
           {card.badge && (
             <span className="text-[10px] font-bold uppercase tracking-widest bg-white/20 text-white px-2.5 py-0.5 rounded-full">
               {card.badge}
@@ -64,10 +65,10 @@ function CourseCard({ card }: { card: FeaturedCard }) {
         <div className="flex items-center justify-between mt-auto gap-3">
           <div className="min-w-0">
             {card.isFree ? (
-              <span className="text-lg font-bold text-[#2D1B69]">Free</span>
+              <span className="text-base font-bold text-[#2D1B69]">Free</span>
             ) : card.price !== null ? (
               <div className="flex flex-wrap items-baseline gap-1.5">
-                <span className="text-lg font-bold text-[#2D1B69]">
+                <span className="text-base font-bold text-[#2D1B69]">
                   {formatPrice(card.price)}
                 </span>
                 {card.originalPrice !== null && (
@@ -95,29 +96,61 @@ function CourseCard({ card }: { card: FeaturedCard }) {
   );
 }
 
-export default function CourseCarousel({ cards }: { cards: FeaturedCard[] }) {
+// ── Mobile: CSS scroll-snap carousel ──────────────────────────────────────────
+// No JS required — native touch/swipe, one card at a time with a peek of next.
+function MobileScrollCarousel({ cards }: { cards: FeaturedCard[] }) {
+  return (
+    <div>
+      <div
+        className="flex overflow-x-auto gap-3 pb-3"
+        style={{
+          scrollSnapType: "x mandatory",
+          WebkitOverflowScrolling: "touch",
+          scrollbarWidth: "none",
+          msOverflowStyle: "none",
+        }}
+      >
+        {cards.map((card) => (
+          <div
+            key={card.id}
+            className="shrink-0"
+            style={{
+              scrollSnapAlign: "start",
+              width: "82vw",
+              maxWidth: "340px",
+            }}
+          >
+            <CourseCard card={card} />
+          </div>
+        ))}
+        {/* Trailing spacer so the last card doesn't sit flush against the edge */}
+        <div className="shrink-0 w-4" aria-hidden />
+      </div>
+      {/* Swipe hint */}
+      <p className="text-center text-[10px] text-gray-400 mt-1">
+        ← Swipe to see more →
+      </p>
+    </div>
+  );
+}
+
+// ── Desktop: JS infinite carousel ─────────────────────────────────────────────
+function DesktopCarousel({ cards }: { cards: FeaturedCard[] }) {
   const [index, setIndex] = useState(0);
   const [animated, setAnimated] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const needsCarousel = cards.length > VISIBLE;
-
-  // Extended array: original cards + first VISIBLE clones for seamless infinite loop
   const extended = needsCarousel ? [...cards, ...cards.slice(0, VISIBLE)] : cards;
   const totalSlots = extended.length;
-
-  // Track width = totalSlots × (100/VISIBLE)% of container
-  // 1 step shift = (100/totalSlots)% of track = (100/VISIBLE)% of container
   const trackWidthPct = (totalSlots / VISIBLE) * 100;
   const perStepPct = 100 / totalSlots;
 
-  // advance: purely increments index — NO side effects inside setState
   const advance = useCallback(() => {
     setAnimated(true);
     setIndex((prev) => prev + 1);
   }, []);
 
-  // Auto-slide interval
   useEffect(() => {
     if (!needsCarousel) return;
     intervalRef.current = setInterval(advance, SLIDE_INTERVAL);
@@ -126,22 +159,19 @@ export default function CourseCarousel({ cards }: { cards: FeaturedCard[] }) {
     };
   }, [advance, needsCarousel]);
 
-  // Seamless loop reset: when index enters the clone zone, snap back after transition
   useEffect(() => {
     if (!needsCarousel || index < cards.length) return;
     const t = setTimeout(() => {
       setAnimated(false);
       setIndex(0);
-      // Re-enable animation after two frames (after the instant reset renders)
       requestAnimationFrame(() => requestAnimationFrame(() => setAnimated(true)));
     }, TRANSITION_MS + 30);
     return () => clearTimeout(t);
   }, [index, cards.length, needsCarousel]);
 
-  // Static grid for 3 or fewer cards
   if (!needsCarousel) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-5">
         {cards.map((card) => (
           <CourseCard key={card.id} card={card} />
         ))}
@@ -151,7 +181,6 @@ export default function CourseCarousel({ cards }: { cards: FeaturedCard[] }) {
 
   return (
     <div>
-      {/* Overflow clip window */}
       <div className="overflow-hidden">
         <div
           className="flex items-stretch"
@@ -188,5 +217,24 @@ export default function CourseCarousel({ cards }: { cards: FeaturedCard[] }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// ── Public export ──────────────────────────────────────────────────────────────
+export default function CourseCarousel({ cards }: { cards: FeaturedCard[] }) {
+  if (cards.length === 0) return null;
+
+  return (
+    <>
+      {/* Mobile / tablet — CSS scroll-snap */}
+      <div className="lg:hidden">
+        <MobileScrollCarousel cards={cards} />
+      </div>
+
+      {/* Desktop — JS infinite carousel */}
+      <div className="hidden lg:block">
+        <DesktopCarousel cards={cards} />
+      </div>
+    </>
   );
 }
