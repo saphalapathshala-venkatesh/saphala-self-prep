@@ -568,6 +568,10 @@ export async function getEnrolledCourses(userId: string): Promise<CourseListItem
  * Returns a map of courseId → validUntil ISO string (or null for lifetime/unconfigured).
  * Used to display "Valid until: [date]" on enrolled course cards.
  * Not cached — always reflects the current DB state.
+ *
+ * For entitlements where validUntil IS NULL (old purchases before the feature existed),
+ * we compute the expiry on-the-fly from the grant date + course validity config so that
+ * pre-existing purchasers still see the correct expiry date.
  */
 export async function getEnrolledValidityMap(
   userId: string
@@ -575,17 +579,47 @@ export async function getEnrolledValidityMap(
   const safeUserId = userId.replace(/'/g, "''");
   try {
     const rows = await prisma.$queryRawUnsafe<
-      Array<{ productCode: string; validUntil: Date | null }>
+      Array<{
+        productCode:    string;
+        validUntil:     Date | null;
+        grantedAt:      Date;
+        validityType:   string | null;
+        validityDays:   string | null;
+        validityMonths: string | null;
+      }>
     >(`
-      SELECT ue."productCode", ue."validUntil"
+      SELECT
+        ue."productCode",
+        ue."validUntil",
+        ue."createdAt"        AS "grantedAt",
+        c."validityType",
+        c."validityDays",
+        c."validityMonths"
       FROM "UserEntitlement" ue
+      LEFT JOIN "Course" c ON c.id = ue."productCode"
       WHERE ue."userId" = '${safeUserId}'
         AND ue.status   = 'ACTIVE'
         AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
     `);
+
     const map: Record<string, string | null> = {};
     for (const row of rows) {
-      map[row.productCode] = row.validUntil ? row.validUntil.toISOString() : null;
+      if (row.validUntil) {
+        // Stored value — most reliable
+        map[row.productCode] = row.validUntil.toISOString();
+      } else if (row.validityType && row.validityType !== "lifetime") {
+        // Old purchase: validUntil was never written — compute it now
+        const { computeValidUntil } = await import("./validityUtils");
+        const computed = computeValidUntil(row.grantedAt, {
+          validityType:   row.validityType,
+          validityDays:   row.validityDays   ? Number(row.validityDays)   : null,
+          validityMonths: row.validityMonths ? Number(row.validityMonths) : null,
+        });
+        map[row.productCode] = computed ? computed.toISOString() : null;
+      } else {
+        // True lifetime / no validity config on the course
+        map[row.productCode] = null;
+      }
     }
     return map;
   } catch {
