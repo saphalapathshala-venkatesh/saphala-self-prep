@@ -13,13 +13,11 @@ export const Header = () => {
   const guestNav: { href: string; label: string; desktopOnly?: string }[] = [
     { href: '/', label: 'Home' },
     { href: '/courses', label: 'Courses' },
-    { href: '/testhub', label: 'TestHub' },
     { href: '/about', label: 'About', desktopOnly: 'lg' },
   ];
 
   const studentNav: { href: string; label: string; desktopOnly?: string }[] = [
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/testhub', label: 'TestHub' },
     { href: '/courses', label: 'Courses' },
   ];
 

@@ -129,7 +129,6 @@ const PRIMARY_NAV = [
   { key: "dashboard",  label: "Dashboard",        href: "/dashboard",          icon: "home"      },
   { key: "purchases",  label: "My Purchases",     href: "/purchases",          icon: "purchases" },
   { key: "courses",    label: "Courses",          href: "/dashboard/courses",  icon: "courses"   },
-  { key: "testhub",    label: "TestHub",          href: "/testhub",            icon: "clipboard" },
   { key: "attempts",   label: "My Attempts",      href: "/dashboard/attempts", icon: "history"   },
   { key: "ebooks",     label: "Ebooks",           href: "/learn/lessons",      icon: "brain"     },
   { key: "flashcards", label: "Flashcards",       href: "/learn/flashcards",   icon: "cards"     },
