@@ -101,7 +101,7 @@ export function computeLiveStatus(row: LiveClassRow): { liveStatus: LiveStatus; 
 /**
  * Builds the SQL CASE expression for entitlement check.
  * FREE classes → always entitled.
- * PAID classes → check UserEntitlement by courseId or course productCategory.
+ * PAID classes → check UserEntitlement by courseId only.
  */
 function entitlementExpr(userId: string): string {
   const safeUserId = userId.replace(/'/g, "''");
@@ -112,13 +112,10 @@ function entitlementExpr(userId: string): string {
       ELSE EXISTS (
         SELECT 1
         FROM "UserEntitlement" ue
-        WHERE ue."userId"    = '${safeUserId}'
-          AND ue.status       = 'ACTIVE'
+        WHERE ue."userId"     = '${safeUserId}'
+          AND ue."productCode" = lc."courseId"
+          AND ue.status        = 'ACTIVE'
           AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
-          AND (
-            ue."productCode" = lc."courseId"
-            OR ue."productCode" = c."productCategory"
-          )
       )
     END
   `.trim();
@@ -267,10 +264,7 @@ export async function getDashboardLiveClass(userId: string): Promise<LiveClassSt
           WHERE ue."userId"    = '${safeUserId}'
             AND ue.status       = 'ACTIVE'
             AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
-            AND (
-              ue."productCode" = lc."courseId"
-              OR ue."productCode" = c."productCategory"
-            )
+            AND ue."productCode" = lc."courseId"
         )
       END AS "isEntitled"
     FROM "LiveClass" lc

@@ -534,10 +534,7 @@ export async function getEnrolledCourses(userId: string): Promise<CourseListItem
       FROM "Course" c
       LEFT JOIN "Category" cat ON cat.id = c."categoryId"
       LEFT JOIN "Exam"     e   ON e.id   = c."examId"
-      INNER JOIN "UserEntitlement" ue ON (
-        ue."productCode" = c.id
-        OR ue."productCode" = c."productCategory"::text
-      )
+      INNER JOIN "UserEntitlement" ue ON ue."productCode" = c.id
       WHERE c."isActive" = true
         AND ue."userId" = '${safeUserId}'
         AND ue.status   = 'ACTIVE'
@@ -555,7 +552,7 @@ export async function getEnrolledCourses(userId: string): Promise<CourseListItem
 
 /**
  * Returns true if the user has an active UserEntitlement for this course.
- * Matches by courseId OR productCategory (same logic as video entitlement).
+ * Matches by courseId only — category-code entitlements are not used.
  * FREE_DEMO courses always return true without a DB round-trip.
  */
 export async function checkUserEntitlementForCourse(
@@ -565,21 +562,17 @@ export async function checkUserEntitlementForCourse(
 ): Promise<boolean> {
   if (productCategory === "FREE_DEMO") return true;
 
-  const safeUserId      = userId.replace(/'/g, "''");
-  const safeCourseId    = courseId.replace(/'/g, "''");
-  const safeProdCat     = productCategory.replace(/'/g, "''");
+  const safeUserId   = userId.replace(/'/g, "''");
+  const safeCourseId = courseId.replace(/'/g, "''");
 
   const rows = await prisma.$queryRawUnsafe<[{ exists: boolean }]>(`
     SELECT EXISTS (
       SELECT 1
       FROM "UserEntitlement" ue
-      WHERE ue."userId"  = '${safeUserId}'
-        AND ue.status     = 'ACTIVE'
+      WHERE ue."userId"     = '${safeUserId}'
+        AND ue."productCode" = '${safeCourseId}'
+        AND ue.status        = 'ACTIVE'
         AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
-        AND (
-          ue."productCode" = '${safeCourseId}'
-          OR ue."productCode" = '${safeProdCat}'
-        )
     ) AS "exists"
   `);
   return rows[0]?.exists ?? false;

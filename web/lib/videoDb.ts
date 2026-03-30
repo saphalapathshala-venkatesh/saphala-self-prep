@@ -39,10 +39,7 @@ function videoEntitlementExpr(userId: string): string {
         WHERE ue."userId"    = '${safeUserId}'
           AND ue.status       = 'ACTIVE'
           AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
-          AND (
-            ue."productCode" = v."courseId"
-            OR ue."productCode" = c."productCategory"::text
-          )
+          AND ue."productCode" = v."courseId"
       )
     END
   `.trim();
