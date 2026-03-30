@@ -508,10 +508,22 @@ export const getCourseWithCurriculum = unstable_cache(
 
 /**
  * Returns courses the user has an active entitlement for.
- * Joins UserEntitlement on courseId OR productCategory.
+ * Joins UserEntitlement on courseId only (course-specific entitlements).
  * Fails soft — returns [] if Course/Exam/Category tables are unavailable.
+ * Per-user in-memory TTL cache (30 s) — invalidated by clearEnrolledCoursesCache().
  */
+const _enrolledCache = new Map<string, { data: CourseListItem[]; expiresAt: number }>();
+const ENROLLED_TTL_MS = 30_000; // 30 seconds
+
+export function clearEnrolledCoursesCache(userId: string): void {
+  _enrolledCache.delete(userId);
+}
+
 export async function getEnrolledCourses(userId: string): Promise<CourseListItem[]> {
+  const now = Date.now();
+  const hit = _enrolledCache.get(userId);
+  if (hit && now < hit.expiresAt) return hit.data;
+
   const safeUserId = userId.replace(/'/g, "''");
   try {
     const rows = await prisma.$queryRawUnsafe<RawCourse[]>(`
@@ -542,7 +554,9 @@ export async function getEnrolledCourses(userId: string): Promise<CourseListItem
       ORDER BY c.id, c."createdAt" DESC
       LIMIT 50
     `);
-    return rows.map(mapCourse);
+    const data = rows.map(mapCourse);
+    _enrolledCache.set(userId, { data, expiresAt: now + ENROLLED_TTL_MS });
+    return data;
   } catch {
     return [];
   }

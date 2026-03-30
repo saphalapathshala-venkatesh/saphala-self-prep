@@ -190,8 +190,20 @@ export async function getOrderById(
   return rows[0] ?? null;
 }
 
+// ── Per-user in-memory TTL cache for order list ──────────────────────────────
+const _ordersCache = new Map<string, { data: PaymentOrderRow[]; expiresAt: number }>();
+const ORDERS_TTL_MS = 30_000;
+
+export function clearOrdersCache(userId: string): void {
+  _ordersCache.delete(userId);
+}
+
 export async function listOrdersForUser(userId: string): Promise<PaymentOrderRow[]> {
-  return prisma.$queryRawUnsafe<PaymentOrderRow[]>(
+  const now = Date.now();
+  const hit = _ordersCache.get(userId);
+  if (hit && now < hit.expiresAt) return hit.data;
+
+  const data = await prisma.$queryRawUnsafe<PaymentOrderRow[]>(
     `SELECT po.*, pp.name AS "packageName", pp.code AS "packageCode",
             pp.description AS "packageDescription",
             c.name AS "courseName"
@@ -202,6 +214,8 @@ export async function listOrdersForUser(userId: string): Promise<PaymentOrderRow
      ORDER BY po."createdAt" DESC`,
     userId
   );
+  _ordersCache.set(userId, { data, expiresAt: now + ORDERS_TTL_MS });
+  return data;
 }
 
 // ── Refund read helpers ────────────────────────────────────────────────────────

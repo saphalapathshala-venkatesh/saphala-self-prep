@@ -1,7 +1,7 @@
-// The homepage fetches live DB data (featured courses) — must be dynamic.
-// Without this, Next.js tries to statically prerender it at build time,
-// which fails because DATABASE_URL is unavailable in the build environment.
-export const dynamic = "force-dynamic";
+// Homepage uses ISR — cached for 60s, revalidated in background.
+// No user-specific data is SSR-rendered here (auth state is client-side via
+// useAuthStatus hook in Header). This serves from CDN/cache on most requests.
+export const revalidate = 60;
 
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";

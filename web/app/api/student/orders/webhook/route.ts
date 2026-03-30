@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { verifyCashfreeWebhook } from "@/lib/cashfreeClient";
+import { clearEnrolledCoursesCache } from "@/lib/courseDb";
+import { clearOrdersCache } from "@/lib/paymentOrderDb";
+import { clearDashboardCache } from "@/lib/dashboardData";
 
 interface CashfreeWebhookEvent {
   type?: string;
@@ -171,6 +174,10 @@ export async function POST(req: NextRequest) {
         `[PAYMENT_SUCCESS] orderId=${orderId} userId=${userId} cfPaymentId=${cfPaymentIdStr ?? "n/a"} courseId=${courseId ?? "none"} codes=${codes.join(",")}`
       );
       await grantEntitlements(userId, codes, orderId);
+      // Bust per-user caches so the next dashboard/purchases/orders load is fresh.
+      clearEnrolledCoursesCache(userId);
+      clearOrdersCache(userId);
+      clearDashboardCache(userId);
       console.log(
         `[PAYMENT_SUCCESS] Entitlements granted for userId=${userId} | codes=${codes.join(",")}`
       );
