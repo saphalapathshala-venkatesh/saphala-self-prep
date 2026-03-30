@@ -36,6 +36,25 @@ function formatRupeesINR(rupees: number): string {
   return `₹${rupees.toLocaleString("en-IN")}`;
 }
 
+/**
+ * Formats a validUntil ISO string into "1 Jan 2026, 11:59 PM" (IST).
+ * Always appends "11:59 PM" because we set expiry at 23:59:59 IST by design.
+ */
+function formatExpiryDate(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    const datePart = new Intl.DateTimeFormat("en-IN", {
+      timeZone: "Asia/Kolkata",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    }).format(date);
+    return `${datePart}, 11:59 PM`;
+  } catch {
+    return "";
+  }
+}
+
 function formatValidity(
   type: string | null,
   days: number | null,
@@ -80,6 +99,8 @@ interface Props {
   initialExam: string | null;
   initialProductCategory: string | null;
   enrolledCourseIds?: string[];
+  /** courseId → validUntil ISO string (null = lifetime / no expiry) */
+  enrolledExpiry?: Record<string, string | null>;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -92,6 +113,7 @@ export default function CoursesClient({
   initialExam,
   initialProductCategory,
   enrolledCourseIds = [],
+  enrolledExpiry = {},
 }: Props) {
   const enrolledSet = useMemo(() => new Set(enrolledCourseIds), [enrolledCourseIds]);
   const router = useRouter();
@@ -496,8 +518,33 @@ export default function CoursesClient({
                         </div>
                       )}
 
-                      {/* Validity badge — shown for all premium (non-free) courses */}
-                      {!isFreeCourse && (() => {
+                      {/* For enrolled paid courses → show exact "Valid until" expiry date */}
+                      {isEnrolled && !isFreeCourse && (() => {
+                        const rawExpiry = enrolledExpiry[course.id];
+                        // rawExpiry === undefined → not in map (free / no expiry set)
+                        // rawExpiry === null       → lifetime access
+                        if (rawExpiry === undefined) return null;
+                        const label = rawExpiry
+                          ? formatExpiryDate(rawExpiry)
+                          : null; // null = lifetime
+                        return (
+                          <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 w-full">
+                            <svg className="w-3.5 h-3.5 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span className="text-[11px] font-semibold text-emerald-700 leading-tight">
+                              {label ? (
+                                <>Valid until <span className="font-bold">{label}</span></>
+                              ) : (
+                                "Lifetime access"
+                              )}
+                            </span>
+                          </div>
+                        );
+                      })()}
+
+                      {/* For non-enrolled premium courses → show generic validity duration */}
+                      {!isFreeCourse && !isEnrolled && (() => {
                         const validityLabel = formatValidity(
                           course.validityType,
                           course.validityDays,

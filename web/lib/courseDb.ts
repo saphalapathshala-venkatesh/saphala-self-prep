@@ -564,6 +564,35 @@ export async function getEnrolledCourses(userId: string): Promise<CourseListItem
   }
 }
 
+/**
+ * Returns a map of courseId → validUntil ISO string (or null for lifetime/unconfigured).
+ * Used to display "Valid until: [date]" on enrolled course cards.
+ * Not cached — always reflects the current DB state.
+ */
+export async function getEnrolledValidityMap(
+  userId: string
+): Promise<Record<string, string | null>> {
+  const safeUserId = userId.replace(/'/g, "''");
+  try {
+    const rows = await prisma.$queryRawUnsafe<
+      Array<{ productCode: string; validUntil: Date | null }>
+    >(`
+      SELECT ue."productCode", ue."validUntil"
+      FROM "UserEntitlement" ue
+      WHERE ue."userId" = '${safeUserId}'
+        AND ue.status   = 'ACTIVE'
+        AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+    `);
+    const map: Record<string, string | null> = {};
+    for (const row of rows) {
+      map[row.productCode] = row.validUntil ? row.validUntil.toISOString() : null;
+    }
+    return map;
+  } catch {
+    return {};
+  }
+}
+
 // ── Entitlement ───────────────────────────────────────────────────────────────
 
 /**
