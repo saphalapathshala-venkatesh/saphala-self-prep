@@ -143,11 +143,30 @@ export async function POST(req: NextRequest) {
 
     if (rows[0]) {
       const { userId, courseId, entitlementCodes } = rows[0];
-      // Individual course purchase → entitle the specific course only.
-      // Bundle purchase (no courseId) → grant all category entitlementCodes.
-      const codes = courseId
-        ? [courseId]
-        : Array.isArray(entitlementCodes) ? entitlementCodes : [];
+
+      let codes: string[];
+      if (courseId) {
+        // Individual course purchase → entitle exactly that course.
+        codes = [courseId];
+      } else {
+        // Bundle purchase → look up all active courses whose productCategory
+        // is in the package's entitlementCodes, then grant one entitlement per course.
+        const catList = (Array.isArray(entitlementCodes) ? entitlementCodes : [])
+          .map((c: string) => `'${c.replace(/'/g, "''")}'`)
+          .join(",");
+        if (catList) {
+          type CRow = { id: string };
+          const cRows = await prisma
+            .$queryRawUnsafe<CRow[]>(
+              `SELECT id FROM "Course" WHERE "isActive" = true AND "productCategory"::text IN (${catList})`
+            )
+            .catch(() => [] as CRow[]);
+          codes = cRows.map((r) => r.id);
+        } else {
+          codes = [];
+        }
+      }
+
       console.log(
         `[PAYMENT_SUCCESS] orderId=${orderId} userId=${userId} cfPaymentId=${cfPaymentIdStr ?? "n/a"} courseId=${courseId ?? "none"} codes=${codes.join(",")}`
       );
