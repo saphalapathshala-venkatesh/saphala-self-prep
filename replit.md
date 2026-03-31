@@ -90,11 +90,29 @@ Public APIs for daily quotes, categories, and contact forms. Authenticated APIs 
 #### Route Protection
 Protected routes (`/dashboard`, `/learn`, `/admin`) redirect unauthenticated users to `/login`.
 
-#### Forgot Password Flow
-Allows students to reset passwords via email/mobile and mobile number verification, revoking existing sessions upon success.
+#### Forgot Password / Reset Password Flow
+Email-based password reset via Resend. Student submits their registered email address; the API generates a stateless HMAC-SHA256 signed token (15 min TTL) and sends a secure one-time reset link to that email. The link leads to `/forgot-password/reset?token=…` where the student sets a new password. On success all existing sessions are revoked. The identity is never revealed in the API response (same generic message whether account exists or not).
+
+- API: `POST /api/auth/forgot-password/verify` — accepts `{ email }`, sends Resend email, returns generic success
+- API: `POST /api/auth/forgot-password/reset` — accepts `{ resetToken, newPassword, confirmPassword }`, validates token, hashes password with bcrypt, deletes all sessions
+- Pages: `/forgot-password` (email entry), `/forgot-password/reset` (token from URL query param → set new password form)
+- Utility: `lib/resend.ts` — shared Resend email utility (`sendPasswordResetEmail`, `sendContactEmail`)
 
 #### Auth Hardening
 Session validation includes checks for `revokedAt`, `isBlocked`, `isActive`, `deletedAt`, and `infringementBlocked` on every request. Login API provides explicit error codes.
+
+#### Contact Form → Email
+Both contact forms (`/` homepage and `/contact` page) now POST to `POST /api/public/contact` which validates inputs, applies a simple in-memory rate limit (3 req / 10 min per IP), checks a honeypot field, then sends an email to `SUPPORT_EMAIL` via Resend including sender name, email, phone, message, and IST timestamp. The homepage form (`components/home/ContactForm.tsx`) was already wired; the `/contact` page form (`app/contact/ContactForm.tsx`) was rewritten to call the API.
+
+#### Test Series Course-Derived Entitlement
+`resolveTestAccess` (used at all protected endpoints and SSR pages) now checks three access paths in order:
+1. `test.isFree` — free access
+2. `TESTHUB_ALL` or `TESTHUB_SERIES_<id>` entitlement — legacy direct entitlement
+3. **NEW**: User holds a course entitlement (`productCode = courseId`) for any course that has a `CourseLinkedContent` row with `contentType = TEST_SERIES` and `sourceId = seriesId` — course-derived access
+
+`getPublishedTestsForStudent` (bulk listing) runs the same three-path logic in one parallel query set — the course-derived series IDs are fetched with a single `DISTINCT` JOIN and merged into the same `userSeriesAccess` set before access states are resolved.
+
+Later-added series: because access is derived at query time (not written as entitlement rows), any series linked to a course after purchase is automatically accessible to all existing course holders without any backfill.
 
 ## External Dependencies
 
@@ -106,4 +124,5 @@ Session validation includes checks for `revokedAt`, `isBlocked`, `isActive`, `de
 -   Neon PostgreSQL
 -   lucide-react
 -   canvas-confetti
+-   resend (email delivery)
 -   Geist font family
