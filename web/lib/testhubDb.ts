@@ -35,6 +35,13 @@ export type AccessState = "free" | "purchased" | "locked";
 /**
  * Resolve whether a user can access a given test.
  * Pass `isFree` from DbTest and `seriesId` for entitlement checks.
+ *
+ * Access is granted when ANY of the following is true:
+ *   1. test.isFree (series.isFree or test.accessType === "FREE")
+ *   2. User has a TESTHUB_ALL entitlement
+ *   3. User has a TESTHUB_SERIES_<seriesId> entitlement (legacy direct series grant)
+ *   4. User has a course entitlement where that course has a CourseLinkedContent
+ *      row linking to this test's seriesId (course-derived access)
  */
 export async function resolveTestAccess(
   test: { isFree: boolean; seriesId: string | null },
@@ -42,13 +49,13 @@ export async function resolveTestAccess(
 ): Promise<AccessState> {
   if (test.isFree) return "free";
 
-  // Check entitlement: TESTHUB_ALL grants full access;
-  // TESTHUB_SERIES_<seriesId> grants access to that specific series.
   const now = new Date();
+
+  // 1 & 2. TESTHUB_ALL + direct series entitlement
   const productCodes = ["TESTHUB_ALL"];
   if (test.seriesId) productCodes.push(`TESTHUB_SERIES_${test.seriesId}`);
 
-  const entitlement = await prisma.userEntitlement.findFirst({
+  const directEntitlement = await prisma.userEntitlement.findFirst({
     where: {
       userId,
       status: "ACTIVE",
@@ -57,7 +64,28 @@ export async function resolveTestAccess(
     },
   });
 
-  return entitlement ? "purchased" : "locked";
+  if (directEntitlement) return "purchased";
+
+  // 3. Course-derived entitlement: user bought a course that includes this series
+  if (test.seriesId) {
+    const safeUserId = userId.replace(/'/g, "''");
+    const safeSeriesId = test.seriesId.replace(/'/g, "''");
+    const rows = await prisma.$queryRawUnsafe<{ found: number }[]>(`
+      SELECT 1 AS found
+      FROM "UserEntitlement" ue
+      JOIN "CourseLinkedContent" clc
+        ON clc."courseId" = ue."productCode"
+       AND clc."contentType"::text = 'TEST_SERIES'
+       AND clc."sourceId" = '${safeSeriesId}'
+      WHERE ue."userId" = '${safeUserId}'
+        AND ue.status = 'ACTIVE'
+        AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+      LIMIT 1
+    `);
+    if (rows.length > 0) return "purchased";
+  }
+
+  return "locked";
 }
 
 // ============================================================
@@ -568,8 +596,9 @@ export async function getPublishedTestsForStudent(userId?: string): Promise<Stud
 
   if (userId) {
     const now = new Date();
+    const safeUserId = userId.replace(/'/g, "''");
 
-    const [userAttempts, entitlements] = await Promise.all([
+    const [userAttempts, entitlements, courseSeriesRows] = await Promise.all([
       prisma.attempt.findMany({
         where: { userId, testId: { in: all.map((t) => t.id) } },
         select: { testId: true, status: true, endsAt: true },
@@ -582,6 +611,17 @@ export async function getPublishedTestsForStudent(userId?: string): Promise<Stud
         },
         select: { productCode: true },
       }),
+      // Course-derived access: find all seriesIds reachable via course entitlements
+      prisma.$queryRawUnsafe<{ seriesId: string }[]>(`
+        SELECT DISTINCT clc."sourceId" AS "seriesId"
+        FROM "UserEntitlement" ue
+        JOIN "CourseLinkedContent" clc
+          ON clc."courseId" = ue."productCode"
+         AND clc."contentType"::text = 'TEST_SERIES'
+        WHERE ue."userId" = '${safeUserId}'
+          AND ue.status = 'ACTIVE'
+          AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+      `).catch(() => [] as { seriesId: string }[]),
     ]);
 
     for (const a of userAttempts) {
@@ -597,6 +637,10 @@ export async function getPublishedTestsForStudent(userId?: string): Promise<Stud
       if (e.productCode.startsWith("TESTHUB_SERIES_")) {
         userSeriesAccess.add(e.productCode.slice("TESTHUB_SERIES_".length));
       }
+    }
+    // Also grant access for all series linked to purchased courses
+    for (const row of courseSeriesRows) {
+      if (row.seriesId) userSeriesAccess.add(row.seriesId);
     }
   }
 

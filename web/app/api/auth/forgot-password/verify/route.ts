@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { normalizeIdentifier } from "@/lib/validation";
 import { createHmac, randomBytes } from "crypto";
+import { sendPasswordResetEmail } from "@/lib/resend";
 
-const RESET_TOKEN_TTL_MS = 15 * 60 * 1000;
+const RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
 function getResetSecret(): string {
   const url = process.env.DATABASE_URL ?? "saphala-forgot-password-secret-fallback";
@@ -35,32 +35,29 @@ export function verifyResetToken(token: string): { userId: string } | null {
   }
 }
 
+// Generic success message — never reveal whether account exists
+const GENERIC_OK =
+  "If an account with that email exists, a password reset link has been sent. Check your inbox (and spam folder).";
+
 export async function POST(request: NextRequest) {
-  let body: { identifier?: string; mobileLast4?: string };
+  let body: { email?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { identifier, mobileLast4 } = body;
-
-  if (!identifier || !mobileLast4) {
-    return NextResponse.json({ error: "All fields are required." }, { status: 400 });
+  const rawEmail = (body.email ?? "").trim().toLowerCase();
+  if (!rawEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) {
+    return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
   }
 
-  const last4 = mobileLast4.trim().replace(/\D/g, "");
-  if (last4.length !== 4) {
-    return NextResponse.json({ error: "Please enter exactly 4 digits." }, { status: 400 });
-  }
-
-  const { type, value } = normalizeIdentifier(identifier);
-
+  // Look up user — do NOT reveal whether they exist
   const user = await prisma.user.findUnique({
-    where: type === "email" ? { email: value } : { mobile: value },
+    where: { email: rawEmail },
     select: {
       id: true,
-      mobile: true,
+      email: true,
       isBlocked: true,
       isActive: true,
       deletedAt: true,
@@ -68,34 +65,30 @@ export async function POST(request: NextRequest) {
     },
   });
 
+  // If account doesn't exist or is deactivated, return the same success message
   if (
     !user ||
     user.deletedAt !== null ||
     !user.isActive ||
     user.isBlocked ||
-    user.infringementBlocked
+    user.infringementBlocked ||
+    !user.email
   ) {
-    return NextResponse.json(
-      { error: "Details do not match our records." },
-      { status: 400 }
-    );
-  }
-
-  if (!user.mobile) {
-    return NextResponse.json(
-      { error: "Password reset is not available for this account. Please contact support." },
-      { status: 400 }
-    );
-  }
-
-  const storedLast4 = user.mobile.slice(-4);
-  if (storedLast4 !== last4) {
-    return NextResponse.json(
-      { error: "Details do not match our records." },
-      { status: 400 }
-    );
+    return NextResponse.json({ success: true, message: GENERIC_OK });
   }
 
   const resetToken = buildResetToken(user.id);
-  return NextResponse.json({ resetToken });
+  const siteUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.saphala.in"
+  ).replace(/\/$/, "");
+  const resetUrl = `${siteUrl}/forgot-password/reset?token=${resetToken}`;
+
+  const result = await sendPasswordResetEmail(user.email, resetUrl);
+  if (!result.ok) {
+    console.error("[forgot-password/verify] Email send failed:", result.error);
+    // Still return generic success — don't expose internal errors to client
+    return NextResponse.json({ success: true, message: GENERIC_OK });
+  }
+
+  return NextResponse.json({ success: true, message: GENERIC_OK });
 }

@@ -56,6 +56,9 @@ outputType = "webview"
 NEXT_PUBLIC_CASHFREE_ENV = "sandbox"
 CASHFREE_ENV = "sandbox"
 TZ = "Asia/Kolkata"
+EMAIL_FROM = "Saphala Pathshala <noreply@saphala.in>"
+SUPPORT_EMAIL = "support@saphala.in"
+NEXT_PUBLIC_SITE_URL = "https://www.saphala.in"
 
 [postMerge]
 path = "scripts/post-merge.sh"

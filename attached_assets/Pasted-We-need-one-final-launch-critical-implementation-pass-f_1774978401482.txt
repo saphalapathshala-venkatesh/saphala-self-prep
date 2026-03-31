@@ -1,0 +1,165 @@
+We need one final launch-critical implementation pass for Saphala covering THREE issues:
+
+1. Course-linked Test Series auto-entitlement
+2. Forgot Password / Reset Password using Resend
+3. Contact Form submission → send email to support@saphala.in
+
+Important:
+- Do NOT make assumptions.
+- Read the actual code first.
+- Keep implementation minimal, safe, and production-ready.
+- Do NOT redesign unrelated commerce/auth flows.
+- Do NOT use SMS OTP.
+- Use Resend for email sending.
+- Preserve existing purchase, login, and test-attempt flows unless required by these fixes.
+
+Locked product rules:
+
+A. Test Series auto-entitlement
+1. If a user purchases a course, and that course includes linked Test Series, the user must automatically be able to access those linked Test Series and their tests.
+2. No separate standalone Test Series entitlement should be required for course buyers.
+3. If a Test Series is linked later to an already-purchased course, all users who already hold valid entitlement to that course must also gain access automatically.
+4. Legacy direct Test Series entitlements may continue to work, but course-linked entitlement must also work.
+
+B. Password reset
+1. We do NOT have OTP service.
+2. Use email-based reset via Resend.
+3. User should be able to self-reset password using secure reset link.
+
+C. Contact form
+1. Frontend contact form must send an email to support@saphala.in via Resend.
+
+Implement exactly the following:
+
+--------------------------------
+PART 1 — COURSE-LINKED TEST SERIES AUTO-ENTITLEMENT
+--------------------------------
+
+1. Audit current entitlement/access logic
+- Identify the exact files/routes/functions that decide whether a user can access:
+  - a purchased course
+  - a linked Test Series
+  - an individual test inside that linked Test Series
+- Identify where old standalone TestHub/Test Series entitlement logic still exists.
+- Identify why course buyers are not automatically getting linked Test Series access.
+
+2. Fix access logic
+- Update access checks so that if:
+  - user has valid entitlement to the course
+  - and that course includes linked Test Series
+  then the user can access:
+  - the linked Test Series
+  - the individual tests inside it
+- Preserve direct legacy series entitlements if they already exist.
+- Support both:
+  - direct entitlement
+  - course-derived entitlement
+
+3. Handle later-added linked Test Series
+- If admin links a Test Series to a course after users already purchased that course:
+  - already-entitled users must also gain access
+- Prefer solving this through derived access logic instead of requiring duplicate entitlement rows everywhere, unless the current architecture truly requires reconciliation writes.
+- If a minimal reconciliation/backfill step is needed, implement it safely and explain it clearly.
+
+4. No regression
+- Existing course purchase flow must remain unchanged.
+- Existing direct legacy Test Series entitlement must still work if present.
+- Existing test-attempt/brief routes must keep working with real test IDs.
+
+--------------------------------
+PART 2 — RESEND INTEGRATION + FORGOT PASSWORD / RESET PASSWORD
+--------------------------------
+
+5. Add Resend integration
+- Add Resend SDK if not already installed.
+- Create reusable email sending utility/service.
+- Use env vars:
+  - RESEND_API_KEY
+  - EMAIL_FROM
+  - SUPPORT_EMAIL
+  - NEXT_PUBLIC_SITE_URL (or existing canonical site URL env)
+
+6. Forgot Password API
+- Audit whether any partial reset flow already exists.
+- Add/complete forgot-password API:
+  - accepts email/identifier based on current auth model
+  - safely finds user
+  - generates secure reset token
+  - stores token securely (hashed if practical) with expiry
+  - sends reset email via Resend
+- Do NOT reveal whether account exists.
+
+7. Reset Password API
+- Add/complete reset-password API:
+  - accepts token + new password
+  - validates token
+  - checks expiry
+  - updates password using existing password hashing approach
+  - invalidates token after use
+- Invalidate old sessions too if practical and safe.
+
+8. Frontend pages
+- Add/complete pages for:
+  - Forgot Password
+  - Reset Password
+- Keep UX simple:
+  - request submitted message
+  - invalid/expired token message
+  - success message after reset
+
+9. Security
+- Token must be one-time use
+- Expiry should be reasonable (15–30 minutes)
+- Reuse existing password validation helpers if available
+
+--------------------------------
+PART 3 — CONTACT FORM → SUPPORT EMAIL
+--------------------------------
+
+10. Audit current contact form
+- Identify current frontend page/component and submit behavior.
+
+11. Wire contact form
+- Connect it to backend/API route if not already wired.
+- On submission, send email via Resend to:
+  - support@saphala.in
+  or SUPPORT_EMAIL env if configured
+- Email should include:
+  - sender name
+  - sender email
+  - subject if available
+  - message
+  - timestamp
+
+12. Validation / abuse prevention
+- Add basic validation
+- Add lightweight spam protection if easy and already consistent with project patterns:
+  - honeypot and/or simple rate limiting
+- Do NOT overbuild a CRM or ticketing system
+
+--------------------------------
+PART 4 — FINAL OUTPUT
+--------------------------------
+
+After implementation, respond in exactly this structure:
+
+1. Files changed
+2. What the Test Series entitlement bug was
+3. How course-linked Test Series access works now
+4. How later-added Test Series for already-purchased courses are handled
+5. How individual test access works now
+6. What Resend integration was added
+7. How forgot password/reset password now works
+8. What frontend pages/routes were added or changed
+9. How contact form submission now works
+10. What environment variables are required
+11. Any migration / reconciliation / cleanup still recommended later
+12. Any limitations or edge cases still remaining
+
+Important constraints:
+- Launch-safe only
+- Minimal and correct
+- No SMS OTP
+- Use Resend
+- Contact form must email support@saphala.in
+- Course entitlement must be enough for linked Test Series access
