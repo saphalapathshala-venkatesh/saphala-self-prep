@@ -111,11 +111,16 @@ textarea::placeholder {
 }
 
 /* ── Paragraph / question split panel scroll zones ──────────────────────────
-   On desktop (md+) each panel is independently scrollable at a viewport-relative
-   height so long passages and long option lists never force one panel to push
-   the other off-screen.
-   On mobile the panels are stacked; max-height is removed so the student can
-   page-scroll through the full content without artificial truncation.
+   .para-split-panel  — shared by both the passage box and the question column.
+     desktop/tablet (md+): max-height 65vh so each panel scrolls independently.
+     mobile: no max-height; question column grows naturally with the content.
+
+   .para-passage-cap  — applied ONLY to the passage box element (not the question
+     column). On mobile, caps passage height at 40vh so the question block is
+     always reachable without the student having to scroll past a full-screen
+     passage. The passage itself is internally scrollable within that 40vh cap.
+     On desktop/tablet the rule does nothing (max-height already set by
+     .para-split-panel above).
    ── */
 .para-split-panel {
   overflow-y: auto;
@@ -123,6 +128,12 @@ textarea::placeholder {
 @media (min-width: 768px) {
   .para-split-panel {
     max-height: 65vh;
+  }
+}
+@media (max-width: 767px) {
+  .para-passage-cap {
+    max-height: 40vh;
+    overflow-y: auto;
   }
 }
 

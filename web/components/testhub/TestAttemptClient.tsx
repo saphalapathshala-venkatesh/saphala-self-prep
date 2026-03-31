@@ -1134,7 +1134,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
               {/* Paragraph panel — only for grouped questions */}
               {currentQ?.paragraphHtml && (
                 <div className="md:w-5/12 flex-shrink-0">
-                  <div className="question-paragraph para-split-panel">
+                  <div className="question-paragraph para-split-panel para-passage-cap">
                     <div className="question-paragraph-label">Passage</div>
                     <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentQ.paragraphHtml) }} />
                   </div>

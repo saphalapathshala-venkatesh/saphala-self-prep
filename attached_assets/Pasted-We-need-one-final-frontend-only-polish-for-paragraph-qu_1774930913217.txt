@@ -1,0 +1,72 @@
+We need one final frontend-only polish for paragraph-question attempt UI in the Saphala student test interface.
+
+Important:
+- Read the actual current frontend code first.
+- Do NOT change backend.
+- Do NOT change payload shape.
+- Do NOT change review page unless absolutely necessary.
+- Do NOT redesign standalone questions.
+- This is only to improve mobile UX for paragraph questions.
+
+Current known state:
+- Paragraph questions already use split layout on desktop/tablet.
+- On mobile/narrow screens, layout already stacks paragraph on top and question below.
+- Currently on mobile the paragraph renders at natural full height.
+- This can make the passage very long and push the actual question too far down, which is confusing.
+- We now want the mobile paragraph block to have a controlled max-height and its own scroll, so the student can quickly reach the question.
+- The UI must keep the question clearly visible and not feel confusing.
+
+Implement exactly the following:
+
+A. Mobile paragraph max-height
+1. For paragraph/group questions only:
+   - on mobile/narrow screens, paragraph block must have a capped max-height
+   - paragraph block must be internally scrollable
+2. Choose a sensible mobile max-height so:
+   - enough of the passage is visible
+   - the question block still appears promptly below
+   - controls do not get pushed too far down
+3. Do NOT affect standalone questions.
+
+B. Mobile question visibility
+1. Ensure the question block remains clearly visible below the paragraph block.
+2. Do NOT let the paragraph dominate the whole screen on mobile.
+3. Keep the question/options area easy to reach and read.
+4. Avoid confusing nested layouts or overlapping controls.
+
+C. Desktop behavior
+1. Keep current desktop/tablet behavior unchanged:
+   - paragraph left
+   - question right
+   - both internally scrollable
+
+D. Scroll behavior
+1. On desktop:
+   - keep current internal scroll behavior for both panels
+2. On mobile:
+   - paragraph block should be internally scrollable
+   - question block should remain natural and readable
+   - avoid horizontal scrolling
+3. Keep palette behavior unchanged unless absolutely required.
+
+E. Styling
+1. Keep design language exactly the same.
+2. Add only the minimum CSS/layout changes needed.
+3. Prefer class-based CSS updates.
+4. No visual redesign.
+
+F. Output format
+After implementation, respond in exactly this structure:
+1. Files changed
+2. What was changed in each file
+3. Final desktop behavior
+4. Final mobile behavior
+5. How paragraph max-height works on mobile
+6. Any edge cases or limitations
+
+Important constraints:
+- Frontend only
+- No backend changes
+- No standalone question changes
+- Keep UI simple and non-confusing
+- Paragraph questions only
