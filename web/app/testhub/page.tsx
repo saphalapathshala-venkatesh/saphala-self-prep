@@ -14,7 +14,7 @@ export default async function TestHubPage() {
   const user = await getCurrentUser();
 
   const [courses, enrolledCourses] = await Promise.all([
-    getActiveCourses({ hasTestSeries: true, limit: 100 }),
+    getActiveCourses({ testHubOnly: true, limit: 100 }),
     user ? getEnrolledCourses(user.id) : Promise.resolve([]),
   ]);
 

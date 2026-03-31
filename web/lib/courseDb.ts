@@ -250,7 +250,7 @@ async function _getActiveCourses(opts?: {
   examId?: string;
   productCategory?: string;
   featured?: boolean;
-  hasTestSeries?: boolean;
+  testHubOnly?: boolean;
   limit?: number;
 }): Promise<CourseListItem[]> {
   const conditions: string[] = [`c."isActive" = true`];
@@ -258,7 +258,21 @@ async function _getActiveCourses(opts?: {
   if (opts?.examId)            conditions.push(`c."examId"          = '${opts.examId.replace(/'/g, "''")}'`);
   if (opts?.productCategory)   conditions.push(`c."productCategory" = '${opts.productCategory.replace(/'/g, "''")}'`);
   if (opts?.featured === true) conditions.push(`c.featured = true`);
-  if (opts?.hasTestSeries === true) conditions.push(`c."hasTestSeries" = true`);
+  if (opts?.testHubOnly === true) {
+    // Premium paid courses explicitly categorised as test series,
+    // OR free courses that contain ONLY a test series (no videos/ebooks/pdfs/flashcards).
+    conditions.push(`(
+      c."productCategory" = 'TEST_SERIES'
+      OR (
+        COALESCE(c."isFree", false) = true
+        AND COALESCE(c."hasTestSeries", false) = true
+        AND COALESCE(c."hasVideoCourse", false) = false
+        AND COALESCE(c."hasHtmlCourse", false) = false
+        AND COALESCE(c."hasPdfCourse", false) = false
+        AND COALESCE(c."hasFlashcardDecks", false) = false
+      )
+    )`);
+  }
 
   const where = conditions.join(" AND ");
   const limitClause = opts?.limit ? `LIMIT ${opts.limit}` : "LIMIT 50";
