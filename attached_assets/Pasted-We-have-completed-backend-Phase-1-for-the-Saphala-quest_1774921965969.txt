@@ -1,0 +1,82 @@
+We have completed backend Phase 1 for the Saphala question/test pipeline.
+
+Now we need frontend alignment based on the new backend behavior.
+
+Important:
+Do NOT make assumptions.
+Read the current frontend code first and compare it with the actual backend changes.
+Then update frontend only where required.
+
+Confirmed backend changes:
+- Initial test load no longer includes explanation / explanationSecondary.
+- Explanations are now available only from GET /api/student/attempts/[id]/review after submission.
+- Rich content may now include image URLs with standard classes:
+  - rich-img
+  - rich-img-inline
+  - rich-img-block
+- New base64 images are blocked going forward.
+- Old base64 images may still exist in legacy content and should continue to render for now.
+
+Your task:
+Audit the frontend and implement all required changes so tests and content render correctly and performance improves.
+
+Implement exactly the following:
+
+A. Test attempt flow alignment
+1. Audit where frontend currently reads the initial test payload.
+2. Confirm that test attempt UI does not expect explanations during live attempt.
+3. If any attempt page still reads explanation fields from initial test load, remove that dependency.
+4. Ensure attempt page works cleanly with:
+   - stem
+   - options
+   - language content currently used
+   - no explanation until submission
+
+B. Review flow alignment
+1. Audit the current review/solution page.
+2. Update it so explanations are fetched only from the new post-submission review route.
+3. Ensure review renders:
+   - question
+   - options
+   - selected answer
+   - correct answer
+   - explanation
+4. Do not try to read explanations from the initial test payload anymore.
+
+C. Performance improvement
+1. Confirm that removing explanations from initial load reduces test page payload and initial render burden.
+2. Make any required code adjustments so test page benefits from this change.
+3. Avoid loading unnecessary review-only data during attempt.
+4. If any state currently stores explanation data during attempt, remove it.
+
+D. Rich image rendering
+1. Ensure HTML renderers correctly display image URLs inserted by backend/editor.
+2. Support:
+   - img.rich-img
+   - img.rich-img-inline
+   - img.rich-img-block
+3. Add or update CSS/rendering behavior so:
+   - inline images align naturally with text
+   - block images display responsively and do not overflow
+   - mobile layout remains safe
+4. Existing legacy base64 images should still render for now if they already exist in old content.
+
+E. No regression in equations
+1. Ensure equation rendering still works exactly as before.
+2. Do not break KaTeX rendering while updating content rendering.
+
+F. Final output format
+After implementation, respond in exactly this structure:
+1. Files changed
+2. What was changed in each file
+3. How test attempt flow changed
+4. How review flow changed
+5. How performance improved
+6. How inline/block images now render
+7. Any remaining backend dependencies for next phase
+
+Important constraints:
+- Do not redesign the whole test flow
+- No paragraph-group implementation yet
+- No DOCX import changes yet
+- Only align frontend with backend Phase 1 and improve rendering/performance

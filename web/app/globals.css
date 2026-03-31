@@ -82,6 +82,45 @@ textarea::placeholder {
   display: none;
 }
 
+/* ── Rich content image classes ─────────────────────────────────────────────
+   Backend / editor inserts these classes on <img> elements in question stems,
+   options, explanations, ebook pages, and flashcard cards.
+
+   img.rich-img        — sensible default for any editor-inserted image
+   img.rich-img-inline — small image meant to sit inline with text (e.g. a
+                         symbol or icon inside a sentence)
+   img.rich-img-block  — full-width standalone image or diagram (e.g. a chart,
+                         graph, or passage screenshot)
+
+   All variants:
+   - are naturally responsive (max-width: 100%)
+   - never overflow their container on narrow mobile screens
+   - carry loading="lazy" injected by sanitizeHtml at render time
+   ── */
+img.rich-img {
+  display: inline-block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  vertical-align: middle;
+}
+
+img.rich-img-inline {
+  display: inline;
+  vertical-align: middle;
+  max-height: 1.8em;
+  max-width: 100%;
+  height: auto;
+}
+
+img.rich-img-block {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75rem auto;
+  border-radius: 6px;
+}
+
 /* ── Flashcard rich content (.fc-rich) ─────────────────────────────────────
    Applied to SafeHtml wrapper; styles admin-editor HTML: tables, lists,
    blockquotes, callout divs, inline formatting. ── */

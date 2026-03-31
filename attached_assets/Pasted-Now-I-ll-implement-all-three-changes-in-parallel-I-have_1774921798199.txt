@@ -1,0 +1,83 @@
+Now I'll implement all three changes in parallel — I have all the code context I need.
+
+The task list shown is a stale artifact from a previous session — I'll ignore it. Let me read the rest of RichEditor.tsx so I can implement all changes correctly:
+
+I have the full picture. Now I'll implement all three changes in parallel:
+
+Good. Now create the review route and rewrite RichEditor in parallel:
+
+Now rewrite RichEditor.tsx with the full Phase 1 changes:
+
+Let me verify AttemptAnswer has timeSpentMs and check if there are any TypeScript issues:
+
+Schema confirmed — all fields exist. Let me check the build logs:
+
+App is compiling and running cleanly. Let me do a final check to confirm no stray explanation leak anywhere in the test API and verify the review route looks complete:
+
+Both checks pass perfectly:
+
+explanation appears only as a comment in the test load route — zero field leak
+RichEditor references base64 only in a comment — no FileReader, no readAsDataURL, no data:image creation paths remain
+Let me save the commit message and deliver the final summary:
+
+Here is the Phase 1 summary in the requested format:
+
+1. Files Changed
+File	Action
+app/api/student/tests/[id]/route.ts	Modified
+app/api/student/attempts/[id]/review/route.ts	Created (new)
+components/ui/RichEditor.tsx	Rewritten
+2. What Was Changed in Each File
+app/api/student/tests/[id]/route.ts
+Removed explanation: true and explanationSecondary: true from the Prisma select inside the question include. A comment replaces them explaining where to find explanations instead. The rest of the route — stems, options, marks, section hierarchy, timing — is completely untouched.
+
+app/api/student/attempts/[id]/review/route.ts (new)
+Full review payload route. Loads the attempt, verifies ownership, verifies status === "SUBMITTED", then returns all test questions with: stem, stemSecondary, explanation, explanationSecondary, options including isCorrect, and the student's own selectedOptionIds, isMarkedForReview, isCorrect, and timeSpentMs per question. Returns HTTP 403 with code: "NOT_SUBMITTED" if the attempt is not yet submitted.
+
+components/ui/RichEditor.tsx
+Full rewrite with the same external API (value, onChange, placeholder, minHeight, disabled). See sections 5 and 6 for what changed.
+
+3. Initial Test Payload — Explanation Status
+Explanations are no longer included. The only explanation-related content in GET /api/student/tests/[id] is a comment noting where they are served. The grep confirmed this: the word explanation appears zero times as an actual Prisma select field in that route.
+
+4. Which Route Now Serves Explanations After Submission
+GET /api/student/attempts/[id]/review
+Guards: authenticated student session + attempt owner + status === "SUBMITTED"
+Returns: full question list with stems, options (with correct flags), explanations (both languages), and the student's own answers/correctness/time per question
+Returns 403 { code: "NOT_SUBMITTED" } if called on an in-progress or paused attempt
+5. How RichEditor Now Handles Image Insertion
+The "📷 Image" button and file picker are gone. In their place:
+
+"🖼 Image URL" button — opens an inline dialog (same visual pattern as the equation dialog) where the admin:
+
+Pastes a hosted image URL (must start with https:// or http://)
+Sees a live thumbnail preview of the image before inserting
+Clicks Insert — the image appears at the exact cursor position
+Auto class detection: at insert time, the code walks up to the nearest block-level element from the cursor and checks its text content:
+
+If the block is empty (cursor on a blank line) → class="rich-img rich-img-block"
+If the block has text content → class="rich-img rich-img-inline"
+The admin never sets dimensions manually.
+
+6. What Base64 Behavior Is Blocked
+Path	Before	After
+Clipboard paste of a screenshot (Ctrl+V)	Converted to base64 via FileReader, inserted as data:image/...	Blocked. An amber warning banner appears for 4 seconds: "Image paste is disabled. Use the 🖼 Image URL button."
+File upload via "📷 Image" button	Converted to base64 via FileReader, inserted as data:image/...	Path removed entirely. File input element no longer exists in the component.
+Manual URL entry that is a data URI	Was not guarded	Blocked. If someone pastes a data:... string into the URL dialog, it shows an error: "Base64 data URIs are not allowed. Use a hosted image URL instead."
+Existing base64 in saved questions	Renders	Still renders. No migration. Backward-compatible.
+Zero FileReader, readAsDataURL, or data:image creation code remains in RichEditor.tsx — confirmed by grep.
+
+7. Frontend Adjustments Required Next
+One breaking change for the student frontend — requires Phase 2 attention:
+
+Any existing student-facing test attempt or review screen that reads question.explanation from the GET /api/student/tests/[id] response will now receive undefined for that field. The field is simply absent from the payload.
+
+The fix for the student frontend is to:
+
+Remove any code that reads explanation from the test-load response
+After the user submits (POST /api/student/attempts/[id]/submit), call GET /api/student/attempts/[id]/review to load the full review payload
+Render explanations, correct-answer highlights, and per-question results from the review response
+No other API contracts are affected. The test attempt flow (start → answer → pause/resume → submit) is completely unchanged.
+
+
+Scroll to latest
