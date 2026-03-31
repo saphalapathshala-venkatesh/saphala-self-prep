@@ -1,0 +1,72 @@
+We need to fix the real student-facing course detail page for test-series-only courses in Saphala.
+
+Important:
+- Do NOT make assumptions.
+- Read the actual student/frontend course detail page code first.
+- This is NOT the admin preview page.
+- The bug is visible on the live student course page (/courses/[id]).
+- Do NOT redesign unrelated course flows.
+
+Problem:
+For a course that contains linked Test Series / Tests but no subject-chapter curriculum structure, the student-facing course page still shows effectively no usable content.
+The page loads title/description correctly, but subject/chapter/item counts are 0 and linked test-series content is not visibly rendered in the course body.
+
+Goal:
+Make the real student course detail page correctly show linked content (especially test-series-only courses) even when there are no subject sections.
+
+Implement exactly the following:
+
+A. Audit the actual student course detail flow
+1. Identify the exact files/components/routes used for:
+   - student course detail page (/courses/[id] or equivalent)
+   - curriculum display on the student side
+   - linked content rendering if any exists
+2. Confirm whether this page is different from the admin preview page.
+3. Identify why linked test-series content is not currently visible on the student page.
+
+B. Audit the actual payload
+1. Check what data the student course page currently receives.
+2. Confirm whether linked content is already present in the payload but not rendered,
+   OR whether the student page is calling a different API that does not yet include linked content.
+3. Trace the exact missing link.
+
+C. Fix student course rendering
+1. Keep normal curriculum rendering unchanged for structured courses.
+2. If subject/chapter sections are empty but linked content exists:
+   - render linked content directly in the course content area
+3. For test-series-only courses, student must clearly see:
+   - test series / tests included
+   - clickable entries/cards/buttons as appropriate
+4. Do not require subject structure for test-series-only visibility.
+
+D. Mixed-course behavior
+1. If both structured curriculum and linked content exist:
+   - preserve existing curriculum display
+   - add linked content section below it (for example "Also Included" or similar)
+2. Keep UI simple and aligned with current design.
+
+E. UX requirement
+1. Student should not feel the course is empty when linked content exists.
+2. Avoid showing a misleading 0-subject empty-state as the only visible outcome.
+3. If counts remain 0 because there are no subjects, that is okay — but linked content must still be clearly visible below.
+
+F. No regression
+1. Standalone structured courses must remain unchanged.
+2. Locked/unlocked/purchased access logic must remain correct.
+3. Do not break mixed-product courses.
+
+G. Final output format
+After implementation, respond in exactly this structure:
+1. Files changed
+2. What page/path was actually affected
+3. What was wrong
+4. What was changed
+5. How test-series-only courses now render on the student page
+6. How mixed courses now render
+7. Any backend dependency still missing
+
+Important constraints:
+- This is the real student/frontend course page, not admin preview
+- Frontend first unless a missing API field is proven
+- No unnecessary redesign
+- Course must reflect linked sellable content even without subjects/chapters

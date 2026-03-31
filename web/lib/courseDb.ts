@@ -699,15 +699,36 @@ export function linkedContentSectionLabel(contentType: string): string {
  * Fetches linked content items for a course from the admin-owned
  * CourseLinkedContent table. Returns an empty array if the table
  * does not exist yet (fail-soft).
+ *
+ * Column mapping (actual DB schema):
+ *   sourceId      → exposed as contentId (the FK to the linked item)
+ *   titleOverride → nullable; falls back to the source item's own title
+ *   No isActive column exists — all rows are considered active.
  */
 async function _getLinkedContentForCourse(courseId: string): Promise<LinkedContentRow[]> {
   const safeId = courseId.replace(/'/g, "''");
   try {
     return await prisma.$queryRawUnsafe<LinkedContentRow[]>(`
-      SELECT id, "contentType", "contentId", title, "sortOrder"
-      FROM "CourseLinkedContent"
-      WHERE "courseId" = '${safeId}' AND "isActive" = true
-      ORDER BY "sortOrder" ASC
+      SELECT
+        c.id,
+        c."contentType"::text  AS "contentType",
+        c."sourceId"           AS "contentId",
+        COALESCE(
+          c."titleOverride",
+          ts.title,
+          v.title,
+          fd.title,
+          l.title,
+          'Untitled'
+        )                      AS title,
+        c."sortOrder"
+      FROM "CourseLinkedContent" c
+      LEFT JOIN "TestSeries"    ts ON c."contentType"::text = 'TEST_SERIES'    AND ts.id = c."sourceId"
+      LEFT JOIN "Video"          v ON c."contentType"::text = 'VIDEO'           AND  v.id = c."sourceId"
+      LEFT JOIN "FlashcardDeck" fd ON c."contentType"::text = 'FLASHCARD_DECK'  AND fd.id = c."sourceId"
+      LEFT JOIN "Lesson"         l ON c."contentType"::text IN ('EBOOK','PDF')  AND  l.id = c."sourceId"
+      WHERE c."courseId" = '${safeId}'
+      ORDER BY c."sortOrder" ASC
     `);
   } catch {
     return [];
