@@ -75,40 +75,96 @@ export default async function DashboardPage() {
 
       {/* Hero — renders instantly, no data wait */}
       <section className="bg-gradient-to-br from-[#2D1B69] via-[#4A2E9E] to-[#6D4BCB] text-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-          <p className="text-purple-300 text-xs font-semibold uppercase tracking-widest mb-1">
-            Saphala Self Prep
-          </p>
-          <h1 className="text-2xl sm:text-3xl font-bold mb-1.5">{greeting}!</h1>
-          <p className="text-purple-200 text-sm mb-6 max-w-lg">
-            Every practice session brings you closer to your goal. Keep going.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/courses"
-              className="inline-flex items-center gap-2 bg-white text-[#2D1B69] font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-purple-50 transition-colors shadow-sm"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              Browse Premium Courses
-            </Link>
-            <Link
-              href="/courses?productCategory=FREE_DEMO"
-              className="inline-flex items-center gap-2 border border-purple-400 text-purple-100 hover:border-purple-200 hover:text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-              </svg>
-              Explore Free Courses
-            </Link>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 flex flex-col md:flex-row md:items-center md:gap-8">
+
+          {/* Left — greeting + buttons */}
+          <div className="flex-1 min-w-0">
+            <p className="text-purple-300 text-xs font-semibold uppercase tracking-widest mb-1">
+              Saphala Self Prep
+            </p>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-1.5">{greeting}!</h1>
+            <p className="text-purple-200 text-sm mb-6 max-w-lg">
+              Every practice session brings you closer to your goal. Keep going.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/courses"
+                className="inline-flex items-center gap-2 bg-white text-[#2D1B69] font-semibold text-sm px-5 py-2.5 rounded-xl hover:bg-purple-50 transition-colors shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                Browse Premium Courses
+              </Link>
+              <Link
+                href="/courses?productCategory=FREE_DEMO"
+                className="inline-flex items-center gap-2 border border-purple-400 text-purple-100 hover:border-purple-200 hover:text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                </svg>
+                Explore Free Courses
+              </Link>
+              <Link
+                href="/testhub"
+                className="inline-flex items-center gap-2 border border-purple-400 text-purple-100 hover:border-purple-200 hover:text-white text-sm font-medium px-5 py-2.5 rounded-xl transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                </svg>
+                TestHub
+              </Link>
+            </div>
           </div>
+
+          {/* Right — profile mini-card, shown on md+ */}
+          <div className="hidden md:block flex-shrink-0 w-64">
+            <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-base font-bold text-white">
+                    {displayName.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{displayName}</p>
+                  {user.email && (
+                    <p className="text-xs text-purple-200 truncate">{user.email}</p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-1 mb-3">
+                {user.state && (
+                  <div className="flex items-center gap-1.5 text-xs text-purple-200">
+                    <svg className="w-3 h-3 text-purple-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    {user.state}
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 text-xs text-purple-200">
+                  <svg className="w-3 h-3 text-purple-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                  Joined {formatMemberSince(user.createdAt)}
+                </div>
+              </div>
+              <Link
+                href={ROUTES.profile}
+                className="block text-center text-xs font-semibold bg-white/20 hover:bg-white/30 text-white px-3 py-1.5 rounded-lg transition-colors"
+              >
+                View Full Profile
+              </Link>
+            </div>
+          </div>
+
         </div>
       </section>
 
       {/* Data sections — streamed in progressively */}
       <Suspense fallback={<DashboardSkeleton />}>
-        <DashboardDataSections user={user} displayName={displayName} />
+        <DashboardDataSections user={user} />
       </Suspense>
     </>
   );
@@ -138,10 +194,8 @@ function DashboardSkeleton() {
 
 async function DashboardDataSections({
   user,
-  displayName,
 }: {
   user: DashboardUser;
-  displayName: string;
 }) {
   const [data, freeCourses, practiceSuggestions, streak, dashboardClass, enrolledCourses, addressedDoubts, enrolledExpiry] =
     await Promise.all([
@@ -198,51 +252,6 @@ async function DashboardDataSections({
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-      {/* ── Profile card — always at the top ─────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-11 h-11 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-base font-bold text-[#6D4BCB]">
-              {displayName.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-bold text-[#2D1B69] truncate">{displayName}</p>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5">
-              {user.email && (
-                <span className="text-xs text-gray-400 truncate flex items-center gap-1">
-                  <svg className="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  {user.email}
-                </span>
-              )}
-              {user.state && (
-                <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <svg className="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  {user.state}
-                </span>
-              )}
-              <span className="text-xs text-gray-400 flex items-center gap-1">
-                <svg className="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                Joined {formatMemberSince(user.createdAt)}
-              </span>
-            </div>
-          </div>
-        </div>
-        <Link
-          href={ROUTES.profile}
-          className="self-start sm:self-center flex-shrink-0 text-xs font-semibold text-[#6D4BCB] border border-[#6D4BCB] hover:bg-purple-50 px-3 py-1.5 rounded-lg transition-colors"
-        >
-          View Full Profile
-        </Link>
-      </div>
 
       {/* Metric cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
