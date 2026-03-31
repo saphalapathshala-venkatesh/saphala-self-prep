@@ -673,7 +673,9 @@ const LINKED_CONTENT_URL: Record<string, (id: string) => string> = {
   HTML_PAGE:      (id) => `/learn/lessons/${id}`,
   EBOOK:          (id) => `/learn/lessons/${id}`,
   PDF:            () => `/learn/pdfs`,
-  TEST_SERIES:    (id) => `/testhub/tests/${id}/brief`,
+  // TEST_SERIES contentId is a TestSeries.id — route to the series detail page,
+  // NOT to /testhub/tests/[id]/brief which expects an individual Test.id.
+  TEST_SERIES:    (id) => `/testhub/series/${id}`,
 };
 
 export function linkedContentUrl(row: LinkedContentRow, ctx?: CourseContext): string | null {

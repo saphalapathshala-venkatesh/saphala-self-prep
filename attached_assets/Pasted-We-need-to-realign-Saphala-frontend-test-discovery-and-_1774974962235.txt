@@ -1,0 +1,89 @@
+We need to realign Saphala frontend test discovery and routing with the final product logic.
+
+Important:
+- Do NOT make assumptions.
+- Read the actual frontend code first.
+- This is a frontend/product-flow fix.
+- Do NOT redesign unrelated course or attempt flows.
+- Keep changes minimal but correct.
+
+Locked product decision:
+1. TestHub must NOT show individual tests.
+2. TestHub must show ONLY test-series-based courses.
+3. Both free and premium test-series-based courses should appear there.
+4. Students should access tests through the course/test-series context, not through raw individual-test discovery.
+5. The current redirect to an individual test brief from linked test-series content is wrong and must be fixed.
+
+Current problem:
+- Course page now correctly shows included Test Series.
+- But clicking a linked Test Series sends the student to a test brief route for an individual test.
+- This causes “Test Not Found” because a Test Series ID is being treated like a Test ID (or equivalent incorrect routing logic).
+- TestHub was previously hidden/reduced, but product now requires it to exist if needed, with a new role:
+  - show only test-series-based courses
+  - never show individual tests on the main TestHub listing page
+
+Implement exactly the following:
+
+A. Audit current frontend routes and logic
+1. Identify the exact files/components/routes for:
+   - TestHub landing/listing page
+   - student course detail page linked-content section
+   - test brief routing
+   - any helper that builds links for test series / tests
+2. Identify exactly where a Test Series is currently being routed as if it were an individual Test.
+
+B. Fix linked Test Series click behavior
+1. On the student course detail page, when linked content item type is TEST_SERIES:
+   - do NOT route directly to an individual test brief using that series ID
+2. Replace with the correct product-safe behavior:
+   - either route to the course’s test-series section / series view within the course
+   - or route to the correct series-aware page if such a page already exists
+3. Do not let TEST_SERIES links generate broken /testhub/tests/[id]/brief links unless [id] is truly an individual test ID.
+
+C. Re-define TestHub listing
+1. TestHub landing page should show only test-series-based courses.
+2. It must NOT show raw individual tests.
+3. It must include both:
+   - free test-series courses
+   - premium test-series courses
+4. Determine the cleanest way from current payload/API:
+   - fetch courses whose product category/type is Test Series
+   - render them as course cards
+5. Keep UI aligned with existing product/course card style where practical.
+
+D. Course-first test access model
+1. Student should discover tests through:
+   - TestHub → test-series courses
+   - or Courses → selected test-series course
+2. Once inside a course, the student can access included test series/tests.
+3. Do not expose standalone individual-test discovery on TestHub home/listing.
+
+E. No regression
+1. Existing actual test attempt/brief routes must continue to work when opened with a real test ID.
+2. Structured non-test-series courses must remain unchanged.
+3. Purchased/locked behavior must remain correct.
+4. Free test-series courses must remain directly accessible where appropriate.
+
+F. If a dedicated series page is missing
+1. If frontend currently lacks a real Test Series detail page, do NOT invent a large new architecture.
+2. Implement the smallest correct fix:
+   - clicking linked TEST_SERIES should take the student to the course page section where tests are accessible
+   - or another existing safe page
+3. Prefer correctness over overbuilding.
+
+G. Final output format
+After implementation, respond in exactly this structure:
+1. Files changed
+2. What the routing bug was
+3. How TEST_SERIES links behave now
+4. How TestHub behaves now
+5. Whether individual tests are still exposed on TestHub listing
+6. Any backend/API dependency still missing
+7. Any temporary limitation remaining
+
+Important constraints:
+- Frontend only unless a missing API field is proven
+- TestHub must show only test-series-based courses
+- No individual tests on TestHub main listing
+- Fix the broken Test Series → Test brief redirect
+- Keep the product course-first and series-first
