@@ -1,0 +1,101 @@
+We need a frontend-only UI update for paragraph-based questions in the Saphala student test interface.
+
+Important:
+- Do NOT make assumptions.
+- Read the actual frontend code first.
+- Do NOT change backend.
+- Do NOT change payload shape.
+- Do NOT change test logic, scoring, timers, submission flow, or review correctness logic.
+- Do NOT change standalone-question UI.
+- This task is ONLY for frontend layout/scroll behavior.
+
+Locked requirement:
+1. Whenever a paragraph-based question appears:
+   - show paragraph block on the LEFT
+   - show question block on the RIGHT
+   - this split layout must apply ONLY for paragraph questions
+   - standalone questions must continue exactly as they are now
+
+2. Add scroll/slider behavior where needed so overflow content remains fully visible to students:
+   - Question palette block must be scrollable if it overflows
+   - Main question block must be scrollable if content overflows
+   - Paragraph block must be scrollable if content overflows
+   - If the combined paragraph/question area needs overflow handling, implement it cleanly
+   - Student must always be able to view the full paragraph and full question without layout breakage
+
+3. No other UI redesigns.
+4. No text/content changes.
+5. No logic changes unrelated to this layout/overflow behavior.
+
+Please implement exactly the following:
+
+A. Audit current frontend structure
+1. Identify the exact files/components for:
+   - live test attempt page
+   - paragraph question rendering
+   - question palette block
+   - main question content block
+2. Confirm where grouped questions are detected today.
+
+B. Paragraph-question split layout
+1. For grouped/paragraph questions only:
+   - render a 2-column layout in the attempt view
+   - LEFT = paragraph block
+   - RIGHT = question/options block
+2. Keep this layout responsive:
+   - desktop/tablet: side-by-side
+   - narrow/mobile screens: safe stacked fallback if necessary, but preserve scrollability
+3. Standalone questions must remain unchanged.
+
+C. Scroll/overflow behavior
+Add proper overflow handling for all these areas:
+1. Question palette panel
+2. Paragraph block
+3. Question block
+4. Any container wrapping paragraph + question area if needed
+
+Requirements:
+- Use internal scrolling where appropriate
+- Avoid page-breaking overflow
+- Do not cut off content
+- Student must be able to scroll fully through long paragraph, long question, long options
+- Scroll behavior must be smooth and usable
+
+D. Layout safety
+1. Make sure:
+   - timer/header area is unaffected
+   - navigation buttons remain visible
+   - palette remains usable
+   - paragraph and question areas do not overlap
+2. Prevent content from pushing critical controls offscreen unnecessarily.
+
+E. No regression
+1. Equations must still render correctly
+2. Images must still render correctly
+3. Review page should remain unchanged unless paragraph-question attempt layout shares styles/components that must be adjusted safely
+4. Standalone question attempt layout must remain unchanged
+
+F. Styling requirements
+1. Keep the current design language
+2. Only add the minimum CSS/layout changes needed
+3. If heights must be constrained, do it carefully so students can scroll the content areas
+4. Prefer clean CSS classes instead of inline hacks
+
+G. Final output format
+After implementation, respond in exactly this structure:
+1. Files changed
+2. What was changed in each file
+3. How paragraph questions now render
+4. How overflow/scroll works in:
+   - palette
+   - paragraph block
+   - question block
+5. Mobile/narrow-screen behavior
+6. Any limitations or edge cases
+
+Important constraints:
+- Frontend only
+- No backend changes
+- No redesign except paragraph-question split layout + overflow handling
+- Paragraph left, question right only for paragraph questions
+- Add scrolling wherever necessary so students can always read full content

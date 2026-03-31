@@ -110,6 +110,22 @@ textarea::placeholder {
   margin-top: 10px;
 }
 
+/* ── Paragraph / question split panel scroll zones ──────────────────────────
+   On desktop (md+) each panel is independently scrollable at a viewport-relative
+   height so long passages and long option lists never force one panel to push
+   the other off-screen.
+   On mobile the panels are stacked; max-height is removed so the student can
+   page-scroll through the full content without artificial truncation.
+   ── */
+.para-split-panel {
+  overflow-y: auto;
+}
+@media (min-width: 768px) {
+  .para-split-panel {
+    max-height: 65vh;
+  }
+}
+
 /* ── Rich content image classes ─────────────────────────────────────────────
    Backend / editor inserts these classes on <img> elements in question stems,
    options, explanations, ebook pages, and flashcard cards.

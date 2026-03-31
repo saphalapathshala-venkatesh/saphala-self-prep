@@ -1128,59 +1128,70 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
               <span className="text-xs text-gray-400">+{testConfig?.marksPerQuestion} / -{testConfig?.negativeMarks}</span>
             </div>
 
-            {currentQ?.paragraphHtml && (
-              <div className="question-paragraph">
-                <div className="question-paragraph-label">Passage</div>
-                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentQ.paragraphHtml) }} />
-              </div>
-            )}
+            {/* ── Paragraph-question split (grouped) or plain question (standalone) ── */}
+            <div className={currentQ?.paragraphHtml ? "flex flex-col md:flex-row gap-5" : ""}>
 
-            <div
-              className="text-[15px] text-gray-800 leading-relaxed mb-6"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText ?? "") }}
-            />
-
-            <div className="space-y-2.5" role="radiogroup">
-              {renderedOptions.map((opt) => {
-                const isSelected = currentState?.draftOptionId === opt.id;
-                return (
-                  <div
-                    key={opt.id}
-                    role="radio"
-                    aria-checked={isSelected}
-                    onClick={() => !isPaused && selectOption(opt.id)}
-                    className={`flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all ${
-                      isPaused
-                        ? "cursor-default opacity-70"
-                        : "cursor-pointer"
-                    } ${
-                      isSelected
-                        ? "border-[#6D4BCB] bg-purple-50/60"
-                        : "border-gray-200 hover:border-gray-300 bg-white"
-                    }`}
-                  >
-                    {/* Radio ring */}
-                    <span className={`mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
-                      isSelected
-                        ? "border-[#6D4BCB] bg-[#6D4BCB]"
-                        : "border-gray-300 bg-white"
-                    }`}>
-                      {isSelected && <span className="w-[7px] h-[7px] rounded-full bg-white" />}
-                    </span>
-                    {/* Option letter */}
-                    <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold flex-shrink-0 ${
-                      isSelected ? "bg-[#6D4BCB] text-white" : "bg-gray-100 text-gray-600"
-                    }`}>
-                      {opt.label}
-                    </span>
-                    {/* Option text */}
-                    <span
-                      className="flex-grow text-sm text-gray-800 leading-relaxed pt-0.5"
-                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text ?? "") }}
-                    />
+              {/* Paragraph panel — only for grouped questions */}
+              {currentQ?.paragraphHtml && (
+                <div className="md:w-5/12 flex-shrink-0">
+                  <div className="question-paragraph para-split-panel">
+                    <div className="question-paragraph-label">Passage</div>
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentQ.paragraphHtml) }} />
                   </div>
-                );
-              })}
+                </div>
+              )}
+
+              {/* Question stem + options — always present */}
+              <div className={currentQ?.paragraphHtml ? "flex-1 para-split-panel" : ""}>
+                <div
+                  className="text-[15px] text-gray-800 leading-relaxed mb-6"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText ?? "") }}
+                />
+
+                <div className="space-y-2.5" role="radiogroup">
+                  {renderedOptions.map((opt) => {
+                    const isSelected = currentState?.draftOptionId === opt.id;
+                    return (
+                      <div
+                        key={opt.id}
+                        role="radio"
+                        aria-checked={isSelected}
+                        onClick={() => !isPaused && selectOption(opt.id)}
+                        className={`flex items-start gap-3 p-3.5 rounded-xl border-2 transition-all ${
+                          isPaused
+                            ? "cursor-default opacity-70"
+                            : "cursor-pointer"
+                        } ${
+                          isSelected
+                            ? "border-[#6D4BCB] bg-purple-50/60"
+                            : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                      >
+                        {/* Radio ring */}
+                        <span className={`mt-0.5 w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          isSelected
+                            ? "border-[#6D4BCB] bg-[#6D4BCB]"
+                            : "border-gray-300 bg-white"
+                        }`}>
+                          {isSelected && <span className="w-[7px] h-[7px] rounded-full bg-white" />}
+                        </span>
+                        {/* Option letter */}
+                        <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold flex-shrink-0 ${
+                          isSelected ? "bg-[#6D4BCB] text-white" : "bg-gray-100 text-gray-600"
+                        }`}>
+                          {opt.label}
+                        </span>
+                        {/* Option text */}
+                        <span
+                          className="flex-grow text-sm text-gray-800 leading-relaxed pt-0.5"
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text ?? "") }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
             </div>
           </div>
 
