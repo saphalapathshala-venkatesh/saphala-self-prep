@@ -276,8 +276,8 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
   if (showOverlay) {
     const isThirdPlusAttempt = data.xpBreakdown?.xpMultiplier === 0;
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full mx-4 p-8 relative animate-in fade-in zoom-in duration-300">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-8 relative animate-in fade-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
           <button onClick={() => setShowOverlay(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors">
             <X size={20} />
           </button>

@@ -104,6 +104,7 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackDone, setFeedbackDone] = useState(false);
   const [filter, setFilter] = useState<"all" | "incorrect" | "unattempted">("all");
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const questionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -150,6 +151,20 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
     const el = questionRefs.current.get(questionId);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setPaletteOpen(false);
+  }
+
+  useEffect(() => {
+    function onFsChange() { setIsFullscreen(!!document.fullscreenElement); }
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
   }
 
   const fetchReview = useCallback(async () => {
@@ -511,17 +526,35 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
   return (
     <>
       <div className="bg-[#2D1B69] text-white py-2.5 px-4 flex-shrink-0">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="min-w-0">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <h1 className="text-sm font-semibold truncate">{testMeta.name}</h1>
             <p className="text-[10px] text-purple-200">{testMeta.code} — Review</p>
           </div>
-          <Link
-            href={`/testhub/tests/${testId}/result?attemptId=${attemptId}`}
-            className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
-          >
-            Back to Result
-          </Link>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Fullscreen toggle */}
+            <button
+              onClick={toggleFullscreen}
+              title={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+              className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              {isFullscreen ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 9V4.5M9 9H4.5M9 9L3.75 3.75M15 9h4.5M15 9V4.5M15 9l5.25-5.25M9 15H4.5M9 15v4.5M9 15l-5.25 5.25M15 15h4.5M15 15v4.5M15 15l5.25 5.25" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25v-4.5m0 4.5h-4.5m4.5 0L15 15M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15" />
+                </svg>
+              )}
+            </button>
+            <Link
+              href={`/testhub/tests/${testId}/result?attemptId=${attemptId}`}
+              className="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Back to Result
+            </Link>
+          </div>
         </div>
       </div>
 
