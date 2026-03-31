@@ -52,6 +52,8 @@ interface QuestionData {
   displayOrder: number;
   stemEn: string | null;
   stemTe: string | null;
+  groupId: string | null;
+  paragraphHtml: string | null;
   options: QuestionOption[];
 }
 
@@ -1125,6 +1127,13 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
               </div>
               <span className="text-xs text-gray-400">+{testConfig?.marksPerQuestion} / -{testConfig?.negativeMarks}</span>
             </div>
+
+            {currentQ?.paragraphHtml && (
+              <div className="question-paragraph">
+                <div className="question-paragraph-label">Passage</div>
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentQ.paragraphHtml) }} />
+              </div>
+            )}
 
             <div
               className="text-[15px] text-gray-800 leading-relaxed mb-6"

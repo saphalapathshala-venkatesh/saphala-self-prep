@@ -23,6 +23,8 @@ interface ReviewQuestion {
   subjectName: string;
   questionText_en: string;
   questionText_te: string;
+  groupId: string | null;
+  paragraphHtml: string | null;
   options_en: OptionData[];
   options_te: OptionData[];
   correctOption: string;
@@ -371,6 +373,13 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
         ) : (
           <div className="flex items-center gap-2 mb-3 text-xs font-medium px-3 py-1.5 rounded-lg w-fit bg-gray-50 text-gray-500">
             Unattempted
+          </div>
+        )}
+
+        {q.paragraphHtml && (
+          <div className="question-paragraph">
+            <div className="question-paragraph-label">Passage</div>
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.paragraphHtml) }} />
           </div>
         )}
 

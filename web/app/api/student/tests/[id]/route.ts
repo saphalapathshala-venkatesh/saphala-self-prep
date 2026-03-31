@@ -81,6 +81,8 @@ export async function GET(
       displayOrder: q.order,
       stemEn: q.questionText_en,
       stemTe: q.questionText_te,
+      groupId: q.groupId,
+      paragraphHtml: q.paragraphHtml,
       options: q.options.map((o) => ({
         id: o.id,
         textEn: o.textEn,

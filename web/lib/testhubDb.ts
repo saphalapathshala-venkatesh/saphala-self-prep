@@ -128,6 +128,8 @@ export interface DbQuestion {
   questionText_te: string | null;
   explanation_en: string | null;
   explanation_te: string | null;
+  groupId: string | null;
+  paragraphHtml: string | null;
   options: {
     id: string;
     order: number;
@@ -360,6 +362,27 @@ async function _getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
   const orphanSubjectMap = new Map(orphanSubjects.map((s) => [s.id, s.name]));
   const orphanTopicMap = new Map(orphanTopics.map((t) => [t.id, t.name]));
 
+  // Supplementary raw SQL: fetch groupId + paragraph for any question that
+  // belongs to a QuestionGroup. groupId is a DB column not reflected in the
+  // Prisma schema, so it cannot be accessed via the ORM relation.
+  const questionIds = testQuestions.map((tq) => tq.question.id);
+  const groupInfoMap = new Map<string, { groupId: string; paragraph: string }>();
+  if (questionIds.length > 0) {
+    const groupRows = await prisma.$queryRawUnsafe<
+      { questionId: string; groupId: string; paragraph: string }[]
+    >(
+      `SELECT q.id AS "questionId", q."groupId", qg."paragraph"
+         FROM "Question" q
+         JOIN "QuestionGroup" qg ON qg.id = q."groupId"
+        WHERE q.id = ANY($1::text[])
+          AND q."groupId" IS NOT NULL`,
+      questionIds
+    );
+    for (const row of groupRows) {
+      groupInfoMap.set(row.questionId, { groupId: row.groupId, paragraph: row.paragraph });
+    }
+  }
+
   return testQuestions.map((tq) => {
     const q = tq.question;
     const correctIdx = q.options.findIndex((o) => o.isCorrect);
@@ -396,6 +419,8 @@ async function _getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
       topicName = orphanTopicMap.get(q.topicId) ?? null;
     }
 
+    const groupInfo = groupInfoMap.get(q.id) ?? null;
+
     return {
       id: q.id,
       order: tq.order,
@@ -411,6 +436,8 @@ async function _getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
       questionText_te: q.stemSecondary ?? q.stem,
       explanation_en: q.explanation ?? null,
       explanation_te: q.explanationSecondary ?? q.explanation ?? null,
+      groupId: groupInfo?.groupId ?? null,
+      paragraphHtml: groupInfo?.paragraph ?? null,
       options: q.options.map((o) => ({
         id: o.id,
         order: o.order,

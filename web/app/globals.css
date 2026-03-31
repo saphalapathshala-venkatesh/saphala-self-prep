@@ -82,6 +82,34 @@ textarea::placeholder {
   display: none;
 }
 
+/* ── Paragraph / question-group block ───────────────────────────────────────
+   Shown above grouped questions in both the live attempt and the review page.
+   The paragraph block uses a light indigo-tinted background so students can
+   clearly distinguish "passage / context" from "the question".
+   ── */
+.question-paragraph {
+  background: #f5f3ff;
+  border-left: 3px solid #6D4BCB;
+  border-radius: 0 8px 8px 0;
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: #1e1b4b;
+}
+.question-paragraph-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6D4BCB;
+  margin-bottom: 8px;
+}
+.question-paragraph img.rich-img-block,
+.question-paragraph img.rich-img {
+  margin-top: 10px;
+}
+
 /* ── Rich content image classes ─────────────────────────────────────────────
    Backend / editor inserts these classes on <img> elements in question stems,
    options, explanations, ebook pages, and flashcard cards.

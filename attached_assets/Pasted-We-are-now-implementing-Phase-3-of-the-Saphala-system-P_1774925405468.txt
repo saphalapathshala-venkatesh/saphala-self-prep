@@ -1,0 +1,70 @@
+We are now implementing Phase 3 of the Saphala system: Paragraph-based question rendering on the student frontend.
+
+Important:
+Do NOT make assumptions.
+Read actual frontend code first.
+Backend Phase 2 is complete and supports paragraph/group questions.
+
+Context:
+- Questions may now have groupId
+- Paragraph content exists in QuestionGroup.paragraph
+- Backend test API returns group data for grouped questions
+- Frontend already supports rich HTML, equations, and image rendering
+
+Goal:
+Render paragraph-based questions cleanly in test attempt and review.
+
+Implement exactly the following:
+
+A. Detect grouped questions
+1. Identify how question data is received in frontend.
+2. Detect:
+   - groupId
+   - group.paragraph (or equivalent field)
+
+B. Test Attempt Rendering
+1. When a question belongs to a group:
+   - Render paragraph ABOVE the question
+2. Ensure:
+   - Paragraph is shown consistently for all questions in same group
+   - Avoid duplicate rendering issues (keep simple for now — showing each time is acceptable)
+3. Maintain:
+   - question navigation
+   - timer
+   - palette
+
+C. Review Page Rendering
+1. Apply same logic:
+   - paragraph shown above each grouped question
+2. Ensure:
+   - explanation appears correctly
+   - no layout break
+
+D. UI Improvements (simple)
+1. Add visual distinction:
+   - paragraph block styling
+   - spacing between paragraph and question
+2. Keep minimal styling, do not overdesign
+
+E. No Regression
+1. Standalone questions must behave exactly same
+2. Equations must still render correctly
+3. Images must still render correctly
+
+F. Performance
+1. Do not duplicate heavy DOM unnecessarily
+2. Do not introduce re-renders
+
+G. Output format
+1. Files changed
+2. What was modified
+3. How paragraph is rendered in attempt
+4. How paragraph is rendered in review
+5. Any edge cases handled
+6. Any backend dependency still missing
+
+Constraints:
+- No redesign
+- No breaking existing flow
+- No unnecessary abstractions
+- Keep it simple and correct
