@@ -250,13 +250,15 @@ async function _getActiveCourses(opts?: {
   examId?: string;
   productCategory?: string;
   featured?: boolean;
+  hasTestSeries?: boolean;
   limit?: number;
 }): Promise<CourseListItem[]> {
   const conditions: string[] = [`c."isActive" = true`];
-  if (opts?.categoryId)      conditions.push(`c."categoryId"      = '${opts.categoryId.replace(/'/g, "''")}'`);
-  if (opts?.examId)          conditions.push(`c."examId"          = '${opts.examId.replace(/'/g, "''")}'`);
-  if (opts?.productCategory) conditions.push(`c."productCategory" = '${opts.productCategory.replace(/'/g, "''")}'`);
+  if (opts?.categoryId)        conditions.push(`c."categoryId"      = '${opts.categoryId.replace(/'/g, "''")}'`);
+  if (opts?.examId)            conditions.push(`c."examId"          = '${opts.examId.replace(/'/g, "''")}'`);
+  if (opts?.productCategory)   conditions.push(`c."productCategory" = '${opts.productCategory.replace(/'/g, "''")}'`);
   if (opts?.featured === true) conditions.push(`c.featured = true`);
+  if (opts?.hasTestSeries === true) conditions.push(`c."hasTestSeries" = true`);
 
   const where = conditions.join(" AND ");
   const limitClause = opts?.limit ? `LIMIT ${opts.limit}` : "LIMIT 50";
