@@ -25,6 +25,15 @@ An administrative interface at `/admin` allows `ADMIN` users to manage users and
 #### TestHub
 Offers simulated exams with features like language selection, question palette, real-time timers, and auto-submission. Post-exam analysis includes XP, rank, percentile, leaderboard, and detailed insights. Concurrent test attempts are prevented via `lockedSessionToken`.
 
+**Language Rendering Architecture:**
+- `lib/langUtils.ts` — shared utilities: `hasContent()` (detects absent/whitespace/empty-HTML), `pickText()` (EN/TE with fallback), `bilingualPair()` (BOTH mode — returns secondary only when it is non-null and different from primary), `secondaryLangLabel()`, `langModeLabel()`.
+- Three display modes: `EN` (English only), `TE` (secondary preferred, EN fallback per-field), `BOTH` (bilingual stacked — English as primary, secondary shown inline below when actually translated).
+- `BOTH` is stored as `Attempt.language = "BOTH"` (the `LanguageAvailable` Prisma enum already supports it).
+- `BriefClient`: language selector shows options based on `test.languageAvailable` (EN → English only; TE → English + secondary; BOTH → all three including Bilingual option). Labels use `langUtils` helpers — no hardcoded "Telugu".
+- `TestAttemptClient`: `qTextSingle`/`qTextBilingual` + `renderedOptions[].textSecondary` for stacked rendering in BOTH mode. EN/TE modes use `pickText()` with per-field fallback.
+- `ReviewClient`: secondary content shown inline in BOTH mode (no toggle); EN/TE modes use "View [secondary lang]" toggle with generic `altLangLabel`. Explanation also shows secondary inline in BOTH mode.
+- `api/testhub/attempts/start/route.ts` now accepts `"BOTH"` as a valid language value.
+
 #### Student Dashboard
 The dashboard at `/dashboard` provides an overview of student progress, metrics, recent attempts, and personalized daily practice suggestions.
 

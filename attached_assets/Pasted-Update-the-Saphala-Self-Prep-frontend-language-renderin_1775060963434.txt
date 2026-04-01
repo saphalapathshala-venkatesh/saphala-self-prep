@@ -1,0 +1,165 @@
+Update the Saphala Self Prep frontend language-rendering logic for tests so secondary language support is future-safe and never leaves any question content blank.
+
+Context:
+Right now, second language is effectively treated as Telugu-only in parts of the frontend. That is too rigid.
+We need to support a future model where the secondary language may be Telugu / Kannada / Hindi (and possibly more later), while still preserving safe fallback behavior.
+
+Core requirement:
+If the admin uploaded a question in only one language, the student must still always see content.
+Even if the student selects Telugu or another secondary language, if the secondary-language fields are missing/empty for a question, the UI must automatically fall back to English.
+At no point should the question stem, options, explanation, passage, or group child question content appear empty just because the selected language version is unavailable.
+
+Implement the following:
+
+1. Introduce language handling abstraction
+- Remove frontend assumptions that the secondary language is always Telugu.
+- Refactor the test attempt / review / solution / preview UI to treat language as:
+  - primary language = English
+  - secondary language = configurable alternate language (currently may be Telugu, later Kannada/Hindi)
+- The selected display mode can still be:
+  - English only
+  - Secondary language only
+  - Bilingual
+- But the rendering logic must not hardcode Telugu-specific field assumptions in labels or behavior.
+
+2. Define safe fallback rules
+For every renderable field:
+- question stem
+- passage / paragraph
+- child question stem
+- options
+- explanation
+- instructions if relevant
+
+Apply this fallback:
+A. If selected mode is English:
+   - show English
+B. If selected mode is Secondary:
+   - show Secondary if present and non-empty
+   - otherwise show English
+C. If selected mode is Bilingual:
+   - show English first
+   - show Secondary below only if present and non-empty
+   - if Secondary is absent, show English only (do not render an empty second block)
+
+Important:
+- Never render blank content when English exists.
+- Never show empty placeholders like “—”, blank boxes, or missing option rows just because secondary content is absent.
+- This must work per field, not only per question.
+
+3. Handle mixed-language data safely
+The backend/admin may have:
+- all questions bilingual
+- only some questions bilingual
+- only one section bilingual
+- only some options translated
+- explanation translated for some questions but not others
+- paragraph translated but child questions not translated
+- child questions translated but paragraph not translated
+
+The frontend must gracefully handle all these mixed cases.
+Fallback should happen independently for each field.
+
+4. Section-level and whole-test behavior
+This fallback must work whether:
+- only one section has English-only questions
+- multiple sections have mixed bilingual coverage
+- the whole test is English-only
+- the whole test is bilingual
+
+Student language selection must not break any section.
+Even if the student chooses Telugu/Kannada/Hindi mode, English must appear wherever secondary content is unavailable.
+
+5. Group / paragraph / comprehension questions
+For grouped questions:
+- render passage primary/secondary using the same fallback rules
+- render each child question using the same fallback rules
+- render options and explanations per child question using the same fallback rules
+- no empty passage area or child-question area should appear
+
+6. Options rendering rules
+For each option:
+- if in Secondary mode and secondary option text exists, show it
+- otherwise show primary English option text
+- if in Bilingual mode, show English + secondary only when secondary exists
+- never show an empty option label (A/B/C/D) with blank text if English exists
+
+7. Explanation rendering
+In review/result/solution pages:
+- explanation must also use the same fallback logic
+- if Explanation Secondary is absent, show Explanation (English)
+- in bilingual mode, show English first and secondary below only if present
+- do not leave explanation area blank if English explanation exists
+
+8. Language labels / UI copy
+Refactor UI labels so they are generic and future-safe.
+Examples:
+- instead of hardcoding “Telugu”, support “Secondary Language”
+- if the app already has a language selector, structure it so options can later be:
+  - English
+  - Telugu
+  - Kannada
+  - Hindi
+  - Bilingual
+Do not overbuild backend configuration now unless already available, but make the frontend code clean enough to support this extension easily.
+
+9. Suggested implementation pattern
+Create shared helpers/utilities for all test rendering components, something like:
+- hasContent(value)
+- getPreferredText(primary, secondary, mode)
+- getBilingualText(primary, secondary)
+- getRenderableField({ primary, secondary, mode, fallbackToPrimary: true })
+
+Then use the same helper everywhere:
+- test attempt page
+- question card renderer
+- grouped question renderer
+- options renderer
+- review page
+- result page
+- admin/student preview components if shared in frontend
+
+10. Data cleanliness handling
+Robustly treat these as “missing secondary content”:
+- null
+- undefined
+- empty string
+- whitespace-only string
+- empty HTML like `<p></p>` / `<div></div>` if such values exist
+- editor residue with no real text content
+
+Do not consider those as valid secondary content.
+Fallback to English in such cases.
+
+11. Do not break existing behavior
+- existing English-only tests must continue working perfectly
+- existing bilingual Telugu tests must continue working
+- timer, palette, navigation, marking for review, answer selection, submit flow must remain unchanged
+- only content rendering / language display logic should change
+
+12. Test thoroughly with these scenarios
+Please verify manually in UI with sample/mock data for:
+- English-only test, student selects Secondary → English still visible
+- English-only test, student selects Bilingual → English only, no blank secondary blocks
+- Mixed test where some questions have Telugu and some do not
+- Mixed test where only explanations lack secondary content
+- Group question where passage has secondary but child questions do not
+- Group question where child questions have secondary but passage does not
+- Options where only some options have secondary text
+- One section bilingual, another English-only
+- Review/solutions pages also fallback correctly
+
+13. Acceptance criteria
+- No question content is ever blank if English exists
+- No option text is ever blank if English exists
+- No explanation is blank if English exists
+- Mixed bilingual coverage works cleanly
+- Secondary language is no longer treated as Telugu-only in code structure
+- Frontend is prepared for Telugu / Kannada / Hindi style future support
+- No regression in test attempt or review behavior
+
+After implementation, provide:
+1. Files changed
+2. Exact fallback strategy applied
+3. Any places where Telugu was hardcoded and how they were refactored
+4. Confirmation that English fallback now works question-wise, field-wise, section-wise, and test-wise

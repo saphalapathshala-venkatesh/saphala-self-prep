@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { MockTest } from "@/config/testhub";
 import ExamInstructionsContent from "./ExamInstructionsContent";
+import { langModeLabel, secondaryLangLabel, type LangMode } from "@/lib/langUtils";
 
 interface BriefClientProps {
   test: MockTest;
@@ -14,13 +15,13 @@ interface BriefClientProps {
 
 interface ActiveAttemptInfo {
   attemptId: string;
-  language: "EN" | "TE";
+  language: LangMode;
   attemptNumber: number;
 }
 
 export default function BriefClient({ test, backHref = "/testhub", backLabel = "Back to Tests" }: BriefClientProps) {
   const router = useRouter();
-  const [language, setLanguage] = useState<"EN" | "TE">("EN");
+  const [language, setLanguage] = useState<LangMode>("EN");
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -170,7 +171,7 @@ export default function BriefClient({ test, backHref = "/testhub", backLabel = "
           <div>
             <p className="text-sm font-medium text-amber-800">You have an ongoing attempt. Resume your test.</p>
             <p className="text-xs text-amber-600 mt-1">
-              Attempt #{activeAttempt.attemptNumber} &middot; Language: {activeAttempt.language === "EN" ? "English" : "Telugu"}
+              Attempt #{activeAttempt.attemptNumber} &middot; Language: {langModeLabel(activeAttempt.language)}
             </p>
           </div>
         </div>
@@ -220,17 +221,26 @@ export default function BriefClient({ test, backHref = "/testhub", backLabel = "
         <h2 className="text-sm font-semibold text-[#2D1B69] mb-3">Language Preference</h2>
         <select
           value={language}
-          onChange={(e) => setLanguage(e.target.value as "EN" | "TE")}
+          onChange={(e) => setLanguage(e.target.value as LangMode)}
           disabled={!!activeAttempt}
           className="w-full sm:w-48 p-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-300 outline-none transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
         >
           <option value="EN">English</option>
-          <option value="TE">Telugu</option>
+          {test.languageAvailable !== "EN" && (
+            <option value="TE">{secondaryLangLabel()}</option>
+          )}
+          {test.languageAvailable === "BOTH" && (
+            <option value="BOTH">Bilingual (English + {secondaryLangLabel()})</option>
+          )}
         </select>
         <p className="text-xs text-gray-400 mt-2">
           {activeAttempt
             ? "Language is locked for this ongoing attempt."
-            : "Questions will be shown only in the selected language. You can view the other language per question during the test."
+            : language === "BOTH"
+              ? `Both English and ${secondaryLangLabel()} will be shown together for each question.`
+              : language === "TE"
+                ? `Questions will be shown in ${secondaryLangLabel()}, falling back to English when a translation is unavailable.`
+                : "Questions will be shown in English."
           }
         </p>
       </div>

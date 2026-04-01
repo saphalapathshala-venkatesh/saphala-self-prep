@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import InstructionsPill from "./InstructionsPill";
 import type { MockTest } from "@/config/testhub";
 import { sanitizeHtml } from "@/lib/sanitizeHtml";
+import { pickText, bilingualPair, type LangMode } from "@/lib/langUtils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ interface QuestionData {
 
 interface AttemptMeta {
   attemptId: string;
-  language: "EN" | "TE";
+  language: LangMode;
   endsAt: string;           // ISO — updated after each resume
   status: string;
   currentlyPaused: boolean;
@@ -204,7 +205,7 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
         }
 
         const [testData, startData] = await Promise.all([testRes.json(), startRes.json()]);
-        const { attemptId, language } = startData as { attemptId: string; language: "EN" | "TE" };
+        const { attemptId, language } = startData as { attemptId: string; language: LangMode };
 
         // Step 3: fetch attempt state (answers + pause state + endsAt)
         const attemptRes = await fetch(`/api/student/attempts/${attemptId}`, {
@@ -923,17 +924,29 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
   const currentQ = questions[currentIndex];
   const currentState = currentQ ? questionStates.get(currentQ.id) : null;
-  const lang = attemptMeta?.language ?? "EN";
+  const lang: LangMode = attemptMeta?.language ?? "EN";
 
-  const qText = currentQ
-    ? (lang === "TE" ? currentQ.stemTe : currentQ.stemEn)
+  // For EN/TE: single string (with EN fallback when secondary is absent).
+  // For BOTH: { primary, secondary | null } — secondary only when actually translated.
+  const qTextSingle = currentQ && lang !== "BOTH"
+    ? pickText(currentQ.stemEn, currentQ.stemTe, lang)
     : "";
+  const qTextBilingual = lang === "BOTH" && currentQ
+    ? bilingualPair(currentQ.stemEn, currentQ.stemTe)
+    : null;
 
-  const renderedOptions = currentQ?.options.map((opt, idx) => ({
-    id: opt.id,
-    label: indexToLetter(idx),
-    text: lang === "TE" ? opt.textTe : opt.textEn,
-  })) ?? [];
+  const renderedOptions = currentQ?.options.map((opt, idx) => {
+    if (lang === "BOTH") {
+      const pair = bilingualPair(opt.textEn, opt.textTe);
+      return { id: opt.id, label: indexToLetter(idx), text: pair.primary, textSecondary: pair.secondary };
+    }
+    return {
+      id: opt.id,
+      label: indexToLetter(idx),
+      text: pickText(opt.textEn, opt.textTe, lang),
+      textSecondary: null as string | null,
+    };
+  }) ?? [];
 
   const currentSectionTitle = currentSectionId
     ? sections.find((s) => s.id === currentSectionId)?.title
@@ -1177,10 +1190,26 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
 
               {/* Question stem + options — always present */}
               <div className={currentQ?.paragraphHtml ? "flex-1 para-split-panel" : ""}>
-                <div
-                  className="text-[15px] text-gray-800 leading-relaxed mb-6"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText ?? "") }}
-                />
+                {/* Stem — single lang or bilingual */}
+                {qTextBilingual ? (
+                  <div className="mb-6">
+                    <div
+                      className="text-[15px] text-gray-800 leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(qTextBilingual.primary) }}
+                    />
+                    {qTextBilingual.secondary && (
+                      <div
+                        className="text-[14px] text-gray-500 leading-relaxed mt-2 pt-2 border-t border-gray-100"
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(qTextBilingual.secondary) }}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <div
+                    className="text-[15px] text-gray-800 leading-relaxed mb-6"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(qTextSingle) }}
+                  />
+                )}
 
                 <div className="space-y-2.5" role="radiogroup">
                   {renderedOptions.map((opt) => {
@@ -1215,11 +1244,19 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
                         }`}>
                           {opt.label}
                         </span>
-                        {/* Option text */}
-                        <span
-                          className="flex-grow text-sm text-gray-800 leading-relaxed pt-0.5"
-                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text ?? "") }}
-                        />
+                        {/* Option text — bilingual stacked if secondary is present */}
+                        <span className="flex-grow pt-0.5">
+                          <span
+                            className="block text-sm text-gray-800 leading-relaxed"
+                            dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text ?? "") }}
+                          />
+                          {opt.textSecondary && (
+                            <span
+                              className="block text-xs text-gray-500 leading-relaxed mt-1"
+                              dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.textSecondary) }}
+                            />
+                          )}
+                        </span>
                       </div>
                     );
                   })}

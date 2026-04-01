@@ -700,7 +700,7 @@ export async function getActiveAttempt(userId: string, testId: string) {
 export async function createAttempt(
   userId: string,
   testId: string,
-  language: "EN" | "TE",
+  language: "EN" | "TE" | "BOTH",
   durationMinutes: number
 ) {
   const existing = await getAttemptsForUserTest(userId, testId);

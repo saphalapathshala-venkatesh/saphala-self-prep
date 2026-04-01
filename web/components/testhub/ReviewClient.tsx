@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, XCircle, Clock, Flag, Star, ChevronDown, ChevronUp, X, MessageSquare } from 'lucide-react';
 import { sanitizeHtml } from '@/lib/sanitizeHtml';
+import { pickText, bilingualPair, hasContent, secondaryLangLabel, type LangMode } from '@/lib/langUtils';
 
 interface OptionData {
   key: string;
@@ -50,7 +51,7 @@ interface ReviewData {
   };
   attemptMeta: {
     attemptId: string;
-    language: "EN" | "TE";
+    language: LangMode;
     submittedAt: string;
   };
   sections: ReviewSection[];
@@ -268,8 +269,11 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
   }
 
   const { testMeta, attemptMeta } = data;
-  const primaryLang = attemptMeta.language;
-  const altLang = primaryLang === "EN" ? "TE" : "EN";
+  const primaryLang: LangMode = attemptMeta.language;
+  // In BOTH mode the toggle is not meaningful; show bilingual inline instead.
+  const isBilingualAttempt = primaryLang === "BOTH";
+  // For EN/TE attempts, the toggle shows the other language.
+  const altLangLabel = primaryLang === "TE" ? "English" : secondaryLangLabel();
   const hasSections = sortedSections.length > 0;
   const hasQuestions = sectionSortedFilteredQuestions.length > 0;
 
@@ -352,11 +356,29 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
   function renderQuestionCard(q: ReviewQuestion, sectionTitle: string | null) {
     const qIsAttempted = q.userSelectedOption !== null;
     const qIsCorrect = q.userSelectedOption === q.correctOption;
-    const qText = primaryLang === "TE" ? q.questionText_te : q.questionText_en;
-    const altQText = primaryLang === "TE" ? q.questionText_en : q.questionText_te;
-    const opts = primaryLang === "TE" ? q.options_te : q.options_en;
-    const altOpts = primaryLang === "TE" ? q.options_en : q.options_te;
-    const expl = primaryLang === "TE" ? q.explanation_te : q.explanation_en;
+
+    // Compute display text for primary language (with EN fallback for TE mode).
+    const qText = isBilingualAttempt
+      ? q.questionText_en
+      : pickText(q.questionText_en, q.questionText_te, primaryLang === "EN" ? "EN" : "TE");
+    const expl = isBilingualAttempt
+      ? q.explanation_en
+      : pickText(q.explanation_en, q.explanation_te, primaryLang === "EN" ? "EN" : "TE");
+    const opts = isBilingualAttempt ? q.options_en : (primaryLang === "TE" ? q.options_te : q.options_en);
+
+    // For bilingual or toggle: secondary content.
+    const qTextSecondary = isBilingualAttempt
+      ? (bilingualPair(q.questionText_en, q.questionText_te).secondary)
+      : (primaryLang === "TE" ? q.questionText_en : q.questionText_te);
+    const explSecondary = isBilingualAttempt
+      ? (bilingualPair(q.explanation_en, q.explanation_te).secondary)
+      : (primaryLang === "TE" ? q.explanation_en : q.explanation_te);
+    const optsSecondary = isBilingualAttempt
+      ? q.options_te
+      : (primaryLang === "TE" ? q.options_en : q.options_te);
+
+    // In BOTH mode: show secondary inline (no toggle). In EN/TE: toggled by showAltLang.
+    const showSecondary = isBilingualAttempt || showAltLang;
 
     return (
       <div
@@ -398,10 +420,19 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
           </div>
         )}
 
-        <div
-          className="text-[15px] text-gray-800 leading-relaxed mb-6"
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText ?? "") }}
-        />
+        {/* Question stem — bilingual shows secondary inline in BOTH mode */}
+        <div className="mb-6">
+          <div
+            className="text-[15px] text-gray-800 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(qText) }}
+          />
+          {isBilingualAttempt && qTextSecondary && (
+            <div
+              className="text-[14px] text-gray-500 leading-relaxed mt-2 pt-2 border-t border-gray-100"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(qTextSecondary) }}
+            />
+          )}
+        </div>
 
         <div className="space-y-3 mb-4">
           {opts.map((opt) => {
@@ -419,6 +450,12 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
               badgeClass = "bg-red-400 text-white";
               icon = <XCircle size={16} className="text-red-500 ml-auto flex-shrink-0" />;
             }
+            // Secondary option text for bilingual inline display
+            const secOpt = isBilingualAttempt
+              ? optsSecondary.find((o) => o.key === opt.key)
+              : null;
+            const secOptText = secOpt && hasContent(secOpt.text) && secOpt.text !== opt.text
+              ? secOpt.text : null;
             return (
               <div
                 key={opt.key}
@@ -427,32 +464,43 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
                 <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold mr-3 flex-shrink-0 ${badgeClass}`}>
                   {opt.key}
                 </span>
-                <span
-                  className="flex-grow"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text) }}
-                />
+                <span className="flex-grow">
+                  <span
+                    className="block"
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(opt.text) }}
+                  />
+                  {secOptText && (
+                    <span
+                      className="block text-xs text-gray-500 leading-relaxed mt-0.5"
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtml(secOptText) }}
+                    />
+                  )}
+                </span>
                 {icon}
               </div>
             );
           })}
         </div>
 
-        <button
-          onClick={() => setShowAltLang(!showAltLang)}
-          className="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1 mb-4"
-        >
-          {showAltLang ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          View {altLang === "TE" ? "Telugu" : "English"}
-        </button>
+        {/* Toggle button — hidden for bilingual attempts (already shown inline) */}
+        {!isBilingualAttempt && (
+          <button
+            onClick={() => setShowAltLang(!showAltLang)}
+            className="text-xs text-purple-600 hover:text-purple-800 font-medium flex items-center gap-1 mb-4"
+          >
+            {showAltLang ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            View {altLangLabel}
+          </button>
+        )}
 
-        {showAltLang && (
+        {showSecondary && !isBilingualAttempt && (
           <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-100">
             <div
               className="text-sm text-gray-700 leading-relaxed mb-3"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(altQText ?? "") }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(qTextSecondary ?? "") }}
             />
             <div className="space-y-2">
-              {altOpts.map((opt) => (
+              {optsSecondary.map((opt) => (
                 <div key={opt.key} className="text-sm text-gray-600 flex items-baseline gap-2">
                   <span className="font-medium flex-shrink-0">{opt.key}.</span>
                   <span
@@ -469,8 +517,14 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
           <p className="text-xs font-semibold text-purple-700 mb-2">Explanation</p>
           <div
             className="text-sm text-gray-700 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: sanitizeHtml(expl ?? "") }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(expl) }}
           />
+          {isBilingualAttempt && explSecondary && (
+            <div
+              className="text-sm text-gray-500 leading-relaxed mt-2 pt-2 border-t border-purple-200"
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(explSecondary) }}
+            />
+          )}
         </div>
 
         <div className="bg-gray-50 rounded-lg p-4 mb-4 border border-gray-100">

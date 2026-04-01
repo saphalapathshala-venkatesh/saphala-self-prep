@@ -22,8 +22,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "testId and language are required" }, { status: 400 });
   }
 
-  if (!["EN", "TE"].includes(language)) {
-    return Response.json({ error: "Invalid language. Use EN or TE." }, { status: 400 });
+  if (!["EN", "TE", "BOTH"].includes(language)) {
+    return Response.json({ error: "Invalid language. Use EN, TE, or BOTH." }, { status: 400 });
   }
 
   const test = await getDbTestById(testId);
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const attempt = await createAttempt(user.id, testId, language as "EN" | "TE", test.durationMinutes);
+  const attempt = await createAttempt(user.id, testId, language as "EN" | "TE" | "BOTH", test.durationMinutes);
 
   return Response.json({
     attemptId: attempt.id,
