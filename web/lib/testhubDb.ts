@@ -175,27 +175,48 @@ export interface DbQuestion {
 // HELPERS
 // ============================================================
 
-function difficultyLabel(d: string): string {
-  if (d === "FOUNDATIONAL") return "Easy";
-  if (d === "PROFICIENT") return "Medium";
-  return "Hard";
-}
-
+/**
+ * Derives a human-readable test difficulty label from the per-question
+ * difficulty values using a weighted average score.
+ *
+ * Score mapping:  FOUNDATIONAL=1  PROFICIENT=2  MASTERY=3
+ *
+ * Thresholds (midpoints between consecutive levels):
+ *   avg < 1.5  → "Easy"
+ *   1.5 ≤ avg < 2.5 → "Medium"
+ *   avg ≥ 2.5  → "Hard"
+ *
+ * Examples:
+ *   10 FOUNDATIONAL               → avg 1.0 → Easy
+ *   5 FOUNDATIONAL + 5 MASTERY    → avg 2.0 → Medium
+ *   8 MASTERY + 2 FOUNDATIONAL    → avg 2.6 → Hard
+ *   All PROFICIENT                → avg 2.0 → Medium
+ */
 function deriveDifficulty(questionDifficulties: string[]): string {
   if (questionDifficulties.length === 0) return "Medium";
-  const counts: Record<string, number> = {};
+
+  const weightMap: Record<string, number> = {
+    FOUNDATIONAL: 1,
+    PROFICIENT: 2,
+    MASTERY: 3,
+  };
+
+  let totalScore = 0;
+  let scoredCount = 0;
   for (const d of questionDifficulties) {
-    counts[d] = (counts[d] || 0) + 1;
-  }
-  let maxKey = questionDifficulties[0];
-  let maxCount = 0;
-  for (const [key, count] of Object.entries(counts)) {
-    if (count > maxCount) {
-      maxCount = count;
-      maxKey = key;
+    const w = weightMap[d];
+    if (w !== undefined) {
+      totalScore += w;
+      scoredCount++;
     }
   }
-  return difficultyLabel(maxKey);
+
+  if (scoredCount === 0) return "Medium";
+
+  const avg = totalScore / scoredCount;
+  if (avg < 1.5) return "Easy";
+  if (avg < 2.5) return "Medium";
+  return "Hard";
 }
 
 function mapToDbTest(
