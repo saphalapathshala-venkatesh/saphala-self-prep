@@ -124,6 +124,9 @@ export interface DbTest {
   isPublished: boolean;
   /** ISO string when unlockAt is in the future; null otherwise */
   scheduledUntil: string | null;
+  // XP
+  xpEnabled: boolean;
+  xpValue: number;
 }
 
 export interface DbTestSection {
@@ -214,6 +217,8 @@ function mapToDbTest(
     publishedAt: Date | null;
     isPublished: boolean;
     unlockAt: Date | null;
+    xpEnabled: boolean;
+    xpValue: number;
     series?: {
       title: string;
       categoryId: string | null;
@@ -271,6 +276,8 @@ function mapToDbTest(
       test.unlockAt && test.unlockAt > new Date()
         ? test.unlockAt.toISOString()
         : null,
+    xpEnabled: test.xpEnabled,
+    xpValue: test.xpValue,
   };
 }
 

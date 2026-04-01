@@ -64,6 +64,9 @@ A video library from the `Video` table, featuring entitlement-based access, YouT
 #### Video XP (Sadhana Points)
 Videos award XP on completion via `POST /api/student/videos/complete`. `Video` table has `xpEnabled` (bool) and `xpValue` (int) columns. XP follows the 1st=100% / 2nd=50% / 3rd+=0% pattern, stored as `XpLedgerEntry` rows with `refType="Video"`. The `VideoPlayerWithXp` client component handles the `onEnded` event, calls the complete API, shows confetti, and displays the XP banner. Admin controls XP settings at `/admin/videos` via `PATCH /api/admin/videos/[id]`.
 
+#### TestHub XP
+Tests award XP on submission via `resultComputer.ts`. `Test` table has `xpEnabled` (bool) and `xpValue` (int) columns — same pattern as Videos. XP = `xpValue × multiplier` where multiplier is 1.0 (1st attempt), 0.5 (2nd attempt), 0 (3rd+ attempt). `DbTest` interface includes `xpEnabled` and `xpValue`; `mapToDbTest` maps them from the Prisma result. `attemptsAllowed` DB default is 3 (changed from 2); all existing tests updated to 3 via migration SQL.
+
 **Final XP architecture (single source of truth):**
 - `UserXpSourceProgress` — tracks per-user per-source (VIDEO/TEST/etc.) `completionCount` and `totalXpAwarded`. Unique on `(userId, sourceType, sourceId)`. The completion API atomically upserts this via `INSERT ... ON CONFLICT DO UPDATE SET completionCount+1` so concurrent calls are safe.
 - `XpLedgerEntry` — immutable log of every XP award with `refType="Video"`, `refId=videoId`, and `meta.completionNumber` for idempotency checks.

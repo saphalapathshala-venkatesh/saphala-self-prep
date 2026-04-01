@@ -365,7 +365,7 @@ model Test {
   languageAvailable        LanguageAvailable @default(BOTH)
   marksPerQuestion         Float?            @default(1)
   negativeMarksPerQuestion Float?            @default(0)
-  attemptsAllowed          Int               @default(2)
+  attemptsAllowed          Int               @default(3)
   categoryId               String?
   subjectIds               String[]          @default([])
   syllabusTags             String[]          @default([])

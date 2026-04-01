@@ -112,11 +112,13 @@ export async function computeOrGetResult(
     timeUsedMs: s.timeUsedMs,
   }));
 
-  const baseXP = totalCorrect * 2;
-  const bonusXP = accuracyPercent >= 80 ? 10 : 0;
+  // XP is the admin-configured flat value (same pattern as Videos/Ebooks).
+  // 1st attempt → 100%, 2nd → 50%, 3rd+ → 0 XP (still allowed to attempt).
+  const baseXP = test.xpEnabled && test.xpValue > 0 ? test.xpValue : 0;
+  const bonusXP = 0;
   const xpMultiplier =
     attempt.attemptNumber === 1 ? 1.0 : attempt.attemptNumber === 2 ? 0.5 : 0;
-  const xpEarned = Math.round((baseXP + bonusXP) * xpMultiplier);
+  const xpEarned = Math.round(baseXP * xpMultiplier);
 
   const totalExamTimeMs = attempt.submittedAt
     ? attempt.submittedAt.getTime() - attempt.startedAt.getTime()
