@@ -55,6 +55,7 @@ interface QuestionData {
   stemTe: string | null;
   groupId: string | null;
   paragraphHtml: string | null;
+  paragraphHtml_te: string | null;
   options: QuestionOption[];
 }
 
@@ -1179,14 +1180,29 @@ export default function TestAttemptClient({ testId, test }: TestAttemptClientPro
             <div className={currentQ?.paragraphHtml ? "flex flex-col md:flex-row gap-5" : ""}>
 
               {/* Paragraph panel — only for grouped questions */}
-              {currentQ?.paragraphHtml && (
-                <div className="md:w-5/12 flex-shrink-0">
-                  <div className="question-paragraph para-split-panel para-passage-cap">
-                    <div className="question-paragraph-label">Passage</div>
-                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentQ.paragraphHtml) }} />
+              {currentQ?.paragraphHtml && (() => {
+                // Determine which paragraph text(s) to display based on lang mode.
+                const paraEn = currentQ.paragraphHtml;
+                const paraTe = currentQ.paragraphHtml_te;
+                const paraDisplay =
+                  lang === "BOTH"
+                    ? bilingualPair(paraEn, paraTe)
+                    : { primary: pickText(paraEn, paraTe, lang === "TE" ? "TE" : "EN"), secondary: null };
+                return (
+                  <div className="md:w-5/12 flex-shrink-0">
+                    <div className="question-paragraph para-split-panel para-passage-cap">
+                      <div className="question-paragraph-label">Passage</div>
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(paraDisplay.primary) }} />
+                      {paraDisplay.secondary && (
+                        <div
+                          className="mt-3 pt-3 border-t border-gray-200 text-[13px] text-gray-600 leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: sanitizeHtml(paraDisplay.secondary) }}
+                        />
+                      )}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Question stem + options — always present */}
               <div className={currentQ?.paragraphHtml ? "flex-1 para-split-panel" : ""}>

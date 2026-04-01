@@ -1,0 +1,69 @@
+The screenshots show the Question Bank admin page — the Paragraph Group form's UI doesn't have secondary language fields yet. I need to find and update that form component:
+
+Now I need to check the state types for groupChildren and groupParagraph to know what fields need adding:
+
+Let me check the Prisma schema for bilingual fields on Question/QuestionGroup, and the groups API route, to understand what already exists in the DB:
+
+Good — the API already handles all secondary fields for child questions. Let me check if QuestionGroup has paragraphSecondary in the schema:
+
+Now I have the full picture. Here's what needs to happen:
+
+QuestionGroup in Prisma needs paragraphSecondary String? (additive, safe)
+The groups API route needs to accept/store paragraphSecondary
+The UI GroupChild interface and form need all secondary fields
+Let me do all three in parallel:
+
+Now push the schema change to the DB, and simultaneously update the API route and UI:
+
+The db push flagged an unrelated existing drift — I'll add the column directly with SQL to avoid touching anything else:
+
+Column added. Now regenerate the Prisma client and update the API route to store paragraphSecondary:
+
+Now update the UI — GroupChild interface, state, handlers, and form layout:
+
+Step 1 — interface and initial state:
+
+Step 2 — add groupParagraphSecondary state and update initial groupChildren:
+
+Step 3 — update resetForm to clear new state, addGroupChild to include new fields:
+
+Now update resetForm and addGroupChild with the new fields:
+
+Step 4 — update updateGroupChildOption to support textSecondary:
+
+Step 5 — update handleSaveGroup to send all secondary fields:
+
+Step 6 — update the group form UI to show all secondary language fields. First, let me check how the single question form shows secondary fields for visual consistency:
+
+Let me see exactly how the single question form renders secondary fields so I can match the same pattern:
+
+I have the exact patterns. Now I'll update all four UI sections in the group form to match the single question form's visual style:
+
+Passage secondary field:
+
+Child question: secondary stem, option textSecondary, and secondary explanation:
+
+Now run a TypeScript check to verify everything is clean before restarting:
+
+One TypeScript error — the empty options array when type changes to non-MCQ. Let me find and fix that:
+
+Clean. Now restart the application to confirm everything works:
+
+All done. Here's a complete summary of every change made:
+
+What was done — full bilingual support for Paragraph Group questions:
+
+1. Database — Added paragraphSecondary TEXT column to the QuestionGroup table (additive, zero-risk). The child Question rows already had stemSecondary, explanationSecondary, and option textSecondary columns — those were already in the DB.
+
+2. Prisma schema — QuestionGroup model now reflects paragraphSecondary String?.
+
+3. API route (/api/questions/groups) — Now accepts and stores paragraphSecondary from the request body. The child question fields (stemSecondary, explanationSecondary, options[].textSecondary) were already wired in the API — no change needed there.
+
+4. UI form (/admin/question-bank) — The Paragraph Group form now has:
+
+Passage — Secondary Language section (with green border + label) immediately after the primary passage editor
+Question Stem — Secondary Language (green label, RichEditor) under each child's primary stem
+Each option row now stacks two inputs: the primary text on top, and a green-tinted secondary language text input below it
+Explanation — Secondary Language (green label, RichEditor) under each child's primary explanation
+All secondary fields are clearly labelled optional and match the exact same visual pattern used on the single question form. Leaving them blank produces no errors.
+

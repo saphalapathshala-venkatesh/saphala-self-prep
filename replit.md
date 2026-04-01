@@ -30,8 +30,9 @@ Offers simulated exams with features like language selection, question palette, 
 - Three display modes: `EN` (English only), `TE` (secondary preferred, EN fallback per-field), `BOTH` (bilingual stacked — English as primary, secondary shown inline below when actually translated).
 - `BOTH` is stored as `Attempt.language = "BOTH"` (the `LanguageAvailable` Prisma enum already supports it).
 - `BriefClient`: language selector shows options based on `test.languageAvailable` (EN → English only; TE → English + secondary; BOTH → all three including Bilingual option). Labels use `langUtils` helpers — no hardcoded "Telugu".
-- `TestAttemptClient`: `qTextSingle`/`qTextBilingual` + `renderedOptions[].textSecondary` for stacked rendering in BOTH mode. EN/TE modes use `pickText()` with per-field fallback.
-- `ReviewClient`: secondary content shown inline in BOTH mode (no toggle); EN/TE modes use "View [secondary lang]" toggle with generic `altLangLabel`. Explanation also shows secondary inline in BOTH mode.
+- `TestAttemptClient`: `qTextSingle`/`qTextBilingual` + `renderedOptions[].textSecondary` for stacked rendering in BOTH mode. EN/TE modes use `pickText()` with per-field fallback. Paragraph panel also uses bilingual/fallback logic via `bilingualPair`/`pickText`.
+- `ReviewClient`: secondary content shown inline in BOTH mode (no toggle); EN/TE modes use "View [secondary lang]" toggle with generic `altLangLabel`. Explanation and paragraph also shown inline in BOTH mode.
+- **Paragraph bilingual support**: `QuestionGroup.paragraphSecondary` column exists in DB. `testhubDb.ts` fetches it as `paragraphHtml_te` alongside `paragraphHtml`. Both API routes (`/api/student/tests/[id]`, `/api/testhub/attempts/review`) pass `paragraphHtml_te` through. Components use `bilingualPair` for BOTH mode (secondary stacked below with a divider) and `pickText` for EN/TE modes.
 - `api/testhub/attempts/start/route.ts` now accepts `"BOTH"` as a valid language value.
 
 #### Student Dashboard

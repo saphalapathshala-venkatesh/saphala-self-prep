@@ -26,6 +26,7 @@ interface ReviewQuestion {
   questionText_te: string;
   groupId: string | null;
   paragraphHtml: string | null;
+  paragraphHtml_te: string | null;
   options_en: OptionData[];
   options_te: OptionData[];
   correctOption: string;
@@ -413,12 +414,23 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
           </div>
         )}
 
-        {q.paragraphHtml && (
-          <div className="question-paragraph">
-            <div className="question-paragraph-label">Passage</div>
-            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.paragraphHtml) }} />
-          </div>
-        )}
+        {q.paragraphHtml && (() => {
+          const paraDisplay = isBilingualAttempt
+            ? bilingualPair(q.paragraphHtml, q.paragraphHtml_te)
+            : { primary: pickText(q.paragraphHtml, q.paragraphHtml_te, primaryLang === "TE" ? "TE" : "EN"), secondary: null };
+          return (
+            <div className="question-paragraph">
+              <div className="question-paragraph-label">Passage</div>
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(paraDisplay.primary) }} />
+              {paraDisplay.secondary && (
+                <div
+                  className="mt-3 pt-3 border-t border-gray-200 text-[13px] text-gray-600 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(paraDisplay.secondary) }}
+                />
+              )}
+            </div>
+          );
+        })()}
 
         {/* Question stem — bilingual shows secondary inline in BOTH mode */}
         <div className="mb-6">

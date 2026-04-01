@@ -110,6 +110,7 @@ export async function GET(request: Request) {
       questionText_te: q.questionText_te,
       groupId: q.groupId ?? null,
       paragraphHtml: q.paragraphHtml ?? null,
+      paragraphHtml_te: q.paragraphHtml_te ?? null,
       options_en: q.options.map((o, idx) => ({
         key: ["A", "B", "C", "D"][idx] || "A",
         text: o.textEn || "",

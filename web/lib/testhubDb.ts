@@ -158,6 +158,7 @@ export interface DbQuestion {
   explanation_te: string | null;
   groupId: string | null;
   paragraphHtml: string | null;
+  paragraphHtml_te: string | null;
   options: {
     id: string;
     order: number;
@@ -394,12 +395,12 @@ async function _getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
   // belongs to a QuestionGroup. groupId is a DB column not reflected in the
   // Prisma schema, so it cannot be accessed via the ORM relation.
   const questionIds = testQuestions.map((tq) => tq.question.id);
-  const groupInfoMap = new Map<string, { groupId: string; paragraph: string }>();
+  const groupInfoMap = new Map<string, { groupId: string; paragraph: string; paragraphSecondary: string | null }>();
   if (questionIds.length > 0) {
     const groupRows = await prisma.$queryRawUnsafe<
-      { questionId: string; groupId: string; paragraph: string }[]
+      { questionId: string; groupId: string; paragraph: string; paragraphSecondary: string | null }[]
     >(
-      `SELECT q.id AS "questionId", q."groupId", qg."paragraph"
+      `SELECT q.id AS "questionId", q."groupId", qg."paragraph", qg."paragraphSecondary"
          FROM "Question" q
          JOIN "QuestionGroup" qg ON qg.id = q."groupId"
         WHERE q.id = ANY($1::text[])
@@ -407,7 +408,11 @@ async function _getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
       questionIds
     );
     for (const row of groupRows) {
-      groupInfoMap.set(row.questionId, { groupId: row.groupId, paragraph: row.paragraph });
+      groupInfoMap.set(row.questionId, {
+        groupId: row.groupId,
+        paragraph: row.paragraph,
+        paragraphSecondary: row.paragraphSecondary ?? null,
+      });
     }
   }
 
@@ -466,6 +471,7 @@ async function _getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
       explanation_te: q.explanationSecondary ?? q.explanation ?? null,
       groupId: groupInfo?.groupId ?? null,
       paragraphHtml: groupInfo?.paragraph ?? null,
+      paragraphHtml_te: groupInfo?.paragraphSecondary ?? null,
       options: q.options.map((o) => ({
         id: o.id,
         order: o.order,
