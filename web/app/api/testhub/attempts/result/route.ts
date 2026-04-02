@@ -46,7 +46,7 @@ export async function GET(request: Request) {
   }
 
   const test = await getDbTestById(attempt.testId);
-  const maxMarks = test ? test.totalQuestions * test.marksPerQuestion : 0;
+  const maxMarks = result.maxMarks;
 
   const xpEntry = await prisma.xpLedgerEntry.findFirst({
     where: { userId: user.id, refType: "Attempt", refId: attemptId },
@@ -76,9 +76,15 @@ export async function GET(request: Request) {
   const marksPerQ = test?.marksPerQuestion ?? 1;
   const negMarks = test?.negativeMarks ?? 0;
 
+  // Use stored netMarks (per-question accurate) when available; fall back to flat approximation
+  // for older attempts recorded before this column was added.
+  function getNetMarks(a: { netMarks: number | null; correctCount: number; wrongCount: number }): number {
+    return a.netMarks ?? computeNetMarks(a.correctCount, a.wrongCount, marksPerQ, negMarks);
+  }
+
   const sorted = [...firstAttempts].sort((a, b) => {
-    const aN = computeNetMarks(a.correctCount, a.wrongCount, marksPerQ, negMarks);
-    const bN = computeNetMarks(b.correctCount, b.wrongCount, marksPerQ, negMarks);
+    const aN = getNetMarks(a);
+    const bN = getNetMarks(b);
     if (bN !== aN) return bN - aN;
     if (b.scorePct !== a.scorePct) return b.scorePct - a.scorePct;
     const aT = computeExamTimeMs(a.startedAt, a.submittedAt);
@@ -94,12 +100,9 @@ export async function GET(request: Request) {
   let percentile: number | null = null;
 
   if (userFirstAttempt && totalFirst > 0) {
-    const userNet = computeNetMarks(userFirstAttempt.correctCount, userFirstAttempt.wrongCount, marksPerQ, negMarks);
+    const userNet = getNetMarks(userFirstAttempt);
     rank = sorted.findIndex((a) => a.id === userFirstAttempt.id) + 1;
-    const belowCount = firstAttempts.filter((a) => {
-      const n = computeNetMarks(a.correctCount, a.wrongCount, marksPerQ, negMarks);
-      return n < userNet;
-    }).length;
+    const belowCount = firstAttempts.filter((a) => getNetMarks(a) < userNet).length;
     percentile = Math.round(((100 * belowCount) / totalFirst) * 100) / 100;
   }
 
@@ -107,7 +110,7 @@ export async function GET(request: Request) {
   if (sorted.length > 0) {
     const t = sorted[0];
     topper = {
-      marks: computeNetMarks(t.correctCount, t.wrongCount, marksPerQ, negMarks),
+      marks: getNetMarks(t),
       accuracy: Math.round(t.scorePct * 100) / 100,
       examTimeMs: computeExamTimeMs(t.startedAt, t.submittedAt),
     };
@@ -124,7 +127,7 @@ export async function GET(request: Request) {
   const top10 = sorted.slice(0, 10).map((a, i) => ({
     rank: i + 1,
     displayName: `Learner #${i + 1}`,
-    netMarks: computeNetMarks(a.correctCount, a.wrongCount, marksPerQ, negMarks),
+    netMarks: getNetMarks(a),
     accuracyPercent: Math.round(a.scorePct * 10) / 10,
     examTimeMs: computeExamTimeMs(a.startedAt, a.submittedAt),
   }));

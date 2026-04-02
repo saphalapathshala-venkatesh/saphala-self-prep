@@ -162,6 +162,8 @@ export interface DbQuestion {
   groupId: string | null;
   paragraphHtml: string | null;
   paragraphHtml_te: string | null;
+  marks: number;
+  negativeMarks: number;
   options: {
     id: string;
     order: number;
@@ -500,6 +502,8 @@ async function _getDbQuestionsForTest(testId: string): Promise<DbQuestion[]> {
       groupId: groupInfo?.groupId ?? null,
       paragraphHtml: groupInfo?.paragraph ?? null,
       paragraphHtml_te: groupInfo?.paragraphSecondary ?? null,
+      marks: Number(tq.marks ?? 1),
+      negativeMarks: Number(tq.negativeMarks ?? 0),
       options: q.options.map((o) => ({
         id: o.id,
         order: o.order,
@@ -992,6 +996,7 @@ export async function getFirstAttemptsForTest(testId: string) {
       startedAt: true,
       submittedAt: true,
       scorePct: true,
+      netMarks: true,
       correctCount: true,
       wrongCount: true,
       unansweredCount: true,

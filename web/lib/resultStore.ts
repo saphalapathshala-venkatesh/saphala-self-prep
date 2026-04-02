@@ -18,6 +18,7 @@ export interface MockResult {
   grossMarksTotal: number;
   negativeMarksTotal: number;
   netMarksTotal: number;
+  maxMarks: number;
   accuracyPercent: number;
   totalTimeUsedMs: number;
   rank: number | null;

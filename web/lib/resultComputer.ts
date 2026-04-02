@@ -48,6 +48,9 @@ export async function computeOrGetResult(
   let totalCorrect = 0;
   let totalIncorrect = 0;
   let totalUnattempted = 0;
+  let grossMarksTotal = 0;
+  let negativeMarksTotal = 0;
+  let maxMarks = 0;
 
   for (const q of questions) {
     const sid = q.subjectId || "general";
@@ -66,6 +69,10 @@ export async function computeOrGetResult(
       };
     }
 
+    const qMarks = q.marks;
+    const qNegativeMarks = q.negativeMarks;
+    maxMarks += qMarks;
+
     const sub = subjectAgg[sid];
     const ans = answerMap.get(q.id);
 
@@ -82,18 +89,22 @@ export async function computeOrGetResult(
 
     if (isCorrect) {
       sub.correct++;
-      sub.grossMarks += test.marksPerQuestion;
+      sub.grossMarks += qMarks;
+      grossMarksTotal += qMarks;
       totalCorrect++;
     } else {
       sub.incorrect++;
-      sub.negativeMarks += test.negativeMarks;
+      sub.negativeMarks += qNegativeMarks;
+      negativeMarksTotal += qNegativeMarks;
       totalIncorrect++;
     }
   }
 
-  const grossMarksTotal = totalCorrect * test.marksPerQuestion;
-  const negativeMarksTotal = totalIncorrect * test.negativeMarks;
-  const netMarksTotal = grossMarksTotal - negativeMarksTotal;
+  const netMarksTotal = Math.round((grossMarksTotal - negativeMarksTotal) * 100) / 100;
+  grossMarksTotal = Math.round(grossMarksTotal * 100) / 100;
+  negativeMarksTotal = Math.round(negativeMarksTotal * 100) / 100;
+  maxMarks = Math.round(maxMarks * 100) / 100;
+
   const answeredCount = totalCorrect + totalIncorrect;
   const accuracyPercent =
     answeredCount > 0
@@ -103,9 +114,9 @@ export async function computeOrGetResult(
   const subjectBreakdown: SubjectBreakdown[] = Object.values(subjectAgg).map((s) => ({
     subjectId: s.subjectId,
     subjectName: s.subjectName,
-    grossMarks: s.grossMarks,
-    negativeMarks: s.negativeMarks,
-    netMarks: s.grossMarks - s.negativeMarks,
+    grossMarks: Math.round(s.grossMarks * 100) / 100,
+    negativeMarks: Math.round(s.negativeMarks * 100) / 100,
+    netMarks: Math.round((s.grossMarks - s.negativeMarks) * 100) / 100,
     correctCount: s.correct,
     incorrectCount: s.incorrect,
     unattemptedCount: s.unattempted,
@@ -132,6 +143,7 @@ export async function computeOrGetResult(
     grossMarksTotal,
     negativeMarksTotal,
     netMarksTotal,
+    maxMarks,
     accuracyPercent,
     totalTimeUsedMs: totalExamTimeMs,
     rank: null,
@@ -152,6 +164,7 @@ export async function computeOrGetResult(
       where: { id: attemptId },
       data: {
         scorePct: accuracyPercent,
+        netMarks: netMarksTotal,
         correctCount: totalCorrect,
         wrongCount: totalIncorrect,
         unansweredCount: totalUnattempted,
