@@ -522,6 +522,15 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
                 </div>
               ))}
             </div>
+            {explSecondary && (
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <p className="text-xs font-semibold text-purple-700 mb-1.5">Explanation</p>
+                <div
+                  className="text-sm text-gray-700 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(explSecondary) }}
+                />
+              </div>
+            )}
           </div>
         )}
 

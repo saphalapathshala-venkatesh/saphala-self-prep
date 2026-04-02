@@ -18,6 +18,7 @@ export interface MockTest {
   attemptsAllowed: number;
   languageAvailable: LanguageAvailable;
   publishedAt?: string | null;
+  instructions?: string | null;
 }
 
 // Legacy static mock data — not used in the live app (DB-backed tests are used instead).

@@ -59,6 +59,15 @@ export default function ExamInstructionsContent({ test, attemptsUsed }: ExamInst
         </div>
       </div>
 
+      {test.instructions && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-amber-800 mb-2">Instructions from Admin</h2>
+          <div className="text-sm text-amber-900 leading-relaxed whitespace-pre-line">
+            {test.instructions}
+          </div>
+        </div>
+      )}
+
       <div>
         <h2 className="text-sm font-semibold text-[#2D1B69] mb-3">Instructions</h2>
         <ul className="space-y-2.5 text-sm text-gray-600">

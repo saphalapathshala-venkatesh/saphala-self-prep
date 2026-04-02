@@ -132,6 +132,7 @@ export default async function BriefPage({
     attemptsAllowed: test.attemptsAllowed,
     languageAvailable: test.languageAvailable,
     publishedAt: test.publishedAt ? test.publishedAt.toISOString() : null,
+    instructions: test.instructions ?? null,
   };
 
   return (
