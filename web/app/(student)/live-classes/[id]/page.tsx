@@ -113,7 +113,10 @@ export default async function LiveClassDetailPage({
 
           {/* Description */}
           {cls.description && (
-            <p className="text-sm text-gray-600 leading-relaxed border-t border-gray-50 pt-3">{cls.description}</p>
+            <div
+              className="text-sm text-gray-600 leading-relaxed border-t border-gray-50 pt-3 rich-html overflow-x-auto"
+              dangerouslySetInnerHTML={{ __html: cls.description }}
+            />
           )}
 
           {/* CTA */}

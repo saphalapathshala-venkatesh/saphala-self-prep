@@ -63,9 +63,10 @@ export default async function FlashcardStudyPage({
           )}
           <h1 className="text-2xl font-bold text-[#2D1B69]">{deck.title}</h1>
           {deck.description && (
-            <p className="text-gray-500 text-sm mt-1 max-w-xl">
-              {deck.description}
-            </p>
+            <div
+              className="text-gray-500 text-sm mt-1 max-w-xl rich-html overflow-x-auto"
+              dangerouslySetInnerHTML={{ __html: deck.description }}
+            />
           )}
           <p className="text-xs text-gray-400 mt-1">
             {deck.cardCount} card{deck.cardCount !== 1 ? "s" : ""}

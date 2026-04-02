@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
+import { stripHtml } from "@/lib/sanitizeHtml";
 import { getEnrolledCourses, getEnrolledValidityMap, type CourseListItem } from "@/lib/courseDb";
 import { formatExpiryDate } from "@/lib/validityUtils";
 
@@ -80,7 +81,7 @@ function CourseCard({
         {/* Description */}
         {course.description && (
           <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
-            {course.description}
+            {stripHtml(course.description)}
           </p>
         )}
 

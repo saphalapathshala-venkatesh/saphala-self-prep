@@ -177,7 +177,10 @@ export default async function CourseDetailPage({
 
           {/* Description */}
           {data.description && (
-            <p className="text-sm text-gray-600 leading-relaxed mb-4">{data.description}</p>
+            <div
+              className="text-sm text-gray-600 leading-relaxed mb-4 rich-html overflow-x-auto"
+              dangerouslySetInnerHTML={{ __html: data.description }}
+            />
           )}
 
           {/* Stats row */}

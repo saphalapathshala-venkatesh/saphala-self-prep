@@ -1,5 +1,6 @@
 import { getActiveCourses, getEnrolledCourses, getEnrolledValidityMap } from "@/lib/courseDb";
 import { getCurrentUser } from "@/lib/auth";
+import { stripHtml } from "@/lib/sanitizeHtml";
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
 import Link from "next/link";
@@ -105,7 +106,7 @@ export default async function TestHubPage() {
 
                     {/* Description */}
                     {course.description && (
-                      <p className="text-sm text-gray-500 line-clamp-2 mb-3">{course.description}</p>
+                      <p className="text-sm text-gray-500 line-clamp-2 mb-3">{stripHtml(course.description)}</p>
                     )}
 
                     {/* Footer row */}

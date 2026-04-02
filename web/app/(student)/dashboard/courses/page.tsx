@@ -1,5 +1,6 @@
 import { getActiveCourses, getCachedCategories, getEnrolledCourses, getEnrolledValidityMap } from "@/lib/courseDb";
 import { getCurrentUser } from "@/lib/auth";
+import { stripHtml } from "@/lib/sanitizeHtml";
 import { formatExpiryDate } from "@/lib/validityUtils";
 import Link from "next/link";
 import Image from "next/image";
@@ -233,7 +234,7 @@ export default async function DashboardCoursesPage({
 
                   {/* Description */}
                   {course.description && (
-                    <p className="text-xs text-gray-500 line-clamp-2 flex-1">{course.description}</p>
+                    <p className="text-xs text-gray-500 line-clamp-2 flex-1">{stripHtml(course.description)}</p>
                   )}
 
                   {/* Price block — paid non-enrolled courses only */}

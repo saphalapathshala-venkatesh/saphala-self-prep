@@ -71,9 +71,10 @@ export default async function VideoDetailPage({
         </div>
 
         {video.description && (
-          <p className="text-sm text-gray-600 leading-relaxed border-t border-gray-50 pt-3">
-            {video.description}
-          </p>
+          <div
+            className="text-sm text-gray-600 leading-relaxed border-t border-gray-50 pt-3 rich-html overflow-x-auto"
+            dangerouslySetInnerHTML={{ __html: video.description }}
+          />
         )}
 
         {isLocked && (

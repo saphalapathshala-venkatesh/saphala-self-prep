@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import type { CourseListItem, ExamItem } from "@/lib/courseDb";
+import { stripHtml } from "@/lib/sanitizeHtml";
 import { getCategoryImage } from "@/config/categoryImages";
 
 // ── Static metadata ────────────────────────────────────────────────────────────
@@ -494,7 +495,7 @@ export default function CoursesClient({
 
                       {course.description && (
                         <p className="text-xs text-gray-500 line-clamp-2 flex-1">
-                          {course.description}
+                          {stripHtml(course.description)}
                         </p>
                       )}
 

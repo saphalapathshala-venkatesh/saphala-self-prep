@@ -1,6 +1,7 @@
 import { Header } from "@/ui-core/Header";
 import { Footer } from "@/ui-core/Footer";
 import { listActivePackages } from "@/lib/paymentOrderDb";
+import { stripHtml } from "@/lib/sanitizeHtml";
 import Link from "next/link";
 
 function formatRupees(amount: number, currency = "INR") {
@@ -98,7 +99,7 @@ export default async function PlansPage() {
                     </h2>
                     {pkg.description && (
                       <p className="text-sm text-gray-500 leading-relaxed mb-4 flex-1">
-                        {pkg.description}
+                        {stripHtml(pkg.description)}
                       </p>
                     )}
 

@@ -1,5 +1,6 @@
 import { getPublishedDecks } from "@/lib/contentDb";
 import Link from "next/link";
+import { stripHtml } from "@/lib/sanitizeHtml";
 import LearnPageShell from "@/components/learn/LearnPageShell";
 import { PRODUCTS } from "@/config/terminology";
 
@@ -65,7 +66,7 @@ export default async function FlashcardsPage() {
                     {deck.title}
                   </h3>
                   {deck.description && (
-                    <p className="text-xs text-gray-500 line-clamp-1 mt-1">{deck.description}</p>
+                    <p className="text-xs text-gray-500 line-clamp-1 mt-1">{stripHtml(deck.description)}</p>
                   )}
                   <div className="flex items-center justify-between mt-3">
                     <span className="text-xs text-gray-400">

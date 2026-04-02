@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import type { FeaturedCard } from "@/lib/featuredCardsDb";
+import { stripHtml } from "@/lib/sanitizeHtml";
 
 // Desktop carousel constants
 const VISIBLE = 3;
@@ -76,7 +77,7 @@ function CourseCard({ card }: { card: FeaturedCard }) {
         )}
         {card.description && (
           <p className="text-xs text-gray-500 mb-3 line-clamp-2 flex-1">
-            {card.description}
+            {stripHtml(card.description)}
           </p>
         )}
         <div className="mt-auto space-y-2">

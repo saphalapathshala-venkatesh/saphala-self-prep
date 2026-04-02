@@ -51,7 +51,10 @@ export default async function TestSeriesDetailPage({
             {series.title}
           </h1>
           {series.description && (
-            <p className="text-gray-500 max-w-xl text-sm leading-relaxed">{series.description}</p>
+            <div
+              className="text-gray-500 max-w-xl text-sm leading-relaxed rich-html overflow-x-auto"
+              dangerouslySetInnerHTML={{ __html: series.description }}
+            />
           )}
           {seriesTests.length > 0 && (
             <p className="text-xs text-gray-400 mt-2">

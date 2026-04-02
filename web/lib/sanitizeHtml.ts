@@ -28,3 +28,13 @@ export function hasRealContent(html: string | null | undefined): boolean {
   const textOnly = html.replace(/<[^>]+>/g, "").trim();
   return textOnly.length > 0;
 }
+
+/**
+ * Strips all HTML tags from a string and collapses whitespace.
+ * Used for card/listing previews where a clean single-line text excerpt
+ * is needed (with line-clamp) rather than rendered HTML.
+ */
+export function stripHtml(html: string | null | undefined): string {
+  if (!html) return "";
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
