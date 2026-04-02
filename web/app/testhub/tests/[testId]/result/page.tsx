@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { getDbTestById } from "@/lib/testhubDb";
 import { Header } from "@/ui-core/Header";
 import ResultPageClient from "@/components/testhub/ResultPageClient";
 
@@ -25,10 +26,13 @@ export default async function ResultPage({
     redirect(`/testhub`);
   }
 
+  const test = await getDbTestById(testId);
+  const seriesId = test?.seriesId ?? null;
+
   return (
     <main className="min-h-screen flex flex-col bg-gray-50">
       <Header />
-      <ResultPageClient attemptId={attemptId} testId={testId} />
+      <ResultPageClient attemptId={attemptId} testId={testId} seriesId={seriesId} />
     </main>
   );
 }

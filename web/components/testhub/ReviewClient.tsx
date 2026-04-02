@@ -90,7 +90,7 @@ const ISSUE_TYPES = [
   { value: "other", label: "Other" },
 ];
 
-export default function ReviewClient({ attemptId, testId }: { attemptId: string; testId: string }) {
+export default function ReviewClient({ attemptId, testId, seriesId }: { attemptId: string; testId: string; seriesId?: string | null }) {
   const [data, setData] = useState<ReviewData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -763,6 +763,21 @@ export default function ReviewClient({ attemptId, testId }: { attemptId: string;
               <p className="text-sm text-green-700 font-medium">Thanks for your feedback!</p>
             </div>
           )}
+
+          <div className="border-t border-gray-100 pt-5 pb-6 flex flex-col sm:flex-row gap-3 mt-2">
+            <Link
+              href="/dashboard"
+              className="flex-1 text-center py-3 border-2 border-gray-300 text-gray-600 rounded-xl font-semibold text-sm hover:bg-gray-50 transition-colors"
+            >
+              Back to Dashboard
+            </Link>
+            <Link
+              href={seriesId ? `/testhub/series/${seriesId}` : "/testhub"}
+              className="flex-1 text-center btn-glossy-primary py-3 text-sm font-semibold"
+            >
+              {seriesId ? "Back to Test Series" : "Back to TestHub"}
+            </Link>
+          </div>
         </div>
 
         <div className="hidden md:block w-64 flex-shrink-0 border-l border-gray-200 bg-white p-4 sticky top-0 h-screen overflow-y-auto">

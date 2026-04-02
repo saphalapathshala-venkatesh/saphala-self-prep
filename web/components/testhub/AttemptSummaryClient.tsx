@@ -40,9 +40,10 @@ interface SummaryData {
 interface AttemptSummaryClientProps {
   testId: string;
   attemptId: string;
+  seriesId?: string | null;
 }
 
-export default function AttemptSummaryClient({ testId, attemptId }: AttemptSummaryClientProps) {
+export default function AttemptSummaryClient({ testId, attemptId, seriesId }: AttemptSummaryClientProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -217,7 +218,7 @@ export default function AttemptSummaryClient({ testId, attemptId }: AttemptSumma
         )}
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <Link href="/testhub" className="btn-glossy-secondary flex-1 text-center py-3">
+          <Link href={seriesId ? `/testhub/series/${seriesId}` : "/testhub"} className="btn-glossy-secondary flex-1 text-center py-3">
             Back to Tests
           </Link>
           <button

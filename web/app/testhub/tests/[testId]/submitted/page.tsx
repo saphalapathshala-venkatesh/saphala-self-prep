@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
+import { getDbTestById } from "@/lib/testhubDb";
 import { Header } from "@/ui-core/Header";
 import AttemptSummaryClient from "@/components/testhub/AttemptSummaryClient";
 import Link from "next/link";
@@ -36,11 +37,14 @@ export default async function SubmittedPage({
     );
   }
 
+  const test = await getDbTestById(testId);
+  const seriesId = test?.seriesId ?? null;
+
   return (
     <main className="min-h-screen flex flex-col bg-gray-50">
       <Header />
       <div className="flex-grow flex items-center justify-center py-10 px-4">
-        <AttemptSummaryClient testId={testId} attemptId={attemptId} />
+        <AttemptSummaryClient testId={testId} attemptId={attemptId} seriesId={seriesId} />
       </div>
     </main>
   );

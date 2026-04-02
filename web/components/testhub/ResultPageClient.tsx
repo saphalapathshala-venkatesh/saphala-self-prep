@@ -176,7 +176,7 @@ function TimeColorDot({ color }: { color: string }) {
   return <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${cls[color] ?? 'bg-gray-400'}`} />;
 }
 
-export default function ResultPageClient({ attemptId, testId }: { attemptId: string; testId: string }) {
+export default function ResultPageClient({ attemptId, testId, seriesId }: { attemptId: string; testId: string; seriesId?: string | null }) {
   const [data, setData] = useState<ResultData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -629,7 +629,7 @@ export default function ResultPageClient({ attemptId, testId }: { attemptId: str
               <Link href={`/testhub/tests/${testId}/review?attemptId=${attemptId}`} className="flex-1 text-center py-3 border-2 border-[#6D4BCB] text-[#6D4BCB] rounded-xl font-semibold text-sm hover:bg-purple-50 transition-colors">
                 Review Questions
               </Link>
-              <Link href="/testhub" className="flex-1 text-center btn-glossy-primary py-3 text-sm font-semibold">
+              <Link href={seriesId ? `/testhub/series/${seriesId}` : "/testhub"} className="flex-1 text-center btn-glossy-primary py-3 text-sm font-semibold">
                 Back to Series
               </Link>
             </div>
