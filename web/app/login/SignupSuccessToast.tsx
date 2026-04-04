@@ -37,7 +37,7 @@ export default function SignupSuccessToast() {
           Account created successfully.
         </p>
         <p className="text-xs text-green-600 mt-0.5 leading-relaxed">
-          Please log in to access your Saphala Self Prep dashboard.
+          Please log in to access your Saphala Pathshala dashboard.
         </p>
       </div>
     </div>

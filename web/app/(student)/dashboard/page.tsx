@@ -80,7 +80,7 @@ export default async function DashboardPage() {
           {/* Left — greeting + buttons */}
           <div className="flex-1 min-w-0">
             <p className="text-purple-300 text-xs font-semibold uppercase tracking-widest mb-1">
-              Saphala Self Prep
+              Saphala Pathshala
             </p>
             <h1 className="text-2xl sm:text-3xl font-bold mb-1.5">{greeting}!</h1>
             <p className="text-purple-200 text-sm mb-6 max-w-lg">

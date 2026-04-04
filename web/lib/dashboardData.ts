@@ -246,11 +246,24 @@ export async function getAllAttemptsForStudent(userId: string): Promise<AllAttem
     },
   });
 
+  // Resolve category names from the loose categoryId on TestSeries
+  const categoryIds = [...new Set(
+    rows.map((a) => a.test.series?.categoryId).filter(Boolean) as string[]
+  )];
+  const categoryNameMap = new Map<string, string>();
+  if (categoryIds.length > 0) {
+    const cats = await prisma.category.findMany({
+      where: { id: { in: categoryIds } },
+      select: { id: true, name: true },
+    });
+    cats.forEach((c) => categoryNameMap.set(c.id, c.name));
+  }
+
   return rows.map((a) => ({
     id: a.id,
     testId: a.testId,
     testTitle: a.test.title,
-    category: a.test.series?.categoryId ?? null,
+    category: a.test.series?.categoryId ? (categoryNameMap.get(a.test.series.categoryId) ?? null) : null,
     isFree: a.test.series?.isFree === true || a.test.isFree,
     status: a.status as "IN_PROGRESS" | "SUBMITTED",
     attemptNumber: a.attemptNumber,

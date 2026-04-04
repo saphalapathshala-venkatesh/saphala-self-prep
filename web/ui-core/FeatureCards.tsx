@@ -49,7 +49,7 @@ export const FeatureCards = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="bg-white border border-gray-200 shadow-sm rounded-2xl p-6">
             <div className="text-center mb-6">
-              <h3 className="text-2xl font-bold text-[#2D1B69]">Saphala Self Prep</h3>
+              <h3 className="text-2xl font-bold text-[#2D1B69]">Saphala Pathshala</h3>
               <p className="text-gray-400 text-sm mt-1">Daily learning + testing designed for exam success.</p>
             </div>
             <div className="flex flex-col gap-6">

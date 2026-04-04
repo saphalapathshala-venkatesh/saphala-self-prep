@@ -79,7 +79,7 @@ export default async function ProfilePage() {
           </div>
           <div className="min-w-0">
             <h2 className="text-xl font-bold truncate">{displayName}</h2>
-            <p className="text-purple-200 text-sm">Student · Saphala Self Prep</p>
+            <p className="text-purple-200 text-sm">Student · Saphala Pathshala</p>
             <p className="text-purple-300 text-xs mt-1">Joined {formatDate(user.createdAt)}</p>
           </div>
         </div>

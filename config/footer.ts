@@ -1,5 +1,5 @@
 export const footerConfig = {
-  about: "Saphala Self Prep is dedicated to providing high-quality educational resources and testing simulations to help students achieve their academic goals.",
+  about: "Saphala Pathshala is dedicated to providing high-quality educational resources and testing simulations to help students achieve their academic goals.",
   contact: {
     email: "support@saphala.com",
     phone: "+1 (555) 123-4567",
