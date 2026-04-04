@@ -98,8 +98,9 @@ export default async function VideoDetailPage({
   const duration = formatDuration(video.durationSeconds);
 
   // Fetch course suggestions only when locked — zero overhead for entitled students
+  // Only courses that ACTUALLY contain this video are returned (no category guesses)
   const courseSuggestions = isLocked
-    ? await getCoursesForVideo(video.courseId, video.categoryId)
+    ? await getCoursesForVideo(id, video.courseId)
     : [];
 
   return (
@@ -139,12 +140,17 @@ export default async function VideoDetailPage({
               </svg>
             </div>
             <div>
-              <p className="text-sm font-bold text-[#2D1B69]">Purchase a course to unlock this video</p>
+              <p className="text-sm font-bold text-[#2D1B69]">
+                {courseSuggestions.length === 1
+                  ? "This video is available in the course below"
+                  : courseSuggestions.length > 1
+                  ? `This video is available in ${courseSuggestions.length} courses`
+                  : "Purchase a course to unlock this video"}
+              </p>
               <p className="text-xs text-gray-400 mt-0.5">
-                This video is part of a paid course.{" "}
                 {courseSuggestions.length > 0
-                  ? "Enroll in one of the courses below to get instant access."
-                  : "Browse our courses to get access."}
+                  ? "Purchase any one of the courses below to get instant access to this video."
+                  : "This video requires a course purchase. Browse our courses to find the right one."}
               </p>
             </div>
           </div>

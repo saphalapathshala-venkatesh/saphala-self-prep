@@ -152,81 +152,64 @@ export async function getVideoById(id: string, userId: string): Promise<VideoRow
 }
 
 /**
- * Given a video's courseId and categoryId, return up to 3 course suggestions
- * the student can purchase to unlock the video.
- * Priority: 1) the direct owning course, 2) other active courses in same category.
+ * Returns only the courses that ACTUALLY contain this video —
+ * no false suggestions from unrelated courses.
+ *
+ * Two sources are checked and de-duplicated:
+ *  1. Video.courseId  — the direct owning course (current architecture)
+ *  2. CourseContentItem where itemType = 'VIDEO' and sourceId = videoId
+ *     — future many-to-many path when a video is added to multiple courses
+ *
+ * Never suggests courses from the same category that don't
+ * actually include this video, to avoid purchase confusion.
  */
 export async function getCoursesForVideo(
+  videoId: string,
   courseId: string | null,
-  categoryId: string | null,
 ): Promise<CourseSuggestion[]> {
-  const results: CourseSuggestion[] = [];
+  const safeVideoId = videoId.replace(/'/g, "''");
 
-  // 1. Fetch the primary course that directly owns this video
-  if (courseId) {
-    const safe = courseId.replace(/'/g, "''");
-    const rows = await prisma.$queryRawUnsafe<CourseSuggestion[]>(`
-      SELECT
-        c.id,
-        c.name,
-        c."thumbnailUrl",
-        c."sellingPrice",
-        c.mrp,
-        c."isFree",
-        c."hasVideoCourse",
-        cat.name AS "categoryName"
-      FROM "Course" c
-      LEFT JOIN "Category" cat ON cat.id = c."categoryId"
-      WHERE c.id = '${safe}'
-        AND c."isActive" = true
-      LIMIT 1
+  // Collect distinct course IDs that truly contain this video
+  const courseIdSet = new Set<string>();
+  if (courseId) courseIdSet.add(courseId);
+
+  // Also check CourseContentItem for any multi-course links (future-proof)
+  try {
+    const linkedRows = await prisma.$queryRawUnsafe<{ courseId: string }[]>(`
+      SELECT DISTINCT "courseId"
+      FROM "CourseContentItem"
+      WHERE "itemType" = 'VIDEO'
+        AND "sourceId" = '${safeVideoId}'
     `);
-    results.push(...rows);
+    linkedRows.forEach((r) => courseIdSet.add(r.courseId));
+  } catch {
+    // Table may not have VIDEO rows yet — safe to ignore
   }
 
-  // 2. Fill remaining slots with related courses from the same category
-  const remaining = 3 - results.length;
-  if (remaining > 0) {
-    const excludeList = results.map((r) => `'${r.id.replace(/'/g, "''")}'`).join(", ") || `''`;
+  if (courseIdSet.size === 0) return [];
 
-    // Determine category: from the primary course or from the video's own categoryId
-    const catFilter = (() => {
-      if (categoryId) {
-        const safe = categoryId.replace(/'/g, "''");
-        return `AND c."categoryId" = '${safe}'`;
-      }
-      if (courseId) {
-        const safe = courseId.replace(/'/g, "''");
-        return `AND c."categoryId" = (SELECT "categoryId" FROM "Course" WHERE id = '${safe}' LIMIT 1)`;
-      }
-      return "";
-    })();
+  const idList = [...courseIdSet]
+    .map((id) => `'${id.replace(/'/g, "''")}'`)
+    .join(", ");
 
-    if (catFilter) {
-      const rows = await prisma.$queryRawUnsafe<CourseSuggestion[]>(`
-        SELECT
-          c.id,
-          c.name,
-          c."thumbnailUrl",
-          c."sellingPrice",
-          c.mrp,
-          c."isFree",
-          c."hasVideoCourse",
-          cat.name AS "categoryName"
-        FROM "Course" c
-        LEFT JOIN "Category" cat ON cat.id = c."categoryId"
-        WHERE c."isActive" = true
-          AND c."hasVideoCourse" = true
-          AND c.id NOT IN (${excludeList})
-          ${catFilter}
-        ORDER BY c."featured" DESC NULLS LAST, c."createdAt" DESC
-        LIMIT ${remaining}
-      `);
-      results.push(...rows);
-    }
-  }
+  const rows = await prisma.$queryRawUnsafe<CourseSuggestion[]>(`
+    SELECT
+      c.id,
+      c.name,
+      c."thumbnailUrl",
+      c."sellingPrice",
+      c.mrp,
+      c."isFree",
+      c."hasVideoCourse",
+      cat.name AS "categoryName"
+    FROM "Course" c
+    LEFT JOIN "Category" cat ON cat.id = c."categoryId"
+    WHERE c.id IN (${idList})
+      AND c."isActive" = true
+    ORDER BY c."featured" DESC NULLS LAST, c.name ASC
+  `);
 
-  return results;
+  return rows;
 }
 
 /**
