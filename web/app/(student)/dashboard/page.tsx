@@ -117,8 +117,8 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* Right — profile mini-card, shown on md+ */}
-          <div className="hidden md:block flex-shrink-0 w-64">
+          {/* Right — profile mini-card, shown on all screens */}
+          <div className="block flex-shrink-0 w-full md:w-64 mt-5 md:mt-0">
             <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
