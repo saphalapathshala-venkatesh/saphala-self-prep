@@ -9,6 +9,7 @@ export interface VideoRow {
   facultyId: string | null;
   facultyName: string | null;
   courseId: string | null;
+  categoryId: string | null;
   accessType: string;
   status: string;
   durationSeconds: number | null;
@@ -23,6 +24,17 @@ export interface VideoRow {
   isEntitled: boolean;
   xpEnabled: boolean;
   xpValue: number;
+}
+
+export interface CourseSuggestion {
+  id: string;
+  name: string;
+  thumbnailUrl: string | null;
+  sellingPrice: number | null;
+  mrp: number | null;
+  isFree: boolean;
+  hasVideoCourse: boolean;
+  categoryName: string | null;
 }
 
 // ── Entitlement SQL ───────────────────────────────────────────────────────────
@@ -76,6 +88,7 @@ export async function getVideosForStudent(opts: {
       v."facultyId",
       f.name         AS "facultyName",
       v."courseId",
+      v."categoryId",
       v."accessType",
       v.status,
       v."durationSeconds",
@@ -113,6 +126,7 @@ export async function getVideoById(id: string, userId: string): Promise<VideoRow
       v."facultyId",
       f.name         AS "facultyName",
       v."courseId",
+      v."categoryId",
       v."accessType",
       v.status,
       v."durationSeconds",
@@ -135,6 +149,84 @@ export async function getVideoById(id: string, userId: string): Promise<VideoRow
   `);
 
   return rows.length ? rows[0] : null;
+}
+
+/**
+ * Given a video's courseId and categoryId, return up to 3 course suggestions
+ * the student can purchase to unlock the video.
+ * Priority: 1) the direct owning course, 2) other active courses in same category.
+ */
+export async function getCoursesForVideo(
+  courseId: string | null,
+  categoryId: string | null,
+): Promise<CourseSuggestion[]> {
+  const results: CourseSuggestion[] = [];
+
+  // 1. Fetch the primary course that directly owns this video
+  if (courseId) {
+    const safe = courseId.replace(/'/g, "''");
+    const rows = await prisma.$queryRawUnsafe<CourseSuggestion[]>(`
+      SELECT
+        c.id,
+        c.name,
+        c."thumbnailUrl",
+        c."sellingPrice",
+        c.mrp,
+        c."isFree",
+        c."hasVideoCourse",
+        cat.name AS "categoryName"
+      FROM "Course" c
+      LEFT JOIN "Category" cat ON cat.id = c."categoryId"
+      WHERE c.id = '${safe}'
+        AND c."isActive" = true
+      LIMIT 1
+    `);
+    results.push(...rows);
+  }
+
+  // 2. Fill remaining slots with related courses from the same category
+  const remaining = 3 - results.length;
+  if (remaining > 0) {
+    const excludeList = results.map((r) => `'${r.id.replace(/'/g, "''")}'`).join(", ") || `''`;
+
+    // Determine category: from the primary course or from the video's own categoryId
+    const catFilter = (() => {
+      if (categoryId) {
+        const safe = categoryId.replace(/'/g, "''");
+        return `AND c."categoryId" = '${safe}'`;
+      }
+      if (courseId) {
+        const safe = courseId.replace(/'/g, "''");
+        return `AND c."categoryId" = (SELECT "categoryId" FROM "Course" WHERE id = '${safe}' LIMIT 1)`;
+      }
+      return "";
+    })();
+
+    if (catFilter) {
+      const rows = await prisma.$queryRawUnsafe<CourseSuggestion[]>(`
+        SELECT
+          c.id,
+          c.name,
+          c."thumbnailUrl",
+          c."sellingPrice",
+          c.mrp,
+          c."isFree",
+          c."hasVideoCourse",
+          cat.name AS "categoryName"
+        FROM "Course" c
+        LEFT JOIN "Category" cat ON cat.id = c."categoryId"
+        WHERE c."isActive" = true
+          AND c."hasVideoCourse" = true
+          AND c.id NOT IN (${excludeList})
+          ${catFilter}
+        ORDER BY c."featured" DESC NULLS LAST, c."createdAt" DESC
+        LIMIT ${remaining}
+      `);
+      results.push(...rows);
+    }
+  }
+
+  return results;
 }
 
 /**
