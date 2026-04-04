@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { FlashCard } from "@/lib/contentDb";
 import { ROUTES } from "@/config/terminology";
 import BrandFooter from "@/components/learn/BrandFooter";
+import { pickMotivationalMessage } from "@/lib/motivationalMessages";
 import XpEarnedBadge from "@/components/shared/XpEarnedBadge";
 import { triggerXpCelebration } from "@/lib/xpCelebration";
 
@@ -1402,6 +1403,7 @@ export default function FlashcardStudyClient({
   backHref,
   backLabel,
 }: Props) {
+  const motivationalMsg = pickMotivationalMessage(deckId);
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(false);
   const [xpAwarded, setXpAwarded] = useState<number | null>(null);
@@ -1534,12 +1536,10 @@ export default function FlashcardStudyClient({
                     </div>
                   </div>
                   <div className="rounded-xl px-4 py-4 flex items-start gap-3" style={{ background: "linear-gradient(135deg, #2D1B69 0%, #6D4BCB 100%)" }}>
-                    <span className="text-2xl leading-none mt-0.5">🌟</span>
+                    <span className="text-2xl leading-none mt-0.5">{motivationalMsg.emoji}</span>
                     <div>
-                      <p className="text-sm font-bold text-white mb-1">Keep up the good effort!</p>
-                      <p className="text-xs text-purple-200 leading-relaxed">
-                        With every effort you are moving closer to your dream job. Consistent revision is what separates toppers from the rest — keep going!
-                      </p>
+                      <p className="text-sm font-bold text-white mb-1">{motivationalMsg.title}</p>
+                      <p className="text-xs text-purple-200 leading-relaxed">{motivationalMsg.body}</p>
                     </div>
                   </div>
                 </div>

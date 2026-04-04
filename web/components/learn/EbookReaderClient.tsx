@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import EbookPageShell from "@/components/learn/EbookPageShell";
 import XpEarnedBadge from "@/components/shared/XpEarnedBadge";
 import { triggerXpCelebration } from "@/lib/xpCelebration";
+import { pickMotivationalMessage } from "@/lib/motivationalMessages";
 
 const PURPLE = "#6D4BCB";
 const GREEN = "#10B981";
@@ -71,6 +72,7 @@ export default function EbookReaderClient({
   backHref = "/learn/lessons",
   backLabel = "← Back to Ebooks",
 }: EbookReaderClientProps) {
+  const motivationalMsg = pickMotivationalMessage(lessonId);
   const [currentPage, setCurrentPage] = useState(0);
   const [xpStatus, setXpStatus] = useState<XpStatus>("idle");
   const [xpAwarded, setXpAwarded] = useState(0);
@@ -192,14 +194,12 @@ export default function EbookReaderClient({
             </div>
           </div>
 
-          {/* Card 2 — Motivational */}
+          {/* Card 2 — Motivational (dynamic) */}
           <div className="rounded-xl px-4 py-4 flex items-start gap-3" style={{ background: "linear-gradient(135deg, #2D1B69 0%, #6D4BCB 100%)", border: "none" }}>
-            <span className="text-2xl leading-none mt-0.5">🌟</span>
+            <span className="text-2xl leading-none mt-0.5">{motivationalMsg.emoji}</span>
             <div>
-              <p className="text-sm font-bold text-white mb-1">Keep up the good effort!</p>
-              <p className="text-xs text-purple-200 leading-relaxed">
-                With every effort you are moving closer to your dream job. Consistent revision is what separates toppers from the rest — keep going!
-              </p>
+              <p className="text-sm font-bold text-white mb-1">{motivationalMsg.title}</p>
+              <p className="text-xs text-purple-200 leading-relaxed">{motivationalMsg.body}</p>
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { pickMotivationalMessage } from '@/lib/motivationalMessages';
 import {
   Trophy, Target, Clock, TrendingUp, Star, X, Award, ChevronDown, ChevronUp,
   Info, Zap, BarChart2, Lightbulb, Users
@@ -177,6 +178,7 @@ function TimeColorDot({ color }: { color: string }) {
 }
 
 export default function ResultPageClient({ attemptId, testId, seriesId }: { attemptId: string; testId: string; seriesId?: string | null }) {
+  const motivationalMsg = pickMotivationalMessage(attemptId);
   const [data, setData] = useState<ResultData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -305,10 +307,10 @@ export default function ResultPageClient({ attemptId, testId, seriesId }: { atte
                 </div>
               </div>
               <div className="rounded-xl px-4 py-4 flex items-start gap-3" style={{ background: "linear-gradient(135deg, #2D1B69 0%, #6D4BCB 100%)" }}>
-                <span className="text-2xl leading-none mt-0.5">🌟</span>
+                <span className="text-2xl leading-none mt-0.5">{motivationalMsg.emoji}</span>
                 <div>
-                  <p className="text-sm font-bold text-white mb-1">Keep up the good effort!</p>
-                  <p className="text-xs text-purple-200 leading-relaxed">With every effort you are moving closer to your dream. Consistent revision is what separates toppers from the rest — keep going!</p>
+                  <p className="text-sm font-bold text-white mb-1">{motivationalMsg.title}</p>
+                  <p className="text-xs text-purple-200 leading-relaxed">{motivationalMsg.body}</p>
                 </div>
               </div>
             </div>
