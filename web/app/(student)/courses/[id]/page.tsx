@@ -7,6 +7,7 @@ import { CurriculumAccordion } from "@/components/courses/CurriculumAccordion";
 import { getLiveClassesForStudent } from "@/lib/liveClassDb";
 import LiveClassCard from "@/components/live-classes/LiveClassCard";
 import type { LiveClassCardData } from "@/components/live-classes/LiveClassCard";
+import { getVideosForStudent, formatDuration } from "@/lib/videoDb";
 
 export const dynamic = "force-dynamic";
 
@@ -81,10 +82,11 @@ export default async function CourseDetailPage({
   if (!user) redirect(`/login?from=/courses/${id}`);
   if (!data) notFound();
 
-  const [isEntitled, liveClasses, linkedContent] = await Promise.all([
+  const [isEntitled, liveClasses, linkedContent, courseVideos] = await Promise.all([
     checkUserEntitlementForCourse(user.id, id, data.productCategory).catch(() => false),
     getLiveClassesForStudent({ userId: user.id, courseId: id, limit: 10 }).catch(() => []),
     getLinkedContentForCourse(id).catch((): LinkedContentRow[] => []),
+    getVideosForStudent({ userId: user.id, courseId: id, limit: 50 }).catch(() => []),
   ]);
 
   const isFree      = data.isFree || data.productCategory === "FREE_DEMO";
@@ -345,6 +347,80 @@ export default async function CourseDetailPage({
           </div>
         );
       })}
+
+      {/* ── Recorded Videos for this course ──────────────────────────────────── */}
+      {courseVideos.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-[#6D4BCB]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h2 className="text-base font-bold text-[#2D1B69]">Recorded Videos</h2>
+              <span className="text-xs text-gray-400">{courseVideos.length}</span>
+            </div>
+            <Link
+              href={`/videos?courseId=${id}`}
+              className="text-xs text-[#6D4BCB] hover:text-[#5C3DB5] font-medium transition-colors"
+            >
+              View all →
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {courseVideos.map((video) => {
+              const isLocked = !video.isEntitled && !video.allowPreview;
+              const duration = formatDuration(video.durationSeconds);
+              const row = (
+                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all duration-150 ${
+                  !isLocked
+                    ? "bg-white border-gray-100 hover:border-[#6D4BCB] hover:shadow-sm cursor-pointer"
+                    : "bg-gray-50/70 border-gray-100 opacity-75 cursor-default"
+                }`}>
+                  {/* Thumbnail or play icon */}
+                  <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-gradient-to-br from-[#2D1B69] to-[#6D4BCB] flex items-center justify-center">
+                    {video.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={video.thumbnailUrl} alt={video.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <svg className="w-4 h-4 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium leading-snug line-clamp-1 ${isLocked ? "text-gray-400" : "text-[#2D1B69]"}`}>
+                      {video.title}
+                    </p>
+                    {(video.facultyName || duration) && (
+                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">
+                        {[video.facultyName, duration].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                  {/* Right icon */}
+                  {isLocked ? (
+                    <svg className="w-4 h-4 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-[#6D4BCB] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  )}
+                </div>
+              );
+              return isLocked ? (
+                <div key={video.id}>{row}</div>
+              ) : (
+                <Link key={video.id} href={`/videos/${video.id}`}>{row}</Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ── Live Classes for this course ─────────────────────────────────────── */}
       {liveClasses.length > 0 && (
