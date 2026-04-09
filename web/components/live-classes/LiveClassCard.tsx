@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { LiveStatus } from "@/lib/liveClassDb";
+import LiveClassAutoRefresh from "@/components/live-classes/LiveClassAutoRefresh";
 
 export interface LiveClassCardData {
   id: string;
@@ -121,6 +122,13 @@ export default function LiveClassCard({ cls }: { cls: LiveClassCardData }) {
   const isCompleted       = (cls.liveStatus === "COMPLETED" || cls.liveStatus === "ENDED");
 
   return (
+    <>
+    <LiveClassAutoRefresh
+      liveStatus={cls.liveStatus}
+      sessionDate={cls.sessionDate}
+      startTime={cls.startTime}
+      endTime={cls.endTime}
+    />
     <div
       className={`
         relative bg-white rounded-2xl border overflow-hidden transition-shadow
@@ -255,5 +263,6 @@ export default function LiveClassCard({ cls }: { cls: LiveClassCardData }) {
         </div>
       </div>
     </div>
+    </>
   );
 }

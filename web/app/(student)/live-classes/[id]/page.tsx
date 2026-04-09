@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { getLiveClassById, formatSessionDateTime } from "@/lib/liveClassDb";
 import Link from "next/link";
+import LiveClassAutoRefresh from "@/components/live-classes/LiveClassAutoRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -42,8 +43,16 @@ export default async function LiveClassDetailPage({
   const displayStatus = !cls.isEntitled ? "LOCKED" : cls.liveStatus;
   const dateLabel = formatSessionDateTime(cls.sessionDate, cls.startTime, cls.endTime);
 
+  const sessionDateStr = cls.sessionDate ? cls.sessionDate.toISOString() : null;
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+      <LiveClassAutoRefresh
+        liveStatus={cls.liveStatus}
+        sessionDate={sessionDateStr}
+        startTime={cls.startTime}
+        endTime={cls.endTime}
+      />
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-400">
         <Link href="/live-classes" className="hover:text-[#6D4BCB] transition-colors">

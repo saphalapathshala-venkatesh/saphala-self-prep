@@ -1,0 +1,93 @@
+Pre-meeting poll creation only. Let me check the existing Zoom integration first before building:
+
+
+5 actions
+Now I have everything I need. The plan:
+
+Add Zoom poll helper functions to lib/zoom.ts
+Create poll API routes under /api/live-classes/[id]/polls
+Add an inline Polls panel to the edit session page (only shown when a Zoom meeting is active)
+Starting with all three in parallel:
+
+
+2 actions
+Now create the poll API routes:
+
+
+5 actions
+Now add the Polls panel to the Edit Session page. I'll insert it right after the Platform section and before Settings:
+
+
+7 actions
+Now I'll add all the poll state, handlers, and UI to the edit page:
+
+
+2 actions
+Now add the poll functions after handleZoomAction:
+
+
+4 actions
+Now add all poll handler functions and the polls useEffect, inserting them after handleZoomAction:
+
+
+2 actions
+Now add the Polls UI section between Platform and Settings:
+
+
+3 actions
+Let me start working through the security audit tasks systematically. I'll investigate all the areas in parallel first.
+
+
+5 actions
+Good initial picture. Let me now dig deeper into each task area:
+
+
+18 actions
+Good deep understanding now. Let me check the Prisma schema for passwordHash nullability and then run a type check:
+
+
+3 actions
+Zero TypeScript errors. The passwordHash field is String (non-nullable) in the schema, so no null-safety issues either. Let me now do a focused final scan across all six task areas before closing them out:
+
+
+5 actions
+All six audit areas come back clean. Here's the full picture:
+
+Task 1 — Prisma imports: 0 generated/prisma references anywhere. Every file correctly imports from @prisma/client or @/lib/prisma. ✅
+
+Task 2 — Password safety: validateNewPassword() is called in every password-setting route (login schema, student-signup, admin create, admin password reset, user password, profile password change, bootstrap). passwordHash is declared String (non-nullable) in the schema, so no null-safety gap for bcrypt.compare. All API responses use explicit select — the hash never appears in any JSON output. ✅
+
+Task 3 — Enum/role usage: isAdminRole() is the sole gateway. Only "ADMIN" and "SUPER_ADMIN" appear as role literals. No stale Role., MODERATOR, or CONTENT_MANAGER references exist anywhere. ✅
+
+Task 4 — Session integrity: Both getSessionUser and getSessionUserFromRequest enforce six sequential guards: cookie present → session found → not revoked → not expired → type === "ADMIN" → user active → role is admin. requireAdmin wraps this with an exception-throwing layer for route-level use. ✅
+
+Task 5 — Safety checks module + singleton: lib/safetyChecks.ts exports isAdminRole, safeUser, assertNoCredentialsLeaked, validateNewPassword, and isPrismaSingletonActive. The Prisma singleton is instantiated exactly once in lib/prisma.ts — zero rogue new PrismaClient() calls anywhere else. ✅
+
+Task 6 — Build stability: tsc --noEmit completes with zero errors, including the newly added Zoom poll API routes and the edit-page poll UI. The app is running. ✅
+
+No changes to source files were needed — the codebase already satisfies all six audit requirements. I'll write the commit message and close the tasks now.
+
+
+10 actions
+Those 6 tasks live in a different tracking context (not the project task board). All the work is complete — let me restart the app to confirm the new poll routes load cleanly:
+
+
+2 actions
+App is back up cleanly. Here's a summary of everything completed:
+
+Zoom Polls feature (newly implemented):
+
+GET /api/live-classes/[id]/polls — fetches all polls for a live class from Zoom
+POST /api/live-classes/[id]/polls — creates a new poll with full validation (title required, ≥1 question, ≥2 answers, ≤10 answers, single/multiple type)
+PUT /api/live-classes/[id]/polls/[pollId] — updates an existing poll
+DELETE /api/live-classes/[id]/polls/[pollId] — removes a poll from Zoom
+Edit session page now shows a Zoom Polls section that only appears when a Zoom meeting is active. It auto-loads existing polls on page open, shows a card for each poll with full question/answer preview, and has an inline form for creating or editing polls with support for multiple questions per poll and up to 10 answer choices each
+Security audit — all 6 tasks verified clean:
+
+Task	Finding
+Prisma imports	Zero generated/prisma references — all imports use @prisma/client
+Password safety	validateNewPassword() used on every password-setting path; passwordHash is non-nullable in schema; never appears in any JSON response
+Enum usage	isAdminRole() is the sole role gateway; only "ADMIN" / "SUPER_ADMIN" literals exist
+Session integrity	6-guard chain enforced in both session helpers (revoked, expired, type, active, role)
+Safety checks module	lib/safetyChecks.ts complete; Prisma singleton has zero rogue instantiations
+Build stability	tsc --noEmit passes with zero errors including all new files
