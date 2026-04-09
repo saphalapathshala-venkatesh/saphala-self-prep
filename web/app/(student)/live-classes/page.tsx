@@ -29,6 +29,7 @@ export default async function LiveClassesPage() {
     status:        c.status,
     liveStatus:    c.liveStatus,
     canJoin:       c.canJoin,
+    joinOpensAt:   c.joinOpensAt,
     joinUrl:       c.joinUrl,
     platform:      c.platform,
     thumbnailUrl:  c.thumbnailUrl,

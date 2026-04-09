@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 /**
  * Silently refreshes the page at key live class transitions:
- * - UPCOMING → LIVE_NOW (at joinWindowStart = startTime - 10 min)
+ * - UPCOMING → LIVE_NOW (at joinWindowStart = startTime - 5 min)
  * - LIVE_NOW → ENDED   (at endTime)
  *
  * This ensures the Join button disappears automatically when
@@ -38,7 +38,7 @@ export default function LiveClassAutoRefresh({
     const [startH, startM] = startTime.split(":").map(Number);
     const startISO = `${dateStr}T${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}:00+05:30`;
     const startDateTime = new Date(startISO);
-    const joinWindowStart = new Date(startDateTime.getTime() - 10 * 60 * 1000);
+    const joinWindowStart = new Date(startDateTime.getTime() - 5 * 60 * 1000);
 
     let endDateTime: Date;
     if (endTime) {

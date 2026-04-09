@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/db";
+import { nowIST } from "@/lib/formatIST";
+
+// SQL fragment: compare naive-IST unlockAt stored as UTC against IST now
+const IST_NOW_SQL = `NOW() + INTERVAL '5 hours 30 minutes'`;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,6 +36,7 @@ export interface LiveClassRow {
 export interface LiveClassStudent extends LiveClassRow {
   liveStatus: LiveStatus;
   canJoin: boolean;
+  joinOpensAt: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -41,27 +46,32 @@ export interface LiveClassStudent extends LiveClassRow {
  * sessionDate = date portion (admin enters IST date)
  * startTime / endTime = "HH:MM" strings, treated as IST
  */
-export function computeLiveStatus(row: LiveClassRow): { liveStatus: LiveStatus; canJoin: boolean } {
-  const now = new Date();
+export function computeLiveStatus(row: LiveClassRow): {
+  liveStatus: LiveStatus;
+  canJoin: boolean;
+  joinOpensAt: string | null;  // "HH:MM AM/PM IST" label, or null
+} {
+  const now = new Date();        // real UTC time — used for join-window math
+  const nowIst = nowIST();       // naive-IST "fake" time — used for unlockAt check only
 
-  // UnlockAt gate — if not yet unlocked, class is LOCKED
-  if (row.unlockAt && row.unlockAt > now) {
-    return { liveStatus: "LOCKED", canJoin: false };
+  // UnlockAt gate — unlockAt is stored as naive IST; compare against nowIST()
+  if (row.unlockAt && row.unlockAt > nowIst) {
+    return { liveStatus: "LOCKED", canJoin: false, joinOpensAt: null };
   }
 
   // Entitlement gate — PAID class with no entitlement
   if (!row.isEntitled) {
-    return { liveStatus: "LOCKED", canJoin: false };
+    return { liveStatus: "LOCKED", canJoin: false, joinOpensAt: null };
   }
 
   if (row.status === "COMPLETED") {
-    return { liveStatus: "COMPLETED", canJoin: false };
+    return { liveStatus: "COMPLETED", canJoin: false, joinOpensAt: null };
   }
 
   // For PUBLISHED classes, compute time-based status
   if (row.status === "PUBLISHED") {
     if (!row.sessionDate || !row.startTime) {
-      return { liveStatus: "UPCOMING", canJoin: false };
+      return { liveStatus: "UPCOMING", canJoin: false, joinOpensAt: null };
     }
 
     // Extract date string from sessionDate (YYYY-MM-DD)
@@ -75,7 +85,8 @@ export function computeLiveStatus(row: LiveClassRow): { liveStatus: LiveStatus; 
     const [startH, startM] = row.startTime.split(":").map(Number);
     const startISO = `${dateStr}T${String(startH).padStart(2, "0")}:${String(startM).padStart(2, "0")}:00+05:30`;
     const startDateTime = new Date(startISO);
-    const joinWindowStart = new Date(startDateTime.getTime() - 10 * 60 * 1000);
+    // Join window opens 5 minutes before the scheduled start
+    const joinWindowStart = new Date(startDateTime.getTime() - 5 * 60 * 1000);
 
     let endDateTime: Date;
     if (row.endTime) {
@@ -88,12 +99,25 @@ export function computeLiveStatus(row: LiveClassRow): { liveStatus: LiveStatus; 
 
     const canJoin = now >= joinWindowStart && now <= endDateTime && !!row.joinUrl;
 
-    if (now < joinWindowStart) return { liveStatus: "UPCOMING", canJoin };
-    if (now <= endDateTime) return { liveStatus: "LIVE_NOW", canJoin };
-    return { liveStatus: "ENDED", canJoin: false };
+    // Build "join opens at HH:MM AM/PM IST" label from the join window start
+    const joinOpensAt = buildJoinOpensAt(joinWindowStart);
+
+    if (now < joinWindowStart) return { liveStatus: "UPCOMING", canJoin, joinOpensAt };
+    if (now <= endDateTime) return { liveStatus: "LIVE_NOW", canJoin, joinOpensAt: null };
+    return { liveStatus: "ENDED", canJoin: false, joinOpensAt: null };
   }
 
-  return { liveStatus: "UPCOMING", canJoin: false };
+  return { liveStatus: "UPCOMING", canJoin: false, joinOpensAt: null };
+}
+
+/** Format a UTC Date as "H:MM AM/PM IST" for display in the join-opens-at label */
+function buildJoinOpensAt(date: Date): string {
+  return date.toLocaleTimeString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }) + " IST";
 }
 
 // ── Entitlement SQL fragment ──────────────────────────────────────────────────
@@ -287,7 +311,7 @@ export async function getDashboardLiveClass(userId: string): Promise<LiveClassSt
     FROM "LiveClass" lc
     LEFT JOIN "Faculty" f ON f.id = lc."facultyId"
     WHERE lc.status = 'PUBLISHED'
-      AND (lc."unlockAt" IS NULL OR lc."unlockAt" <= NOW())
+      AND (lc."unlockAt" IS NULL OR lc."unlockAt" <= ${IST_NOW_SQL})
     ORDER BY lc.id, lc."sessionDate" ASC NULLS LAST, lc."startTime" ASC NULLS LAST
     LIMIT 10
   `);

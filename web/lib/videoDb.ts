@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
 
+// SQL fragment: compare naive-IST unlockAt stored as UTC against IST now
+const IST_NOW_SQL = `NOW() + INTERVAL '5 hours 30 minutes'`;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface VideoRow {
@@ -107,7 +110,7 @@ export async function getVideosForStudent(opts: {
     LEFT JOIN "Faculty" f ON f.id = v."facultyId"
     LEFT JOIN "Course"  c ON c.id = v."courseId"
     WHERE ${where}
-      AND (v."unlockAt" IS NULL OR v."unlockAt" <= NOW() OR ${videoEntitlementExpr(userId)})
+      AND (v."unlockAt" IS NULL OR v."unlockAt" <= ${IST_NOW_SQL} OR ${videoEntitlementExpr(userId)})
     ORDER BY v."publishedAt" DESC NULLS LAST, v."createdAt" DESC
     LIMIT ${Number(limit)}
   `);

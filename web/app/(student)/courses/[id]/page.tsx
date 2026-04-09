@@ -453,6 +453,7 @@ export default async function CourseDetailPage({
                 status:        cls.status,
                 liveStatus:    cls.liveStatus,
                 canJoin:       cls.canJoin,
+                joinOpensAt:   cls.joinOpensAt,
                 joinUrl:       cls.joinUrl,
                 platform:      cls.platform,
                 thumbnailUrl:  cls.thumbnailUrl,

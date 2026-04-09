@@ -177,11 +177,19 @@ export default async function LiveClassDetailPage({
 
             {/* Upcoming */}
             {isUpcoming && (
-              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 text-sm text-blue-700 flex items-start gap-2">
-                <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Join link will be available 10 minutes before the class starts.
+              <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 space-y-1.5">
+                <div className="flex items-start gap-2 text-sm text-blue-700">
+                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Join link will be available 5 minutes before the class starts.
+                </div>
+                {cls.joinOpensAt && (
+                  <p className="text-xs text-blue-600 pl-6">
+                    Join opens at{" "}
+                    <span className="font-semibold text-[#2D1B69]">{cls.joinOpensAt}</span>
+                  </p>
+                )}
               </div>
             )}
 

@@ -16,6 +16,7 @@ export interface LiveClassCardData {
   status: string;
   liveStatus: LiveStatus;
   canJoin: boolean;
+  joinOpensAt: string | null;
   joinUrl: string | null;
   platform: string;
   thumbnailUrl: string | null;
@@ -222,9 +223,18 @@ export default function LiveClassCard({ cls }: { cls: LiveClassCardData }) {
 
           {/* Upcoming */}
           {isUpcoming && (
-            <button disabled className="w-full px-4 py-2.5 rounded-xl bg-blue-50 text-blue-400 text-sm font-semibold cursor-not-allowed">
-              Join available closer to class time
-            </button>
+            <div className="space-y-1.5">
+              <button disabled className="w-full px-4 py-2.5 rounded-xl bg-blue-50 text-blue-400 text-sm font-semibold cursor-not-allowed">
+                Join LIVE Class
+              </button>
+              {cls.joinOpensAt && (
+                <p className="text-center text-xs text-gray-400">
+                  Join link opens at{" "}
+                  <span className="font-semibold text-[#2D1B69]">{cls.joinOpensAt}</span>
+                  {" "}(5 min before class)
+                </p>
+              )}
+            </div>
           )}
 
           {/* Completed with replay */}

@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { unstable_cache } from "next/cache";
+import { nowIST } from "@/lib/formatIST";
 
 // Returns `fallback` instead of throwing so unstable_cache can store the empty state.
 function withFallback<TArgs extends unknown[], TReturn>(
@@ -296,7 +297,7 @@ function mapToDbTest(
     publishedAt: test.publishedAt,
     isPublished: test.isPublished,
     scheduledUntil:
-      test.unlockAt && test.unlockAt > new Date()
+      test.unlockAt && test.unlockAt > nowIST()
         ? test.unlockAt.toISOString()
         : null,
     xpEnabled: test.xpEnabled,

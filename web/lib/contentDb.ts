@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/db";
+import { nowIST } from "@/lib/formatIST";
+
+const IST_NOW_SQL = `NOW() + INTERVAL '5 hours 30 minutes'`;
 
 // ── EBook block-to-HTML converter ─────────────────────────────────────────────
 // Converts contentBlocks JSON (admin block editor format) to HTML for rendering.
@@ -117,7 +120,7 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
   const pages = await prisma.contentPage.findMany({
     where: {
       isPublished: true,
-      OR: [{ unlockAt: null }, { unlockAt: { lte: new Date() } }],
+      OR: [{ unlockAt: null }, { unlockAt: { lte: nowIST() } }],
     },
     orderBy: { createdAt: "desc" },
     select: {
@@ -207,7 +210,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
   });
 
   if (!page || !page.isPublished) return null;
-  if (page.unlockAt && page.unlockAt > new Date()) return null;
+  if (page.unlockAt && page.unlockAt > nowIST()) return null;
 
   const subjectColor = page.subtopic?.topic.subject.subjectColor ?? null;
 
@@ -310,7 +313,7 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
     LEFT JOIN "Topic"    t   ON t.id   = pa."topicId"
     LEFT JOIN "Subtopic" st  ON st.id  = pa."subtopicId"
     WHERE pa."isPublished" = true
-      AND (pa."unlockAt" IS NULL OR pa."unlockAt" <= NOW())
+      AND (pa."unlockAt" IS NULL OR pa."unlockAt" <= ${IST_NOW_SQL})
     ORDER BY pa."createdAt" DESC
   `);
 
@@ -407,7 +410,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
     LEFT JOIN "Subject"  s   ON s.id   = fd."subjectId"
     LEFT JOIN "Topic"    t   ON t.id   = fd."topicId"
     WHERE fd."isPublished" = true
-      AND (fd."unlockAt" IS NULL OR fd."unlockAt" <= NOW())
+      AND (fd."unlockAt" IS NULL OR fd."unlockAt" <= ${IST_NOW_SQL})
     ORDER BY fd."createdAt" DESC
   `);
 
@@ -496,7 +499,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
 
   const deck = deckRows[0];
   if (!deck || !deck.isPublished) return null;
-  if (deck.unlockAt && new Date(deck.unlockAt) > new Date()) return null;
+  if (deck.unlockAt && new Date(deck.unlockAt) > nowIST()) return null;
 
   return {
     id: deck.id,
