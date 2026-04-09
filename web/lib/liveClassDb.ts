@@ -100,22 +100,42 @@ export function computeLiveStatus(row: LiveClassRow): { liveStatus: LiveStatus; 
 
 /**
  * Builds the SQL CASE expression for entitlement check.
- * FREE classes → always entitled.
- * PAID classes → check UserEntitlement by courseId only.
+ *
+ * A student is entitled when ANY of the following is true:
+ *  1. accessType = 'FREE'
+ *  2. LiveClass.courseId matches an active UserEntitlement    (legacy single-course)
+ *  3. ANY row in LiveClassCourse for this class matches an
+ *     active UserEntitlement                                  (multi-course — new)
+ *
+ * Using OR between (2) and (3) means both paths work simultaneously —
+ * no data needs to be migrated. A student enrolled in ANY of the
+ * linked courses gets access.
  */
 function entitlementExpr(userId: string): string {
-  const safeUserId = userId.replace(/'/g, "''");
+  const safe = userId.replace(/'/g, "''");
   return `
     CASE
       WHEN lc."accessType" = 'FREE' THEN true
-      WHEN lc."courseId" IS NULL    THEN false
-      ELSE EXISTS (
-        SELECT 1
-        FROM "UserEntitlement" ue
-        WHERE ue."userId"     = '${safeUserId}'
-          AND ue."productCode" = lc."courseId"
-          AND ue.status        = 'ACTIVE'
-          AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+      ELSE (
+        (
+          lc."courseId" IS NOT NULL
+          AND EXISTS (
+            SELECT 1 FROM "UserEntitlement" ue
+            WHERE ue."userId"      = '${safe}'
+              AND ue."productCode" = lc."courseId"
+              AND ue.status        = 'ACTIVE'
+              AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+          )
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM "LiveClassCourse" lcc
+          INNER JOIN "UserEntitlement" ue ON ue."productCode" = lcc."courseId"
+          WHERE lcc."liveClassId" = lc.id
+            AND ue."userId"       = '${safe}'
+            AND ue.status         = 'ACTIVE'
+            AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+        )
       )
     END
   `.trim();
@@ -125,7 +145,13 @@ function entitlementExpr(userId: string): string {
 
 /**
  * Fetch student-visible live classes (PUBLISHED + COMPLETED).
- * Optional filters: courseId, categoryId.
+ *
+ * courseId filter checks BOTH the legacy direct FK and the
+ * LiveClassCourse junction table so filtering by course works
+ * regardless of how the admin linked the class.
+ *
+ * DISTINCT ensures a student enrolled in multiple courses that
+ * include the same live class never sees it duplicated.
  */
 export async function getLiveClassesForStudent(opts: {
   userId: string;
@@ -138,18 +164,24 @@ export async function getLiveClassesForStudent(opts: {
   const conditions: string[] = [`lc.status IN ('PUBLISHED', 'COMPLETED')`];
 
   if (courseId) {
-    const safe = courseId.replace(/'/g, "''");
-    conditions.push(`lc."courseId" = '${safe}'`);
+    const safeCourse = courseId.replace(/'/g, "''");
+    conditions.push(`(
+      lc."courseId" = '${safeCourse}'
+      OR EXISTS (
+        SELECT 1 FROM "LiveClassCourse" lcc2
+        WHERE lcc2."liveClassId" = lc.id AND lcc2."courseId" = '${safeCourse}'
+      )
+    )`);
   }
   if (categoryId) {
-    const safe = categoryId.replace(/'/g, "''");
-    conditions.push(`lc."categoryId" = '${safe}'`);
+    const safeCat = categoryId.replace(/'/g, "''");
+    conditions.push(`lc."categoryId" = '${safeCat}'`);
   }
 
   const where = conditions.join(" AND ");
 
   const rows = await prisma.$queryRawUnsafe<LiveClassRow[]>(`
-    SELECT
+    SELECT DISTINCT ON (lc.id, lc."sessionDate", lc."startTime")
       lc.id,
       lc.title,
       lc.description,
@@ -173,10 +205,9 @@ export async function getLiveClassesForStudent(opts: {
       NULL::int    AS "durationMinutes",
       ${entitlementExpr(userId)} AS "isEntitled"
     FROM "LiveClass" lc
-    LEFT JOIN "Faculty" f  ON f.id  = lc."facultyId"
-    LEFT JOIN "Course"  c  ON c.id  = lc."courseId"
+    LEFT JOIN "Faculty" f ON f.id = lc."facultyId"
     WHERE ${where}
-    ORDER BY lc."sessionDate" ASC NULLS LAST, lc."startTime" ASC NULLS LAST
+    ORDER BY lc.id, lc."sessionDate" ASC NULLS LAST, lc."startTime" ASC NULLS LAST
     LIMIT ${Number(limit)}
   `);
 
@@ -214,26 +245,23 @@ export async function getLiveClassById(id: string, userId: string): Promise<Live
       NULL::int    AS "durationMinutes",
       ${entitlementExpr(userId)} AS "isEntitled"
     FROM "LiveClass" lc
-    LEFT JOIN "Faculty" f  ON f.id  = lc."facultyId"
-    LEFT JOIN "Course"  c  ON c.id  = lc."courseId"
+    LEFT JOIN "Faculty" f ON f.id = lc."facultyId"
     WHERE lc.id = '${safeId}'
       AND lc.status IN ('PUBLISHED', 'COMPLETED')
   `);
 
   if (!rows.length) return null;
-  const r = rows[0];
-  return { ...r, ...computeLiveStatus(r) };
+  return { ...rows[0], ...computeLiveStatus(rows[0]) };
 }
 
 /**
  * Fetch the nearest upcoming or live class for the dashboard card.
- * Returns null if no relevant class exists.
+ * Prefers classes the student is entitled to (LIVE_NOW first, then UPCOMING).
+ * Falls back to any upcoming class (shown as LOCKED) if none are entitled.
  */
 export async function getDashboardLiveClass(userId: string): Promise<LiveClassStudent | null> {
-  const safeUserId = userId.replace(/'/g, "''");
-
   const rows = await prisma.$queryRawUnsafe<LiveClassRow[]>(`
-    SELECT
+    SELECT DISTINCT ON (lc.id)
       lc.id,
       lc.title,
       lc.description,
@@ -255,30 +283,26 @@ export async function getDashboardLiveClass(userId: string): Promise<LiveClassSt
       lc."unlockAt",
       lc."zoomPassword",
       NULL::int    AS "durationMinutes",
-      CASE
-        WHEN lc."accessType" = 'FREE' THEN true
-        WHEN lc."courseId" IS NULL    THEN false
-        ELSE EXISTS (
-          SELECT 1
-          FROM "UserEntitlement" ue
-          WHERE ue."userId"    = '${safeUserId}'
-            AND ue.status       = 'ACTIVE'
-            AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
-            AND ue."productCode" = lc."courseId"
-        )
-      END AS "isEntitled"
+      ${entitlementExpr(userId)} AS "isEntitled"
     FROM "LiveClass" lc
-    LEFT JOIN "Faculty" f  ON f.id  = lc."facultyId"
-    LEFT JOIN "Course"  c  ON c.id  = lc."courseId"
+    LEFT JOIN "Faculty" f ON f.id = lc."facultyId"
     WHERE lc.status = 'PUBLISHED'
       AND (lc."unlockAt" IS NULL OR lc."unlockAt" <= NOW())
-    ORDER BY lc."sessionDate" ASC NULLS LAST, lc."startTime" ASC NULLS LAST
-    LIMIT 1
+    ORDER BY lc.id, lc."sessionDate" ASC NULLS LAST, lc."startTime" ASC NULLS LAST
+    LIMIT 10
   `);
 
   if (!rows.length) return null;
-  const r = rows[0];
-  return { ...r, ...computeLiveStatus(r) };
+
+  // Map to live status and prefer entitled + live/upcoming classes
+  const withStatus = rows.map((r) => ({ ...r, ...computeLiveStatus(r) }));
+  const entitled = withStatus.filter((r) => r.liveStatus !== "LOCKED");
+  const liveNow = entitled.find((r) => r.liveStatus === "LIVE_NOW");
+  if (liveNow) return liveNow;
+  const upcoming = entitled.find((r) => r.liveStatus === "UPCOMING");
+  if (upcoming) return upcoming;
+  // Fallback: show any class (locked) so the dashboard card isn't empty
+  return withStatus[0];
 }
 
 /**
