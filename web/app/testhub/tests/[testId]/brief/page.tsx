@@ -44,7 +44,7 @@ export default async function BriefPage({
   // Guard: test not yet available (scheduled unlock)
   if (test.scheduledUntil) {
     const openDate = new Intl.DateTimeFormat("en-IN", {
-      timeZone: "UTC",
+      timeZone: "Asia/Kolkata",
       day: "numeric",
       month: "long",
       year: "numeric",

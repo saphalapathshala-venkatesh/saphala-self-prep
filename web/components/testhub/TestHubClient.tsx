@@ -28,7 +28,7 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
 
   function formatScheduledDate(iso: string): string {
     return new Intl.DateTimeFormat("en-IN", {
-      timeZone: "UTC",
+      timeZone: "Asia/Kolkata",
       day: "numeric",
       month: "short",
       year: "numeric",

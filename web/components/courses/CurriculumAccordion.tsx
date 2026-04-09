@@ -7,11 +7,8 @@ import { itemUrl } from "@/lib/courseDb";
 import { colorTokens } from "@/lib/subjectColor";
 import type { CourseContext } from "@/lib/courseNav";
 
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
-function nowIST(): Date { return new Date(Date.now() + IST_OFFSET_MS); }
-
 function isLocked(item: LessonItemRow): boolean {
-  return !!item.unlockAt && new Date(item.unlockAt) > nowIST();
+  return !!item.unlockAt && new Date(item.unlockAt) > new Date();
 }
 
 // ── Product-type badge with icon ──────────────────────────────────────────────
@@ -140,7 +137,7 @@ function LessonItemRow_({
         {timeLocked && item.unlockAt && (
           <p className="text-[10px] text-amber-600 mt-0.5">
             Unlocks {new Intl.DateTimeFormat("en-IN", {
-              timeZone: "UTC",
+              timeZone: "Asia/Kolkata",
               day: "numeric",
               month: "short",
               year: "numeric",

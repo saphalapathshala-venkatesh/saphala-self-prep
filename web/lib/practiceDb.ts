@@ -69,7 +69,7 @@ async function _fetchDailyPractice(userId: string): Promise<PracticeSuggestion[]
       JOIN "TestSeries" ts ON ts.id = t."seriesId"
       WHERE t."isPublished" = true
         AND ts."isPublished" = true
-        AND (t."unlockAt" IS NULL OR t."unlockAt" <= NOW() + INTERVAL '5 hours 30 minutes')
+        AND (t."unlockAt" IS NULL OR t."unlockAt" <= NOW())
         AND NOT EXISTS (
           SELECT 1 FROM "Attempt" a
           WHERE a."testId" = t.id AND a."userId" = '${safeId}' AND a.status = 'SUBMITTED'
@@ -94,7 +94,7 @@ async function _fetchDailyPractice(userId: string): Promise<PracticeSuggestion[]
         AND a.status = 'SUBMITTED'
         AND t."isPublished" = true
         AND ts."isPublished" = true
-        AND (t."unlockAt" IS NULL OR t."unlockAt" <= NOW() + INTERVAL '5 hours 30 minutes')
+        AND (t."unlockAt" IS NULL OR t."unlockAt" <= NOW())
       ORDER BY a."testId", a."correctCount"::float /
         NULLIF(a."correctCount" + a."wrongCount" + a."unansweredCount", 0) ASC
       LIMIT 1
@@ -106,7 +106,7 @@ async function _fetchDailyPractice(userId: string): Promise<PracticeSuggestion[]
       FROM "Test" t
       JOIN "TestSeries" ts ON ts.id = t."seriesId"
       WHERE t."isPublished" = true AND ts."isPublished" = true
-        AND (t."unlockAt" IS NULL OR t."unlockAt" <= NOW() + INTERVAL '5 hours 30 minutes')
+        AND (t."unlockAt" IS NULL OR t."unlockAt" <= NOW())
       ORDER BY t."createdAt" DESC LIMIT 1
     `),
 
@@ -116,7 +116,7 @@ async function _fetchDailyPractice(userId: string): Promise<PracticeSuggestion[]
         (SELECT COUNT(*) FROM "FlashcardCard" fc WHERE fc."deckId" = fd.id)::int AS "cardCount"
       FROM "FlashcardDeck" fd
       WHERE fd."isPublished" = true
-        AND (fd."unlockAt" IS NULL OR fd."unlockAt" <= NOW() + INTERVAL '5 hours 30 minutes')
+        AND (fd."unlockAt" IS NULL OR fd."unlockAt" <= NOW())
         AND NOT EXISTS (
           SELECT 1 FROM "XpLedgerEntry" x
           WHERE x."userId" = '${safeId}'
@@ -133,7 +133,7 @@ async function _fetchDailyPractice(userId: string): Promise<PracticeSuggestion[]
         (SELECT COUNT(*) FROM "FlashcardCard" fc WHERE fc."deckId" = fd.id)::int AS "cardCount"
       FROM "FlashcardDeck" fd
       WHERE fd."isPublished" = true
-        AND (fd."unlockAt" IS NULL OR fd."unlockAt" <= NOW() + INTERVAL '5 hours 30 minutes')
+        AND (fd."unlockAt" IS NULL OR fd."unlockAt" <= NOW())
       ORDER BY fd."createdAt" DESC LIMIT 1
     `),
 
@@ -142,7 +142,7 @@ async function _fetchDailyPractice(userId: string): Promise<PracticeSuggestion[]
       SELECT cp.id, cp.title
       FROM "ContentPage" cp
       WHERE cp."isPublished" = true
-        AND (cp."unlockAt" IS NULL OR cp."unlockAt" <= NOW() + INTERVAL '5 hours 30 minutes')
+        AND (cp."unlockAt" IS NULL OR cp."unlockAt" <= NOW())
         AND NOT EXISTS (
           SELECT 1 FROM "XpLedgerEntry" x
           WHERE x."userId" = '${safeId}'
@@ -158,7 +158,7 @@ async function _fetchDailyPractice(userId: string): Promise<PracticeSuggestion[]
       SELECT cp.id, cp.title
       FROM "ContentPage" cp
       WHERE cp."isPublished" = true
-        AND (cp."unlockAt" IS NULL OR cp."unlockAt" <= NOW() + INTERVAL '5 hours 30 minutes')
+        AND (cp."unlockAt" IS NULL OR cp."unlockAt" <= NOW())
       ORDER BY cp."createdAt" DESC LIMIT 1
     `),
   ]);

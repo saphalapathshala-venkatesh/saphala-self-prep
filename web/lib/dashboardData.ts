@@ -67,7 +67,7 @@ async function getDashboardFreeTests(): Promise<DashboardFreeTest[]> {
       WHERE t."isPublished" = true
         AND ts."isPublished" = true
         AND (t."isFree" = true OR ts."isFree" = true)
-        AND (t."unlockAt" IS NULL OR t."unlockAt" <= NOW() + INTERVAL '5 hours 30 minutes')
+        AND (t."unlockAt" IS NULL OR t."unlockAt" <= NOW())
       ORDER BY t."createdAt" DESC
       LIMIT 3
     `);

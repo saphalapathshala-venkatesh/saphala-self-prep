@@ -1,8 +1,4 @@
 import { prisma } from "@/lib/db";
-import { nowIST } from "@/lib/formatIST";
-
-// SQL fragment: compare naive-IST unlockAt stored as UTC against IST now
-const IST_NOW_SQL = `NOW() + INTERVAL '5 hours 30 minutes'`;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,11 +47,10 @@ export function computeLiveStatus(row: LiveClassRow): {
   canJoin: boolean;
   joinOpensAt: string | null;  // "HH:MM AM/PM IST" label, or null
 } {
-  const now = new Date();        // real UTC time — used for join-window math
-  const nowIst = nowIST();       // naive-IST "fake" time — used for unlockAt check only
+  const now = new Date();
 
-  // UnlockAt gate — unlockAt is stored as naive IST; compare against nowIST()
-  if (row.unlockAt && row.unlockAt > nowIst) {
+  // UnlockAt gate — unlockAt is stored as true UTC (admin app appends +05:30 on save)
+  if (row.unlockAt && row.unlockAt > now) {
     return { liveStatus: "LOCKED", canJoin: false, joinOpensAt: null };
   }
 
@@ -311,7 +306,7 @@ export async function getDashboardLiveClass(userId: string): Promise<LiveClassSt
     FROM "LiveClass" lc
     LEFT JOIN "Faculty" f ON f.id = lc."facultyId"
     WHERE lc.status = 'PUBLISHED'
-      AND (lc."unlockAt" IS NULL OR lc."unlockAt" <= ${IST_NOW_SQL})
+      AND (lc."unlockAt" IS NULL OR lc."unlockAt" <= NOW())
     ORDER BY lc.id, lc."sessionDate" ASC NULLS LAST, lc."startTime" ASC NULLS LAST
     LIMIT 10
   `);
