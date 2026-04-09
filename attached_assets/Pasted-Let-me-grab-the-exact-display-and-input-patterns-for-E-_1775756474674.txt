@@ -1,0 +1,41 @@
+Let me grab the exact display and input patterns for E-books, PDFs, and flash the flashcard hint inconsistency I spotted:
+
+
+4 actions
+Let me also check the quiz page and the exact tests display, plus verify the flashcard inconsistency:
+
+
+2 actions
+Let me also check the toISTDatetimeLocal helper used in Tests and confirm the live-class edit load path:
+
+
+5 actions
+Now I have a complete picture. Here's the full breakdown:
+
+Unlock Time: Format & Timezone — All Product Types
+The Core Standard
+All product types share the same mechanism:
+
+Stage	Format	Notes
+Input widget	<input type="datetime-local" />	Browser renders as YYYY-MM-DD HH:mm — no timezone shown
+Intent	IST (UTC+5:30)	Whatever you type is treated as Indian Standard Time
+Sent to API	YYYY-MM-DDTHH:mm:00+05:30	:00+05:30 is hardcoded-appended before the fetch call
+Stored in DB	UTC	Node.js parses the +05:30 offset and stores the UTC equivalent in PostgreSQL
+Example	Admin types 10:30 → API receives 2025-05-15T10:30:00+05:30 → DB stores 05:00:00 UTC	
+Product-by-Product Detail
+Product	Preview hint below field	Edit page — loads existing time as
+Live Classes	✅ IST — "… IST onwards"	⚠️ UTC slice — shows UTC time in input
+Videos	✅ IST — "… IST onwards"	⚠️ UTC slice — shows UTC time in input
+E-books	✅ IST — "… IST onwards"	⚠️ UTC slice — shows UTC time in input
+PDFs	✅ IST — "… IST onwards"	⚠️ UTC slice — shows UTC time in input
+Flashcard Decks	⚠️ Browser local TZ — no IST enforcement	⚠️ UTC slice — shows UTC time in input
+Tests	✅ IST — "Access gated until … IST"	✅ Correct — converts UTC → IST via toISTDatetimeLocal()
+Two Issues Worth Knowing About
+1. Flashcard deck preview hint uses browser local timezone — the small text below the Unlock At field reads "Students can access this deck from … onwards" but uses new Date(value).toLocaleString() without any timezone specification. On a machine set to IST this appears correct, but it does not enforce IST display the way every other product does.
+
+2. Edit pages show the wrong time when re-opening a record — only the Tests page correctly converts existing unlock times back to IST for display in the input. All other products (Live Classes, Videos, E-books, PDFs, Flashcards) call .slice(0, 16) on the raw UTC ISO string returned by the API. For example, if you stored 10:30 AM IST, the edit form shows 5:00 AM in the input (the UTC equivalent). If an admin then saves without adjusting the time, the unlock shifts 5 hours 30 minutes earlier with each save.
+
+Summary in One Line
+The admin app treats all unlock times as IST (UTC+5:30) at the point of entry. Values are stored as UTC in the database. The +05:30 offset is appended as a hardcoded string during the API call. Tests is the only product type that correctly reconverts UTC → IST when populating the edit form; all others show the raw UTC time in the edit input.
+
+Would you like me to fix the two inconsistencies — the Flashcard preview hint and the UTC-in-edit-form issue for Live Classes, Videos, E-books, and PDFs?

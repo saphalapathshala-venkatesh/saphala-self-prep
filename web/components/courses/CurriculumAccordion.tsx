@@ -139,7 +139,12 @@ function LessonItemRow_({
         </p>
         {timeLocked && item.unlockAt && (
           <p className="text-[10px] text-amber-600 mt-0.5">
-            Unlocks {new Date(item.unlockAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+            Unlocks {new Intl.DateTimeFormat("en-IN", {
+              timeZone: "UTC",
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            }).format(new Date(item.unlockAt))}
           </p>
         )}
       </div>
