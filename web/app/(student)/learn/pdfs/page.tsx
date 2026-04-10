@@ -1,9 +1,11 @@
-import { getPublishedPdfs } from "@/lib/contentDb";
+import { getPublishedPdfs, getEntitledPdfIds } from "@/lib/contentDb";
+import { getCurrentUser } from "@/lib/auth";
 import LearnPageShell from "@/components/learn/LearnPageShell";
 import { PRODUCTS, ROUTES } from "@/config/terminology";
 import { getSubjectColor, colorTokens } from "@/lib/subjectColor";
 import { parseCourseContext, courseReturnUrl } from "@/lib/courseNav";
 import { isTimeLocked, formatUnlockAt } from "@/lib/formatUnlockAt";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +33,14 @@ export default async function PdfsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [pdfs, sp] = await Promise.all([getPublishedPdfs(), searchParams]);
+  const [user, pdfs, sp] = await Promise.all([getCurrentUser(), getPublishedPdfs(), searchParams]);
   const ctx = parseCourseContext(sp);
   const backHref = ctx ? courseReturnUrl(ctx) : ROUTES.dashboard;
+
+  const paidPdfIds = pdfs.filter((p) => !p.isFree).map((p) => p.id);
+  const entitledSet = user && paidPdfIds.length > 0
+    ? await getEntitledPdfIds(user.id, paidPdfIds)
+    : new Set<string>();
 
   return (
     <LearnPageShell
@@ -54,7 +61,9 @@ export default async function PdfsPage({
           {pdfs.map((pdf) => {
             const color = getSubjectColor(pdf.subjectColor, pdf.breadcrumb.subject);
             const tokens = colorTokens(color);
-            const locked = isTimeLocked(pdf.unlockAt);
+            const timeLocked = isTimeLocked(pdf.unlockAt);
+            const entitlementLocked = !pdf.isFree && !entitledSet.has(pdf.id);
+            const locked = timeLocked || entitlementLocked;
 
             return (
               <div
@@ -92,18 +101,26 @@ export default async function PdfsPage({
                     <p className="text-[10px] text-gray-400">{formatSize(pdf.fileSize)}</p>
                   )}
                   <div className="mt-auto pt-2">
-                    {locked && pdf.unlockAt ? (
+                    {timeLocked && pdf.unlockAt ? (
                       <p className="text-[10px] text-orange-600 flex items-center gap-1">
                         <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
                         </svg>
                         Unlocks {formatUnlockAt(pdf.unlockAt)}
                       </p>
+                    ) : entitlementLocked ? (
+                      <Link
+                        href="/courses"
+                        className="inline-flex items-center gap-1 text-[10px] text-[#6D4BCB] font-semibold hover:underline"
+                      >
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                        </svg>
+                        Purchase course to access
+                      </Link>
                     ) : (
                       <a
-                        href={pdf.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        href={`/learn/pdfs/${pdf.id}`}
                         className="inline-flex items-center gap-1.5 text-xs font-semibold hover:opacity-75 transition-opacity"
                         style={{ color: tokens.icon }}
                       >

@@ -123,7 +123,7 @@ export function itemUrl(item: LessonItemRow, ctx?: CourseContext): string | null
       base = item.sourceId ? `/learn/flashcards/${item.sourceId}` : null;
       break;
     case "PDF":
-      base = item.sourceId ? `/learn/pdfs` : null;
+      base = item.sourceId ? `/learn/pdfs/${item.sourceId}` : null;
       break;
     case "VIDEO":
       base = item.sourceId ? `/videos/${item.sourceId}` : null;
@@ -688,7 +688,7 @@ const LINKED_CONTENT_URL: Record<string, (id: string) => string> = {
   FLASHCARD_DECK: (id) => `/learn/flashcards/${id}`,
   HTML_PAGE:      (id) => `/learn/lessons/${id}`,
   EBOOK:          (id) => `/learn/lessons/${id}`,
-  PDF:            () => `/learn/pdfs`,
+  PDF:            (id) => `/learn/pdfs/${id}`,
   // TEST_SERIES contentId is a TestSeries.id — route to the series detail page,
   // NOT to /testhub/tests/[id]/brief which expects an individual Test.id.
   TEST_SERIES:    (id) => `/testhub/series/${id}`,

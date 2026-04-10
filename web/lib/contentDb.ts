@@ -267,6 +267,7 @@ export interface PublishedPdf {
   title: string;
   fileUrl: string;
   fileSize: number | null;
+  isFree: boolean;
   publishedAt: Date | null;
   unlockAt: Date | null;
   subjectColor: string | null;
@@ -283,6 +284,7 @@ type PdfRow = {
   title: string;
   fileUrl: string;
   fileSize: number | null;
+  isFree: boolean;
   publishedAt: Date | null;
   unlockAt: Date | null;
   categoryName: string | null;
@@ -303,6 +305,7 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
       pa.title,
       pa."fileUrl",
       pa."fileSize",
+      pa."isFree",
       pa."publishedAt",
       pa."unlockAt",
       cat.name   AS "categoryName",
@@ -324,6 +327,7 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
     title: r.title,
     fileUrl: r.fileUrl,
     fileSize: r.fileSize,
+    isFree: r.isFree ?? true,
     publishedAt: r.publishedAt,
     unlockAt: r.unlockAt,
     subjectColor: r.subjectColor ?? null,
@@ -337,6 +341,92 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
 
   _pdfsCache = { data, expiresAt: now + CACHE_TTL };
   return data;
+}
+
+/** Fetch a single published PDF by ID (bypasses cache — used on detail page). */
+export async function getPdfById(id: string): Promise<PublishedPdf | null> {
+  const safeId = id.replace(/'/g, "''");
+  const rows = await prisma.$queryRawUnsafe<PdfRow[]>(`
+    SELECT
+      pa.id,
+      pa.title,
+      pa."fileUrl",
+      pa."fileSize",
+      pa."isFree",
+      pa."publishedAt",
+      pa."unlockAt",
+      cat.name   AS "categoryName",
+      s.name     AS "subjectName",
+      s."subjectColor",
+      t.name     AS "topicName",
+      st.name    AS "subtopicName"
+    FROM "PdfAsset" pa
+    LEFT JOIN "Category" cat ON cat.id = pa."categoryId"
+    LEFT JOIN "Subject"  s   ON s.id   = pa."subjectId"
+    LEFT JOIN "Topic"    t   ON t.id   = pa."topicId"
+    LEFT JOIN "Subtopic" st  ON st.id  = pa."subtopicId"
+    WHERE pa."isPublished" = true AND pa.id = '${safeId}'
+    LIMIT 1
+  `);
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    id: r.id,
+    title: r.title,
+    fileUrl: r.fileUrl,
+    fileSize: r.fileSize,
+    isFree: r.isFree ?? true,
+    publishedAt: r.publishedAt,
+    unlockAt: r.unlockAt,
+    subjectColor: r.subjectColor ?? null,
+    breadcrumb: {
+      category: r.categoryName ?? null,
+      subject: r.subjectName ?? null,
+      topic: r.topicName ?? null,
+      subtopic: r.subtopicName ?? null,
+    },
+  };
+}
+
+/**
+ * Given a userId and a list of paid (isFree=false) PDF IDs, returns the subset
+ * the user can access because they purchased a course that contains that PDF.
+ */
+export async function getEntitledPdfIds(
+  userId: string,
+  paidPdfIds: string[],
+): Promise<Set<string>> {
+  if (paidPdfIds.length === 0) return new Set();
+  const safeUserId = userId.replace(/'/g, "''");
+  const idList = paidPdfIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
+
+  const rows = await prisma.$queryRawUnsafe<{ pdf_id: string }[]>(`
+    SELECT DISTINCT li."sourceId" AS pdf_id
+    FROM "LessonItem" li
+    JOIN "Lesson"              l   ON l.id   = li."lessonId"
+    JOIN "Chapter"             ch  ON ch.id  = l."chapterId"
+    JOIN "CourseSubjectSection" css ON css.id = ch."sectionId"
+    JOIN "UserEntitlement"     ue  ON ue."productCode" = css."courseId"
+    WHERE li."itemType"  = 'PDF'
+      AND li."sourceId"  IN (${idList})
+      AND ue."userId"    = '${safeUserId}'
+      AND ue.status      = 'ACTIVE'
+      AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+  `);
+
+  return new Set(rows.map((r) => r.pdf_id));
+}
+
+/**
+ * Check if a user can access a specific PDF (regardless of time-lock —
+ * that is handled separately in the curriculum accordion).
+ * Returns true if isFree OR if the user has an active entitlement for a
+ * course that contains this PDF.
+ */
+export async function canUserAccessPdf(userId: string, pdf: PublishedPdf): Promise<boolean> {
+  if (pdf.isFree) return true;
+  const entitled = await getEntitledPdfIds(userId, [pdf.id]);
+  return entitled.has(pdf.id);
 }
 
 // ── FlashcardDeck ─────────────────────────────────────────────────────────────
