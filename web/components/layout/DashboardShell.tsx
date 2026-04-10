@@ -13,8 +13,8 @@ export default function DashboardShell({ userName, children }: DashboardShellPro
 
   return (
     <div className="min-h-screen flex bg-gray-50">
-      {/* Desktop sidebar — always mounted; handles its own collapsed state */}
-      <div className="hidden lg:flex flex-shrink-0">
+      {/* Desktop sidebar — sticky to viewport so logout is always visible */}
+      <div className="hidden lg:flex flex-shrink-0 sticky top-0 h-screen">
         <Sidebar userName={userName} />
       </div>
 
