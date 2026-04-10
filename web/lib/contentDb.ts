@@ -212,7 +212,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     },
   });
 
-  if (!page || !page.isPublished) return null;
+  if (!page) return null;
   if (page.unlockAt && page.unlockAt > new Date()) return null;
 
   const subjectColor = page.subtopic?.topic.subject.subjectColor ?? null;
@@ -370,7 +370,7 @@ export async function getPdfById(id: string): Promise<PublishedPdf | null> {
     LEFT JOIN "Subject"  s   ON s.id   = pa."subjectId"
     LEFT JOIN "Topic"    t   ON t.id   = pa."topicId"
     LEFT JOIN "Subtopic" st  ON st.id  = pa."subtopicId"
-    WHERE pa."isPublished" = true AND pa.id = '${safeId}'
+    WHERE pa.id = '${safeId}'
     LIMIT 1
   `);
   const r = rows[0];
@@ -380,7 +380,7 @@ export async function getPdfById(id: string): Promise<PublishedPdf | null> {
     title: r.title,
     fileUrl: r.fileUrl,
     fileSize: r.fileSize,
-    isFree: r.isFree ?? true,
+    isFree: r.isFree ?? false,
     publishedAt: r.publishedAt,
     unlockAt: r.unlockAt,
     subjectColor: r.subjectColor ?? null,
@@ -658,7 +658,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
   ]);
 
   const deck = deckRows[0];
-  if (!deck || !deck.isPublished) return null;
+  if (!deck) return null;
   if (deck.unlockAt && new Date(deck.unlockAt) > new Date()) return null;
 
   return {
