@@ -488,7 +488,7 @@ model FlashcardDeck {
   subtopicId     String?
   subtopic       Subtopic? @relation(fields: [subtopicId], references: [id], onDelete: SetNull)
   // isFree=true: all logged-in students; isFree=false: requires course purchase
-  isFree         Boolean @default(true)
+  isFree         Boolean @default(false)
   isPublished    Boolean @default(false)
   unlockAt       DateTime?
   createdById    String
@@ -532,7 +532,7 @@ model ContentPage {
   // Legacy single-page body — new ebooks use EBookPage chapters instead
   body        String
   // isFree=true: all logged-in students; isFree=false: requires course purchase
-  isFree      Boolean @default(true)
+  isFree      Boolean @default(false)
   isPublished Boolean @default(false)
   publishedAt DateTime?
   unlockAt    DateTime?

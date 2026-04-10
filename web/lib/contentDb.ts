@@ -573,7 +573,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
   const data: PublishedDeck[] = rows.map((r) => ({
     id: r.id,
     title: r.title,
-    isFree: r.isFree ?? true,
+    isFree: r.isFree ?? false,
     subtitle: r.subtitle,
     description: r.description,
     cardCount: r.cardCount,
@@ -664,7 +664,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
   return {
     id: deck.id,
     title: deck.title,
-    isFree: deck.isFree ?? true,
+    isFree: deck.isFree ?? false,
     subtitle: deck.subtitle,
     description: deck.description,
     cardCount: deck.cardCount,
