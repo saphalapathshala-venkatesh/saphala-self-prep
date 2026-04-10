@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type LiveStatus = "UPCOMING" | "LIVE_NOW" | "COMPLETED" | "LOCKED" | "ENDED";
+export type LiveStatus = "UPCOMING" | "LIVE_NOW" | "COMPLETED" | "LOCKED" | "ENDED" | "TIME_LOCKED";
 
 export interface LiveClassRow {
   id: string;
@@ -49,9 +49,9 @@ export function computeLiveStatus(row: LiveClassRow): {
 } {
   const now = new Date();
 
-  // UnlockAt gate — unlockAt is stored as true UTC (admin app appends +05:30 on save)
+  // Time gate — unlockAt is stored as true UTC (admin app appends +05:30 on save)
   if (row.unlockAt && row.unlockAt > now) {
-    return { liveStatus: "LOCKED", canJoin: false, joinOpensAt: null };
+    return { liveStatus: "TIME_LOCKED", canJoin: false, joinOpensAt: null };
   }
 
   // Entitlement gate — PAID class with no entitlement

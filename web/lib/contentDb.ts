@@ -92,6 +92,7 @@ export interface PublishedLesson {
   id: string;
   title: string;
   publishedAt: Date | null;
+  unlockAt: Date | null;
   subjectColor: string | null;
   breadcrumb: LessonBreadcrumb;
 }
@@ -117,13 +118,13 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
   const pages = await prisma.contentPage.findMany({
     where: {
       isPublished: true,
-      OR: [{ unlockAt: null }, { unlockAt: { lte: new Date() } }],
     },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
       title: true,
       publishedAt: true,
+      unlockAt: true,
       subtopic: {
         select: {
           name: true,
@@ -150,6 +151,7 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
     id: p.id,
     title: p.title,
     publishedAt: p.publishedAt,
+    unlockAt: p.unlockAt,
     subjectColor: p.subtopic?.topic.subject.subjectColor ?? null,
     breadcrumb: {
       category: p.subtopic?.topic.subject.category.name ?? null,
@@ -244,6 +246,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     title: page.title,
     body: resolvedBody,
     publishedAt: page.publishedAt,
+    unlockAt: page.unlockAt,
     xpEnabled: page.xpEnabled,
     xpValue: page.xpValue,
     subjectColor,
@@ -265,6 +268,7 @@ export interface PublishedPdf {
   fileUrl: string;
   fileSize: number | null;
   publishedAt: Date | null;
+  unlockAt: Date | null;
   subjectColor: string | null;
   breadcrumb: {
     category: string | null;
@@ -280,6 +284,7 @@ type PdfRow = {
   fileUrl: string;
   fileSize: number | null;
   publishedAt: Date | null;
+  unlockAt: Date | null;
   categoryName: string | null;
   subjectName: string | null;
   subjectColor: string | null;
@@ -299,6 +304,7 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
       pa."fileUrl",
       pa."fileSize",
       pa."publishedAt",
+      pa."unlockAt",
       cat.name   AS "categoryName",
       s.name     AS "subjectName",
       s."subjectColor",
@@ -310,7 +316,6 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
     LEFT JOIN "Topic"    t   ON t.id   = pa."topicId"
     LEFT JOIN "Subtopic" st  ON st.id  = pa."subtopicId"
     WHERE pa."isPublished" = true
-      AND (pa."unlockAt" IS NULL OR pa."unlockAt" <= NOW())
     ORDER BY pa."createdAt" DESC
   `);
 
@@ -320,6 +325,7 @@ export async function getPublishedPdfs(): Promise<PublishedPdf[]> {
     fileUrl: r.fileUrl,
     fileSize: r.fileSize,
     publishedAt: r.publishedAt,
+    unlockAt: r.unlockAt,
     subjectColor: r.subjectColor ?? null,
     breadcrumb: {
       category: r.categoryName ?? null,
@@ -341,6 +347,7 @@ export interface PublishedDeck {
   subtitle: string | null;
   description: string | null;
   cardCount: number;
+  unlockAt: Date | null;
   subjectColor: string | null;
   xpEnabled: boolean;
   xpValue: number;
@@ -370,6 +377,7 @@ type DeckRow = {
   title: string;
   subtitle: string | null;
   description: string | null;
+  unlockAt: Date | null;
   deckSubjectColor: string | null;
   xpEnabled: boolean;
   xpValue: number;
@@ -392,6 +400,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
       fd.title,
       fd.subtitle,
       fd.description,
+      fd."unlockAt",
       fd."subjectColor"          AS "deckSubjectColor",
       fd."xpEnabled",
       fd."xpValue",
@@ -407,7 +416,6 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
     LEFT JOIN "Subject"  s   ON s.id   = fd."subjectId"
     LEFT JOIN "Topic"    t   ON t.id   = fd."topicId"
     WHERE fd."isPublished" = true
-      AND (fd."unlockAt" IS NULL OR fd."unlockAt" <= NOW())
     ORDER BY fd."createdAt" DESC
   `);
 
@@ -417,6 +425,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
     subtitle: r.subtitle,
     description: r.description,
     cardCount: r.cardCount,
+    unlockAt: r.unlockAt,
     // Priority: Subject.subjectColor → FlashcardDeck.subjectColor → null
     subjectColor: r.subjectColor ?? r.deckSubjectColor ?? null,
     xpEnabled: r.xpEnabled,
@@ -504,6 +513,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
     subtitle: deck.subtitle,
     description: deck.description,
     cardCount: deck.cardCount,
+    unlockAt: deck.unlockAt,
     subjectColor: deck.subjectColor ?? deck.deckSubjectColor ?? null,
     xpEnabled: deck.xpEnabled,
     xpValue: deck.xpValue,

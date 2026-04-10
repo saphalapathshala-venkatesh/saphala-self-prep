@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { LiveStatus } from "@/lib/liveClassDb";
 import LiveClassAutoRefresh from "@/components/live-classes/LiveClassAutoRefresh";
+import { formatUnlockAt } from "@/lib/formatUnlockAt";
 
 export interface LiveClassCardData {
   id: string;
@@ -23,6 +24,7 @@ export interface LiveClassCardData {
   replayVideoId: string | null;
   courseId: string | null;
   isEntitled: boolean;
+  unlockAt: string | null;
 }
 
 // ── Status badge ─────────────────────────────────────────────────────────────
@@ -80,6 +82,15 @@ function StatusBadge({ status, isEntitled }: { status: LiveStatus; isEntitled: b
           Locked
         </span>
       );
+    case "TIME_LOCKED":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 ring-1 ring-orange-200">
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+          </svg>
+          Coming Soon
+        </span>
+      );
     default:
       return null;
   }
@@ -117,7 +128,8 @@ function formatDate(sessionDate: string | null, startTime: string | null, endTim
 // ── Card ──────────────────────────────────────────────────────────────────────
 
 export default function LiveClassCard({ cls }: { cls: LiveClassCardData }) {
-  const effectiveLocked   = !cls.isEntitled || cls.liveStatus === "LOCKED";
+  const isTimeLocked      = cls.liveStatus === "TIME_LOCKED";
+  const effectiveLocked   = !cls.isEntitled || cls.liveStatus === "LOCKED" || isTimeLocked;
   const isLive            = cls.liveStatus === "LIVE_NOW" && cls.isEntitled;
   const isUpcoming        = cls.liveStatus === "UPCOMING" && cls.isEntitled;
   const isCompleted       = (cls.liveStatus === "COMPLETED" || cls.liveStatus === "ENDED");
@@ -189,8 +201,18 @@ export default function LiveClassCard({ cls }: { cls: LiveClassCardData }) {
 
         {/* CTA */}
         <div className="pt-1">
-          {/* Locked — not entitled */}
-          {effectiveLocked && !isCompleted && (
+          {/* Time-locked — not yet available */}
+          {isTimeLocked && cls.unlockAt && (
+            <p className="text-xs text-orange-700 bg-orange-50 rounded-lg px-3 py-2 flex items-center gap-1.5">
+              <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+              </svg>
+              Unlocks {formatUnlockAt(cls.unlockAt)}
+            </p>
+          )}
+
+          {/* Entitlement-locked */}
+          {!isTimeLocked && !cls.isEntitled && !isCompleted && (
             <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />

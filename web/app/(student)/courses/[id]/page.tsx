@@ -460,6 +460,7 @@ export default async function CourseDetailPage({
                 replayVideoId: cls.replayVideoId,
                 courseId:      cls.courseId,
                 isEntitled:    cls.isEntitled,
+                unlockAt:      cls.unlockAt ? cls.unlockAt.toISOString() : null,
               };
               return <LiveClassCard key={cls.id} cls={cardData} />;
             })}

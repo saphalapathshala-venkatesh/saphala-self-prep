@@ -135,13 +135,16 @@ function LessonItemRow_({
           {item.titleSnapshot}
         </p>
         {timeLocked && item.unlockAt && (
-          <p className="text-[10px] text-amber-600 mt-0.5">
-            Unlocks {new Intl.DateTimeFormat("en-IN", {
+          <p className="text-[10px] text-orange-600 mt-0.5">
+            Unlocks {new Date(item.unlockAt).toLocaleString("en-IN", {
               timeZone: "Asia/Kolkata",
               day: "numeric",
               month: "short",
               year: "numeric",
-            }).format(new Date(item.unlockAt))}
+              hour: "numeric",
+              minute: "2-digit",
+              hour12: true,
+            })} IST
           </p>
         )}
       </div>

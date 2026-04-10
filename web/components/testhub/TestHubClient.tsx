@@ -27,12 +27,15 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
       : tests.filter((t) => t.category === selectedCategory);
 
   function formatScheduledDate(iso: string): string {
-    return new Intl.DateTimeFormat("en-IN", {
+    return new Date(iso).toLocaleString("en-IN", {
       timeZone: "Asia/Kolkata",
       day: "numeric",
       month: "short",
       year: "numeric",
-    }).format(new Date(iso));
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }) + " IST";
   }
 
   function handleAttempt(test: StudentTestItem) {
@@ -149,7 +152,7 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
                     }`}
                   >
                     {isScheduled
-                      ? `Available ${formatScheduledDate(test.scheduledUntil!)}`
+                      ? `Unlocks ${formatScheduledDate(test.scheduledUntil!)}`
                       : isLocked
                       ? "View Access"
                       : test.attemptsExhausted
@@ -161,8 +164,8 @@ export default function TestHubClient({ initialTests }: TestHubClientProps) {
                       : "Start Test"}
                   </button>
                   {isScheduled && (
-                    <p className="text-center text-xs text-orange-400 mt-2">
-                      Opens on {formatScheduledDate(test.scheduledUntil!)}
+                    <p className="text-center text-xs text-orange-500 mt-2">
+                      Unlocks {formatScheduledDate(test.scheduledUntil!)}
                     </p>
                   )}
                   {isLocked && (

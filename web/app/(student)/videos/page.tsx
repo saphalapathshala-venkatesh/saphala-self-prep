@@ -2,13 +2,15 @@ import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getVideosForStudent, formatDuration } from "@/lib/videoDb";
 import Link from "next/link";
+import { isTimeLocked, formatUnlockAt } from "@/lib/formatUnlockAt";
 
 export const dynamic = "force-dynamic";
 
 function VideoCard({ video }: {
   video: Awaited<ReturnType<typeof getVideosForStudent>>[0];
 }) {
-  const isLocked = !video.isEntitled && !video.allowPreview;
+  const isTimeLockedVideo = isTimeLocked(video.unlockAt);
+  const isLocked = isTimeLockedVideo || (!video.isEntitled && !video.allowPreview);
   const duration = formatDuration(video.durationSeconds);
 
   return (
@@ -75,14 +77,21 @@ function VideoCard({ video }: {
         {video.facultyName && (
           <p className="text-xs text-gray-500">{video.facultyName}</p>
         )}
-        {isLocked && (
+        {isTimeLockedVideo && video.unlockAt ? (
+          <p className="text-xs text-orange-600 flex items-center gap-1">
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+            </svg>
+            Unlocks {formatUnlockAt(video.unlockAt)}
+          </p>
+        ) : isLocked ? (
           <p className="text-xs text-amber-700 flex items-center gap-1">
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             Enroll to watch
           </p>
-        )}
+        ) : null}
       </div>
     </Link>
   );

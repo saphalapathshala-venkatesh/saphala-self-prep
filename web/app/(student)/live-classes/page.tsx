@@ -12,10 +12,11 @@ export default async function LiveClassesPage() {
 
   const classes = await getLiveClassesForStudent({ userId: user.id, limit: 50 });
 
-  const live     = classes.filter((c) => c.liveStatus === "LIVE_NOW");
-  const upcoming = classes.filter((c) => c.liveStatus === "UPCOMING");
-  const ended    = classes.filter((c) => c.liveStatus === "ENDED" || c.liveStatus === "COMPLETED");
-  const locked   = classes.filter((c) => c.liveStatus === "LOCKED");
+  const live       = classes.filter((c) => c.liveStatus === "LIVE_NOW");
+  const upcoming   = classes.filter((c) => c.liveStatus === "UPCOMING");
+  const ended      = classes.filter((c) => c.liveStatus === "ENDED" || c.liveStatus === "COMPLETED");
+  const locked     = classes.filter((c) => c.liveStatus === "LOCKED");
+  const timeLocked = classes.filter((c) => c.liveStatus === "TIME_LOCKED");
 
   const toCardData = (c: typeof classes[0]): LiveClassCardData => ({
     id:            c.id,
@@ -36,6 +37,7 @@ export default async function LiveClassesPage() {
     replayVideoId: c.replayVideoId,
     courseId:      c.courseId,
     isEntitled:    c.isEntitled,
+    unlockAt:      c.unlockAt ? c.unlockAt.toISOString() : null,
   });
 
   const isEmpty = classes.length === 0;
@@ -81,7 +83,17 @@ export default async function LiveClassesPage() {
         </section>
       )}
 
-      {/* Locked */}
+      {/* Time-locked (not yet available) */}
+      {timeLocked.length > 0 && (
+        <section>
+          <h2 className="text-base font-bold text-[#2D1B69] mb-4">Coming Soon</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {timeLocked.map((cls) => <LiveClassCard key={cls.id} cls={toCardData(cls)} />)}
+          </div>
+        </section>
+      )}
+
+      {/* Entitlement-locked */}
       {locked.length > 0 && (
         <section>
           <h2 className="text-base font-bold text-[#2D1B69] mb-4">Restricted Classes</h2>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { stripHtml } from "@/lib/sanitizeHtml";
 import LearnPageShell from "@/components/learn/LearnPageShell";
 import { PRODUCTS } from "@/config/terminology";
+import { isTimeLocked, formatUnlockAt } from "@/lib/formatUnlockAt";
 
 export const dynamic = "force-dynamic";
 
@@ -25,36 +26,41 @@ export default async function FlashcardsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {decks.map((deck) => {
+            const locked = isTimeLocked(deck.unlockAt);
             const label =
               deck.breadcrumb.topic ??
               deck.breadcrumb.subject ??
               deck.breadcrumb.category ??
               null;
 
-            return (
-              <Link
-                key={deck.id}
-                href={`/learn/flashcards/${deck.id}`}
-                className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
-              >
-                {/* Thumbnail: subject color when set, default yellow gradient otherwise */}
+            const cardBody = (
+              <>
+                {/* Thumbnail */}
                 <div
-                  className="h-24 flex items-center justify-center px-5"
+                  className="h-24 flex items-center justify-center px-5 relative"
                   style={
-                    deck.subjectColor
+                    locked
+                      ? { backgroundColor: "#f3f4f6" }
+                      : deck.subjectColor
                       ? { backgroundColor: deck.subjectColor }
                       : { background: "linear-gradient(to bottom right, #FFF8DC, #FFF3A3)" }
                   }
                 >
-                  <svg
-                    className={`w-10 h-10 opacity-70 ${deck.subjectColor ? "text-white" : "text-yellow-500"}`}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
-                  </svg>
+                  {locked ? (
+                    <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  ) : (
+                    <svg
+                      className={`w-10 h-10 opacity-70 ${deck.subjectColor ? "text-white" : "text-yellow-500"}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
+                    </svg>
+                  )}
                 </div>
                 <div className="p-4 flex flex-col flex-1">
                   {label && (
@@ -62,21 +68,51 @@ export default async function FlashcardsPage() {
                       {label}
                     </span>
                   )}
-                  <h3 className="font-bold text-[#2D1B69] text-sm leading-snug line-clamp-2 flex-1 group-hover:text-[#6D4BCB] transition-colors">
+                  <h3 className={`font-bold text-sm leading-snug line-clamp-2 flex-1 ${locked ? "text-gray-400" : "text-[#2D1B69] group-hover:text-[#6D4BCB] transition-colors"}`}>
                     {deck.title}
                   </h3>
-                  {deck.description && (
+                  {!locked && deck.description && (
                     <p className="text-xs text-gray-500 line-clamp-1 mt-1">{stripHtml(deck.description)}</p>
                   )}
-                  <div className="flex items-center justify-between mt-3">
-                    <span className="text-xs text-gray-400">
-                      {deck.cardCount} card{deck.cardCount !== 1 ? "s" : ""}
-                    </span>
-                    <span className="text-xs font-semibold text-[#6D4BCB] group-hover:underline">
-                      Study →
-                    </span>
-                  </div>
+                  {locked && deck.unlockAt ? (
+                    <p className="text-[10px] text-orange-600 mt-2 flex items-center gap-1">
+                      <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+                      </svg>
+                      Unlocks {formatUnlockAt(deck.unlockAt)}
+                    </p>
+                  ) : (
+                    <div className="flex items-center justify-between mt-3">
+                      <span className="text-xs text-gray-400">
+                        {deck.cardCount} card{deck.cardCount !== 1 ? "s" : ""}
+                      </span>
+                      <span className="text-xs font-semibold text-[#6D4BCB] group-hover:underline">
+                        Study →
+                      </span>
+                    </div>
+                  )}
                 </div>
+              </>
+            );
+
+            if (locked) {
+              return (
+                <div
+                  key={deck.id}
+                  className="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col overflow-hidden opacity-70 cursor-not-allowed"
+                >
+                  {cardBody}
+                </div>
+              );
+            }
+
+            return (
+              <Link
+                key={deck.id}
+                href={`/learn/flashcards/${deck.id}`}
+                className="group bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col overflow-hidden"
+              >
+                {cardBody}
               </Link>
             );
           })}

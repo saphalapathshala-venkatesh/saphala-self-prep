@@ -107,7 +107,6 @@ export async function getVideosForStudent(opts: {
     LEFT JOIN "Faculty" f ON f.id = v."facultyId"
     LEFT JOIN "Course"  c ON c.id = v."courseId"
     WHERE ${where}
-      AND (v."unlockAt" IS NULL OR v."unlockAt" <= NOW() OR ${videoEntitlementExpr(userId)})
     ORDER BY v."publishedAt" DESC NULLS LAST, v."createdAt" DESC
     LIMIT ${Number(limit)}
   `);
