@@ -1,4 +1,5 @@
-import { getPublishedLessons } from "@/lib/contentDb";
+import { getPublishedLessons, getEntitledLessonIds } from "@/lib/contentDb";
+import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import LearnPageShell from "@/components/learn/LearnPageShell";
 import { PRODUCTS } from "@/config/terminology";
@@ -22,7 +23,12 @@ function Breadcrumb({
 }
 
 export default async function LessonsPage() {
-  const lessons = await getPublishedLessons();
+  const [user, lessons] = await Promise.all([getCurrentUser(), getPublishedLessons()]);
+
+  const paidLessonIds = lessons.filter((l) => !l.isFree).map((l) => l.id);
+  const entitledSet = user && paidLessonIds.length > 0
+    ? await getEntitledLessonIds(user.id, paidLessonIds)
+    : new Set<string>();
 
   return (
     <LearnPageShell
@@ -42,7 +48,9 @@ export default async function LessonsPage() {
           {lessons.map((lesson) => {
             const color = getSubjectColor(lesson.subjectColor, lesson.breadcrumb.subject);
             const tokens = colorTokens(color);
-            const locked = isTimeLocked(lesson.unlockAt);
+            const timeLocked = isTimeLocked(lesson.unlockAt);
+            const entitlementLocked = !lesson.isFree && !entitledSet.has(lesson.id);
+            const locked = timeLocked || entitlementLocked;
 
             const cardBody = (
               <>
@@ -72,12 +80,22 @@ export default async function LessonsPage() {
                   <h3 className={`font-semibold text-sm leading-snug line-clamp-3 mt-0.5 ${locked ? "text-gray-400" : "text-[#2D1B69]"}`}>
                     {lesson.title}
                   </h3>
-                  {locked && lesson.unlockAt && (
+                  {timeLocked && lesson.unlockAt && (
                     <p className="text-[10px] text-orange-600 mt-1 flex items-center gap-1">
                       <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
                       </svg>
                       Unlocks {formatUnlockAt(lesson.unlockAt)}
+                    </p>
+                  )}
+                  {entitlementLocked && (
+                    <p className="text-[10px] text-purple-600 mt-1 flex items-center gap-1">
+                      <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <Link href="/courses" className="underline underline-offset-2 hover:text-purple-800">
+                        Purchase course to access
+                      </Link>
                     </p>
                   )}
                 </div>

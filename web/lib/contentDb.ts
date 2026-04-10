@@ -91,6 +91,7 @@ export interface LessonBreadcrumb {
 export interface PublishedLesson {
   id: string;
   title: string;
+  isFree: boolean;
   publishedAt: Date | null;
   unlockAt: Date | null;
   subjectColor: string | null;
@@ -123,6 +124,7 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
     select: {
       id: true,
       title: true,
+      isFree: true,
       publishedAt: true,
       unlockAt: true,
       subtopic: {
@@ -150,6 +152,7 @@ export async function getPublishedLessons(): Promise<PublishedLesson[]> {
   const data: PublishedLesson[] = pages.map((p) => ({
     id: p.id,
     title: p.title,
+    isFree: p.isFree,
     publishedAt: p.publishedAt,
     unlockAt: p.unlockAt,
     subjectColor: p.subtopic?.topic.subject.subjectColor ?? null,
@@ -172,6 +175,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
       id: true,
       title: true,
       body: true,
+      isFree: true,
       xpEnabled: true,
       xpValue: true,
       isPublished: true,
@@ -245,6 +249,7 @@ export async function getLessonById(id: string): Promise<LessonDetail | null> {
     id: page.id,
     title: page.title,
     body: resolvedBody,
+    isFree: page.isFree,
     publishedAt: page.publishedAt,
     unlockAt: page.unlockAt,
     xpEnabled: page.xpEnabled,
@@ -388,45 +393,98 @@ export async function getPdfById(id: string): Promise<PublishedPdf | null> {
   };
 }
 
+// ── Shared entitlement engine ──────────────────────────────────────────────────
+// Entitlement trace:
+//   LessonItem (itemType + sourceId)
+//   → Lesson → Chapter → CourseSubjectSection
+//   → UserEntitlement (productCode = courseId, status = ACTIVE)
+
+type CurriculumItemType = "PDF" | "HTML_PAGE" | "FLASHCARD_DECK";
+
 /**
- * Given a userId and a list of paid (isFree=false) PDF IDs, returns the subset
- * the user can access because they purchased a course that contains that PDF.
+ * Generic entitlement query: given a userId and a list of source IDs for a
+ * specific itemType, returns the subset the user can access through an active
+ * course purchase.
  */
+async function getEntitledContentIds(
+  userId: string,
+  itemType: CurriculumItemType,
+  sourceIds: string[],
+): Promise<Set<string>> {
+  if (sourceIds.length === 0) return new Set();
+  const safeUserId = userId.replace(/'/g, "''");
+  const safeType = itemType.replace(/'/g, "''");
+  const idList = sourceIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
+
+  const rows = await prisma.$queryRawUnsafe<{ source_id: string }[]>(`
+    SELECT DISTINCT li."sourceId" AS source_id
+    FROM "LessonItem" li
+    JOIN "Lesson"               l   ON l.id   = li."lessonId"
+    JOIN "Chapter"              ch  ON ch.id  = l."chapterId"
+    JOIN "CourseSubjectSection" css ON css.id = ch."sectionId"
+    JOIN "UserEntitlement"      ue  ON ue."productCode" = css."courseId"
+    WHERE li."itemType" = '${safeType}'
+      AND li."sourceId" IN (${idList})
+      AND ue."userId"   = '${safeUserId}'
+      AND ue.status     = 'ACTIVE'
+      AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
+  `);
+
+  return new Set(rows.map((r) => r.source_id));
+}
+
+/** Returns the subset of paid PDF IDs the user can access via course purchase. */
 export async function getEntitledPdfIds(
   userId: string,
   paidPdfIds: string[],
 ): Promise<Set<string>> {
-  if (paidPdfIds.length === 0) return new Set();
-  const safeUserId = userId.replace(/'/g, "''");
-  const idList = paidPdfIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
+  return getEntitledContentIds(userId, "PDF", paidPdfIds);
+}
 
-  const rows = await prisma.$queryRawUnsafe<{ pdf_id: string }[]>(`
-    SELECT DISTINCT li."sourceId" AS pdf_id
-    FROM "LessonItem" li
-    JOIN "Lesson"              l   ON l.id   = li."lessonId"
-    JOIN "Chapter"             ch  ON ch.id  = l."chapterId"
-    JOIN "CourseSubjectSection" css ON css.id = ch."sectionId"
-    JOIN "UserEntitlement"     ue  ON ue."productCode" = css."courseId"
-    WHERE li."itemType"  = 'PDF'
-      AND li."sourceId"  IN (${idList})
-      AND ue."userId"    = '${safeUserId}'
-      AND ue.status      = 'ACTIVE'
-      AND (ue."validUntil" IS NULL OR ue."validUntil" > NOW())
-  `);
+/** Returns the subset of paid flashcard deck IDs the user can access via course purchase. */
+export async function getEntitledDeckIds(
+  userId: string,
+  paidDeckIds: string[],
+): Promise<Set<string>> {
+  return getEntitledContentIds(userId, "FLASHCARD_DECK", paidDeckIds);
+}
 
-  return new Set(rows.map((r) => r.pdf_id));
+/** Returns the subset of paid lesson (ebook) IDs the user can access via course purchase. */
+export async function getEntitledLessonIds(
+  userId: string,
+  paidLessonIds: string[],
+): Promise<Set<string>> {
+  return getEntitledContentIds(userId, "HTML_PAGE", paidLessonIds);
 }
 
 /**
- * Check if a user can access a specific PDF (regardless of time-lock —
- * that is handled separately in the curriculum accordion).
- * Returns true if isFree OR if the user has an active entitlement for a
- * course that contains this PDF.
+ * Returns true if the user can access this PDF: either it's free or they
+ * have an active entitlement through a course purchase.
  */
-export async function canUserAccessPdf(userId: string, pdf: PublishedPdf): Promise<boolean> {
+export async function canUserAccessPdf(userId: string, pdf: { id: string; isFree: boolean }): Promise<boolean> {
   if (pdf.isFree) return true;
-  const entitled = await getEntitledPdfIds(userId, [pdf.id]);
+  const entitled = await getEntitledContentIds(userId, "PDF", [pdf.id]);
   return entitled.has(pdf.id);
+}
+
+/**
+ * Returns true if the user can access this flashcard deck: either it's free
+ * or they have an active entitlement through a course purchase.
+ */
+export async function canUserAccessDeck(userId: string, deck: { id: string; isFree: boolean }): Promise<boolean> {
+  if (deck.isFree) return true;
+  const entitled = await getEntitledContentIds(userId, "FLASHCARD_DECK", [deck.id]);
+  return entitled.has(deck.id);
+}
+
+/**
+ * Returns true if the user can access this lesson (ebook): either it's free
+ * or they have an active entitlement through a course purchase.
+ */
+export async function canUserAccessLesson(userId: string, lesson: { id: string; isFree: boolean }): Promise<boolean> {
+  if (lesson.isFree) return true;
+  const entitled = await getEntitledContentIds(userId, "HTML_PAGE", [lesson.id]);
+  return entitled.has(lesson.id);
 }
 
 // ── FlashcardDeck ─────────────────────────────────────────────────────────────
@@ -434,6 +492,7 @@ export async function canUserAccessPdf(userId: string, pdf: PublishedPdf): Promi
 export interface PublishedDeck {
   id: string;
   title: string;
+  isFree: boolean;
   subtitle: string | null;
   description: string | null;
   cardCount: number;
@@ -465,6 +524,7 @@ export interface DeckDetail extends PublishedDeck {
 type DeckRow = {
   id: string;
   title: string;
+  isFree: boolean;
   subtitle: string | null;
   description: string | null;
   unlockAt: Date | null;
@@ -488,6 +548,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
     SELECT
       fd.id,
       fd.title,
+      fd."isFree",
       fd.subtitle,
       fd.description,
       fd."unlockAt",
@@ -512,6 +573,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
   const data: PublishedDeck[] = rows.map((r) => ({
     id: r.id,
     title: r.title,
+    isFree: r.isFree ?? true,
     subtitle: r.subtitle,
     description: r.description,
     cardCount: r.cardCount,
@@ -534,6 +596,7 @@ export async function getPublishedDecks(): Promise<PublishedDeck[]> {
 type DeckDetailRow = {
   id: string;
   title: string;
+  isFree: boolean;
   subtitle: string | null;
   description: string | null;
   isPublished: boolean;
@@ -557,6 +620,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
       SELECT
         fd.id,
         fd.title,
+        fd."isFree",
         fd.subtitle,
         fd.description,
         fd."isPublished",
@@ -600,6 +664,7 @@ export async function getDeckById(id: string): Promise<DeckDetail | null> {
   return {
     id: deck.id,
     title: deck.title,
+    isFree: deck.isFree ?? true,
     subtitle: deck.subtitle,
     description: deck.description,
     cardCount: deck.cardCount,

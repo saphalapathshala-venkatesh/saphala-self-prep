@@ -1,4 +1,5 @@
-import { getPublishedDecks } from "@/lib/contentDb";
+import { getPublishedDecks, getEntitledDeckIds } from "@/lib/contentDb";
+import { getCurrentUser } from "@/lib/auth";
 import Link from "next/link";
 import { stripHtml } from "@/lib/sanitizeHtml";
 import LearnPageShell from "@/components/learn/LearnPageShell";
@@ -8,7 +9,12 @@ import { isTimeLocked, formatUnlockAt } from "@/lib/formatUnlockAt";
 export const dynamic = "force-dynamic";
 
 export default async function FlashcardsPage() {
-  const decks = await getPublishedDecks();
+  const [user, decks] = await Promise.all([getCurrentUser(), getPublishedDecks()]);
+
+  const paidDeckIds = decks.filter((d) => !d.isFree).map((d) => d.id);
+  const entitledSet = user && paidDeckIds.length > 0
+    ? await getEntitledDeckIds(user.id, paidDeckIds)
+    : new Set<string>();
 
   return (
     <LearnPageShell
@@ -26,7 +32,9 @@ export default async function FlashcardsPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {decks.map((deck) => {
-            const locked = isTimeLocked(deck.unlockAt);
+            const timeLocked = isTimeLocked(deck.unlockAt);
+            const entitlementLocked = !deck.isFree && !entitledSet.has(deck.id);
+            const locked = timeLocked || entitlementLocked;
             const label =
               deck.breadcrumb.topic ??
               deck.breadcrumb.subject ??
@@ -74,12 +82,21 @@ export default async function FlashcardsPage() {
                   {!locked && deck.description && (
                     <p className="text-xs text-gray-500 line-clamp-1 mt-1">{stripHtml(deck.description)}</p>
                   )}
-                  {locked && deck.unlockAt ? (
+                  {timeLocked && deck.unlockAt ? (
                     <p className="text-[10px] text-orange-600 mt-2 flex items-center gap-1">
                       <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
                       </svg>
                       Unlocks {formatUnlockAt(deck.unlockAt)}
+                    </p>
+                  ) : entitlementLocked ? (
+                    <p className="text-[10px] text-purple-600 mt-2 flex items-center gap-1">
+                      <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      <Link href="/courses" className="underline underline-offset-2 hover:text-purple-800">
+                        Purchase course to access
+                      </Link>
                     </p>
                   ) : (
                     <div className="flex items-center justify-between mt-3">
